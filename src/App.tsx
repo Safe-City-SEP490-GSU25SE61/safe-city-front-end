@@ -11,6 +11,10 @@ import PackageManagement from './pages/admin/PackageManagement';
 import DistrictManagement from './pages/admin/DistrictManagement';
 import AchievementManagement from './pages/admin/AchievementManagement';
 import AddOfficerWardPage from './pages/admin/AddOfficerWardPage';
+import ProtectedRoute from './components/ProtectedRoute';
+import { ROLES } from './utils/roleHelpers';
+
+const Unauthorized = () => <div style={{padding: 40, textAlign: 'center'}}><h1>Unauthorized</h1><p>You do not have access to this page.</p></div>;
 
 const App = () => {
   return (
@@ -25,11 +29,32 @@ const App = () => {
         <Route path="/otp" element={<OtpPage />} />
         <Route path="/reset-password" element={<ResetPassword />} />
         {/* admin */}
-        <Route path="/user-management" element={<UserManagement />} />
-        <Route path="/package-management" element={<PackageManagement />} />
-        <Route path="/district-management" element={<DistrictManagement />} />
-        <Route path="/add-police-to-ward" element={<AddOfficerWardPage />} />
-        <Route path="/achievement-management" element={<AchievementManagement />} />
+        <Route path="/user-management" element={
+          <ProtectedRoute allowedRoles={[ROLES.ADMIN]}>
+            <UserManagement />
+          </ProtectedRoute>
+        } />
+        <Route path="/package-management" element={
+          <ProtectedRoute allowedRoles={[ROLES.OFFICER]}>
+            <PackageManagement />
+          </ProtectedRoute>
+        } />
+        <Route path="/district-management" element={
+          <ProtectedRoute allowedRoles={[ROLES.ADMIN, ROLES.OFFICER]}>
+            <DistrictManagement />
+          </ProtectedRoute>
+        } />
+        <Route path="/add-police-to-ward" element={
+          <ProtectedRoute allowedRoles={[ROLES.ADMIN]}>
+            <AddOfficerWardPage />
+          </ProtectedRoute>
+        } />
+        <Route path="/achievement-management" element={
+          <ProtectedRoute allowedRoles={[ROLES.ADMIN]}>
+            <AchievementManagement />
+          </ProtectedRoute>
+        } />
+        <Route path="/unauthorized" element={<Unauthorized />} />
       </Routes>
     </Router>
   );

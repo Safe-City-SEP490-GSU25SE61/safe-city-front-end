@@ -1,17 +1,32 @@
 import React, { useState } from 'react';
 import logo from '../../../public/assets/logo.png';
 import { Link, useNavigate } from 'react-router-dom';
+import { login } from '../../services/api/auth';
+import jwt_decode from 'jwt-decode';
 
 const Login = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const navigate = useNavigate();
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    // Handle login logic here
-    if (email === 'admin@gmail.com' && password === '123456') {
-      navigate('/user-management');
-    } else {
+    try {
+      const response = await login({ email, password });
+      localStorage.setItem('token', response.token);
+
+      // Decode the token to get the role
+      const decoded: any = jwt_decode(response.token);
+      const role = decoded.role; // Adjust if your JWT uses a different key
+
+      // Redirect based on role
+      if (role === 'admin') {
+        navigate('/user-management');
+      } else if (role === 'officer') {
+        navigate('/package-management'); // or your officer page
+      } else {
+        alert('Role không hợp lệ');
+      }
+    } catch (error) {
       alert('Email hoặc mật khẩu không chính xác');
     }
   };
