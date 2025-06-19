@@ -2,7 +2,7 @@ import React from 'react';
 import { Navigate, useLocation } from 'react-router-dom';
 import { getUserRole, isAuthenticated } from '../utils/auth';
 import { type UserRole, hasRole } from '../utils/roleHelpers';
-import { type Permission, hasPermission } from '../utils/permissions';
+import { type Permission } from '../utils/permissions';
 
 interface ProtectedRouteProps {
   allowedRoles?: UserRole[];
@@ -10,9 +10,9 @@ interface ProtectedRouteProps {
   children: React.ReactNode;
 }
 
-const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ allowedRoles, allowedPermissions, children }) => {
+const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ allowedRoles, children }) => {
   const location = useLocation();
-
+  
   // Not authenticated
   if (!isAuthenticated()) {
     return <Navigate to="/login" state={{ from: location }} replace />;

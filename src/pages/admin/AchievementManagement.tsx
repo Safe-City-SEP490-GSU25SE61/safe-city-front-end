@@ -21,10 +21,25 @@ const AchievementManagement = () => {
   // Sample achievements data
   const [achievements] = useState([
     {
+      id: 'ACH000',
+      name: 'Newbie',
+      description: 'Chào mừng thành viên mới!',
+      category: 'newbie',
+      points: 0,
+      requirements: ['Đăng ký tài khoản'],
+      benefits: [
+        'Truy cập các tính năng cơ bản',
+        'Nhận badge Newbie'
+      ],
+      status: 'active',
+      earnedBy: 500,
+      createdDate: '2025-01-01'
+    },
+    {
       id: 'ACH001',
       name: 'Thành viên đồng',
       description: 'Đạt được khi tích lũy 500 điểm',
-      category: 'milestone',
+      category: 'bronze',
       points: 500,
       requirements: ['Tích lũy 500 điểm'],
       benefits: [
@@ -40,7 +55,7 @@ const AchievementManagement = () => {
       id: 'ACH002',
       name: 'Thành viên bạc',
       description: 'Đạt được khi tích lũy 1000 điểm',
-      category: 'milestone',
+      category: 'silver',
       points: 1000,
       requirements: ['Tích lũy 1000 điểm'],
       benefits: [
@@ -57,7 +72,7 @@ const AchievementManagement = () => {
       id: 'ACH003',
       name: 'Thành viên vàng',
       description: 'Đạt được khi tích lũy 2000 điểm',
-      category: 'milestone',
+      category: 'gold',
       points: 2000,
       requirements: ['Tích lũy 2000 điểm'],
       benefits: [
@@ -70,12 +85,49 @@ const AchievementManagement = () => {
       status: 'active',
       earnedBy: 15,
       createdDate: '2025-01-05'
+    },
+    {
+      id: 'ACH004',
+      name: 'Thành viên bạch kim',
+      description: 'Đạt được khi tích lũy 5000 điểm',
+      category: 'platinum',
+      points: 5000,
+      requirements: ['Tích lũy 5000 điểm'],
+      benefits: [
+        'Đặc quyền bạch kim',
+        'Nhận badge thành viên bạch kim',
+        'Tham gia nhóm đặc biệt'
+      ],
+      status: 'active',
+      earnedBy: 5,
+      createdDate: '2025-02-01'
+    },
+    {
+      id: 'ACH005',
+      name: 'Hero of the Street',
+      description: 'Đóng góp xuất sắc cho cộng đồng',
+      category: 'hero',
+      points: 10000,
+      requirements: ['Được cộng đồng bình chọn'],
+      benefits: [
+        'Danh hiệu cao quý nhất',
+        'Nhận badge Hero of the Street',
+        'Vinh danh trên bảng vàng'
+      ],
+      status: 'active',
+      earnedBy: 1,
+      createdDate: '2025-03-01'
     }
   ]);
 
   const categories = [
     { value: 'all', label: 'Tất cả' },
-    { value: 'milestone', label: 'Mốc điểm' }
+    { value: 'newbie', label: 'Newbie' },
+    { value: 'bronze', label: 'Đồng' },
+    { value: 'silver', label: 'Bạc' },
+    { value: 'gold', label: 'Vàng' },
+    { value: 'platinum', label: 'Bạch kim' },
+    { value: 'hero', label: 'Hero of the Street' }
   ];
 
   // Filter achievements based on search and category
@@ -91,7 +143,12 @@ const AchievementManagement = () => {
 
   const getCategoryColor = (category: string) => {
     const colors = {
-      milestone: 'bg-blue-100 text-blue-800'
+      newbie: 'bg-gray-100 text-gray-800',
+      bronze: 'bg-yellow-300 text-yellow-800',
+      silver: 'bg-gray-200 text-gray-800',
+      gold: 'bg-yellow-200 text-yellow-800',
+      platinum: 'bg-gray-200 text-blue-800',
+      hero: 'bg-purple-400 text-purple-800'
     };
     return colors[category as keyof typeof colors] || 'bg-gray-100 text-gray-800';
   };
@@ -123,6 +180,26 @@ const AchievementManagement = () => {
     // Here you would handle saving the achievement (API or state update)
     setIsModalOpen(false);
     setModalForm({ name: '', description: '', min_point: '', benefit: '' });
+  };
+
+  // Update getCardBackground to use lighter, pastel colors for header backgrounds
+  const getCardBackground = (category: string) => {
+    switch (category) {
+      case 'newbie':
+        return 'bg-gray-100 text-gray-900';
+      case 'bronze':
+        return 'bg-amber-100 text-gray-900';
+      case 'silver':
+        return 'bg-gray-100 text-gray-900';
+      case 'gold':
+        return 'bg-yellow-100 text-gray-900';
+      case 'platinum':
+        return 'bg-blue-100 text-gray-900';
+      case 'hero':
+        return 'bg-purple-100 text-gray-900';
+      default:
+        return 'bg-white text-gray-900';
+    }
   };
 
   return (
@@ -238,23 +315,22 @@ const AchievementManagement = () => {
             {/* Achievements Grid */}
             <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
               {filteredAchievements.map((achievement) => (
-                <div key={achievement.id} className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-lg border border-white/20 overflow-hidden hover:shadow-xl transition-all duration-200 transform hover:-translate-y-1">
+                <div key={achievement.id} className={"overflow-hidden rounded-2xl shadow-lg border border-white/20 hover:shadow-xl transition-all duration-200 transform hover:-translate-y-1"}>
                   {/* Achievement Header */}
-                  <div className="bg-blue-600 p-6 text-white">
+                  <div className={`${getCardBackground(achievement.category)} p-6`}>
                     <div className="flex items-start justify-between mb-4">
                       <div>
                         <h3 className="text-xl font-bold mb-2">{achievement.name}</h3>
-                        <p className="text-blue-100 text-sm">{achievement.description}</p>
+                        <p className="text-gray-900 text-sm">{achievement.description}</p>
                       </div>
                       <span className={`px-3 py-1 rounded-full text-xs font-medium ${getCategoryColor(achievement.category)}`}>
                         {categories.find(c => c.value === achievement.category)?.label}
                       </span>
                     </div>
-                    
-                    <div className="flex items-center justify-between">
+                    <div className="flex items-center justify-between"> 
                       <div>
                         <span className="text-2xl font-bold">{achievement.points}</span>
-                        <span className="text-blue-100 text-sm"> điểm</span>
+                        <span className="text-gray-900 text-sm"> điểm</span>
                       </div>
                       <div className="text-right">
                         <p className="text-blue-100 text-xs">Người đạt được</p>

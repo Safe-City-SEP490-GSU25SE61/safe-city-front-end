@@ -1,10 +1,26 @@
 import React, { useState } from 'react';
 import { Bell, ChevronDown, User, Settings, LogOut } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import { logout } from '../../services/api/auth';
+import { clearTokens } from '../../utils/auth';
 
 const Header = () => {
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const navigate = useNavigate();
+
+  const handleLogout = async () => {
+    try {
+      const refreshToken = localStorage.getItem('refreshToken');
+      if (refreshToken) {
+        await logout({ refreshToken });
+      }
+    } catch (error) {
+      console.error('Logout failed:', error);
+    } finally {
+      clearTokens();
+      navigate('/login');
+    }
+  };
 
   return (
     <header className="px-6 py-4">
@@ -62,7 +78,7 @@ const Header = () => {
               
               <button
                 className="w-full flex items-center px-4 py-2 text-sm text-red-600 hover:bg-red-50"
-                onClick={() => navigate('/login')}
+                onClick={handleLogout}
               >
                 <LogOut className="w-4 h-4 mr-3" />
                 Sign out

@@ -13,8 +13,7 @@ import AchievementManagement from './pages/admin/AchievementManagement';
 import AddOfficerWardPage from './pages/admin/AddOfficerWardPage';
 import ProtectedRoute from './components/ProtectedRoute';
 import { ROLES } from './utils/roleHelpers';
-
-const Unauthorized = () => <div style={{padding: 40, textAlign: 'center'}}><h1>Unauthorized</h1><p>You do not have access to this page.</p></div>;
+import Unauthorized from './components/common/Unauthorized';
 
 const App = () => {
   return (
