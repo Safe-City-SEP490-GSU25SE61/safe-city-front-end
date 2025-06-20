@@ -14,6 +14,7 @@ import AddOfficerWardPage from './pages/admin/AddOfficerWardPage';
 import ProtectedRoute from './components/ProtectedRoute';
 import { ROLES } from './utils/roleHelpers';
 import Unauthorized from './components/common/Unauthorized';
+import NotificationPage from './pages/common/Notification';
 
 const App = () => {
   return (
@@ -27,6 +28,7 @@ const App = () => {
         <Route path="/register" element={<Register />} />
         <Route path="/otp" element={<OtpPage />} />
         <Route path="/reset-password" element={<ResetPassword />} />
+        <Route path="/notifications" element={<NotificationPage />} />
         {/* admin */}
         <Route path="/user-management" element={
           <ProtectedRoute allowedRoles={[ROLES.ADMIN]}>
