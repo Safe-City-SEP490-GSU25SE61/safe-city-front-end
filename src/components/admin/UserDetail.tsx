@@ -167,7 +167,7 @@ const UserDetailModal = ({ onClose }: { onClose: () => void }) => {
                   {userData.status === 'active' ? 'Hoạt động' : userData.status === 'suspended' ? 'Đã đình chỉ' : 'Chờ xử lý'}
                 </span>
               </div>
-              <p className="text-sm text-gray-500 mt-1">ID: {userData.id} • Công dân SafeCity</p>
+              <p className="text-sm text-gray-500 mt-1">ID: {userData.id}</p>
               {userAchievement && (
                 <div className="mt-2">
                   <span className={`inline-flex items-center space-x-1.5 px-3 py-1 rounded-full text-xs font-medium ${getAchievementBadgeColor(userAchievement.category)}`}>

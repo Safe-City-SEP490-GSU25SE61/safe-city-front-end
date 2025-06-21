@@ -4,7 +4,7 @@ import Header from '../../components/common/Header';
 import FilterBar from '../../components/common/FilterBar';
 import { Eye } from 'lucide-react';
 import { PaginationComponent } from '../../components/common/Pagination';
-import UserDetailModal from './UserDetail';
+import UserDetail from '../../components/admin/UserDetail';
 
 // Define a type for the user object for better type safety
 interface User {
@@ -335,7 +335,7 @@ const UserManagement: React.FC = () => {
             )}
           </div>
           {selectedUser && (
-            <UserDetailModal onClose={() => setSelectedUser(null)} />
+            <UserDetail onClose={() => setSelectedUser(null)} />
           )}
         </main>
       </div>

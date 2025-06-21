@@ -36,7 +36,7 @@ const App = () => {
           </ProtectedRoute>
         } />
         <Route path="/package-management" element={
-          <ProtectedRoute allowedRoles={[ROLES.OFFICER]}>
+          <ProtectedRoute allowedRoles={[ROLES.OFFICER, ROLES.ADMIN]}>
             <PackageManagement />
           </ProtectedRoute>
         } />
