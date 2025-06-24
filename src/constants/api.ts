@@ -22,5 +22,13 @@ export const API_ENDPOINTS = {
     ASSIGN_TO_OFFICER: `${API_BASE_URL}/wards/assign-to-officer`,
     SEARCH: `${API_BASE_URL}/wards/search`,
   },
+  PACKAGES: {
+    BASE: `${API_BASE_URL}/packages`,
+    BY_ID: (id: string) => `${API_BASE_URL}/packages/${id}`,
+  },
+  ACHIEVEMENT: {
+    CONFIG: `${API_BASE_URL}/achievement/config`,
+    CONFIG_BY_ID: (id: string) => `${API_BASE_URL}/achievement/config/${id}`,
+  },
   // Add other groups (e.g., USERS, REPORTS) here as needed
 };

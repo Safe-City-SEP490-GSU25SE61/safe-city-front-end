@@ -1,71 +1,357 @@
-import React, { useState } from 'react';
-import { Search, Filter, Plus, Edit2, Trash2, Eye, Package, Calendar, DollarSign, Users } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Search, Filter, Plus, Edit2, Trash2, Eye, Package, Calendar, DollarSign, Users, X } from 'lucide-react';
 import SideBar from '../../components/common/SideBar';
 import Header from '../../components/common/Header';
 import FilterBar from '../../components/common/FilterBar';
+import { getAllPackages, updatePackageById, createPackage, deletePackageById } from '../../services/api/package';
+import NotificationBar from '../../components/common/NotificationBar';
+
+const PackageDetailModal = ({ details, onClose, onSave }: { details: { data: any, mode: 'view' | 'edit' | 'add' }, onClose: () => void, onSave: (data: any) => Promise<void> }) => {
+  const [isEditing, setIsEditing] = useState(details.mode === 'edit' || details.mode === 'add');
+  const [formData, setFormData] = useState(details.data);
+
+  useEffect(() => {
+    setIsEditing(details.mode === 'edit' || details.mode === 'add');
+    setFormData(details.data);
+  }, [details]);
+
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
+    const { name, value, type } = e.target;
+    
+    if (type === 'checkbox') {
+        const { checked } = e.target as HTMLInputElement;
+        setFormData({ ...formData, [name]: checked });
+    } else {
+        setFormData({ ...formData, [name]: value });
+    }
+  };
+
+  const handleSave = () => {
+    onSave(formData);
+  };
+
+  const formatPrice = (price: number) => {
+    return new Intl.NumberFormat('vi-VN', {
+      style: 'currency',
+      currency: 'VND'
+    }).format(price);
+  };
+
+  const formatDuration = (days: number) => {
+    if (days >= 36500) {
+      return 'Vĩnh viễn';
+    }
+    return `${days} ngày`;
+  };
+
+  const formatDisplayDate = (date: string | Date | undefined) => {
+    if (!date) return 'N/A';
+    const dateObj = typeof date === 'string' ? new Date(date) : date;
+    if (isNaN(dateObj.getTime())) {
+      return date.toString();
+    }
+    return dateObj.toLocaleString('vi-VN');
+  };
+
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50 transition-opacity duration-300 p-4">
+      <div className="bg-white rounded-3xl shadow-2xl w-full max-w-4xl mx-4 max-h-[90vh] overflow-hidden">
+        {/* Header with solid blue background */}
+        <div className="bg-blue-600 p-8 text-white relative overflow-hidden">
+          <div className="absolute inset-0 bg-black opacity-10"></div>
+          <div className="relative z-10">
+            <div className="flex justify-between items-start mb-6">
+              <div className="flex items-center gap-4">
+                <div className="bg-white/20 backdrop-blur-sm rounded-2xl p-3">
+                  <Package className="w-8 h-8" />
+                </div>
+                <div>
+                  <h2 className="text-2xl font-bold mb-1">
+                    {details.mode === 'add'
+                      ? 'Thêm gói dịch vụ mới'
+                      : isEditing
+                        ? 'Chỉnh sửa gói dịch vụ'
+                        : 'Chi tiết gói dịch vụ'}
+                  </h2>
+                  <p className="text-blue-100 text-sm">
+                    {details.mode === 'add'
+                      ? 'Nhập thông tin để tạo gói dịch vụ mới'
+                      : isEditing
+                        ? 'Cập nhật thông tin gói dịch vụ'
+                        : 'Xem thông tin chi tiết gói dịch vụ'}
+                  </p>
+                </div>
+              </div>
+              <button 
+                onClick={onClose} 
+                className="p-3 rounded-full bg-white/20 backdrop-blur-sm hover:bg-white/30 transition-all duration-200"
+              >
+                <X className="w-6 h-6" />
+              </button>
+            </div>
+            
+            {/* Package Preview Card */}
+            <div className="bg-white/10 backdrop-blur-sm rounded-2xl p-6 border border-white/20">
+              <div className="flex items-center justify-between mb-4">
+                <div>
+                  <h3 className="text-xl font-bold mb-2">{formData.name}</h3>
+                  <p className="text-blue-100 text-sm line-clamp-2">{formData.description}</p>
+                </div>
+                <div className="text-right">
+                  <div className="text-3xl font-bold">{formatPrice(formData.price)}</div>
+                  <div className="text-blue-100 text-sm">/{formatDuration(formData.durationDays)}</div>
+                </div>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className={`px-4 py-2 rounded-full text-sm font-medium ${
+                  formData.isActive 
+                    ? 'bg-green-500/20 text-green-100 border border-green-300/30' 
+                    : 'bg-gray-500/20 text-gray-100 border border-gray-300/30'
+                }`}>
+                  {formData.isActive ? '🟢 Hoạt động' : '🔴 Tạm dừng'}
+                </span>
+                <div className="text-blue-100 text-sm">
+                  ID: #{formData.id}
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Content Area */}
+        <div className="p-8 space-y-6 bg-white">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+            {/* Left: Details */}
+            <div className="space-y-4">
+              {/* Name */}
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-1">Tên gói</label>
+                {isEditing ? (
+                  <input
+                    type="text"
+                    name="name"
+                    value={formData.name}
+                    onChange={handleChange}
+                    className="w-full border border-gray-300 rounded-lg p-3 focus:ring-2 focus:ring-blue-500 focus:outline-none transition"
+                  />
+                ) : (
+                  <div className="text-lg font-medium text-gray-900 bg-gray-50 p-3 rounded-lg">{formData.name}</div>
+                )}
+              </div>
+              {/* Description */}
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-1">Mô tả</label>
+                {isEditing ? (
+                  <textarea
+                    name="description"
+                    value={formData.description}
+                    onChange={handleChange}
+                    rows={3}
+                    className="w-full border border-gray-300 rounded-lg p-3 focus:ring-2 focus:ring-blue-500 focus:outline-none transition resize-none"
+                  />
+                ) : (
+                  <div className="text-gray-700 bg-gray-50 p-3 rounded-lg">{formData.description}</div>
+                )}
+              </div>
+              {/* Status */}
+             
+            </div>
+            {/* Right: Meta Info */}
+            <div className="space-y-4">
+              {/* Price */}
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-1">Giá (VND)</label>
+                {isEditing ? (
+                  <input
+                    type="number"
+                    name="price"
+                    value={formData.price}
+                    onChange={handleChange}
+                    className="w-full border border-gray-300 rounded-lg p-3 focus:ring-2 focus:ring-blue-500 focus:outline-none transition"
+                  />
+                ) : (
+                  <div className="text-lg font-medium text-gray-900 bg-gray-50 p-3 rounded-lg">{formatPrice(formData.price)}</div>
+                )}
+              </div>
+              {/* Duration */}
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-1">Thời hạn</label>
+                {isEditing ? (
+                  <input
+                    type="number"
+                    name="durationDays"
+                    value={formData.durationDays}
+                    onChange={handleChange}
+                    className="w-full border border-gray-300 rounded-lg p-3 focus:ring-2 focus:ring-blue-500 focus:outline-none transition"
+                  />
+                ) : (
+                  <div className="text-lg font-medium text-gray-900 bg-gray-50 p-3 rounded-lg">{formatDuration(formData.durationDays)}</div>
+                )}
+              </div>
+              {/* Created/Updated */}
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs text-gray-500 mb-1">Tạo lúc</label>
+                  <div className="text-sm text-gray-700 bg-gray-50 p-2 rounded">{formatDisplayDate(formData.createAt)}</div>
+                </div>
+                <div>
+                  <label className="block text-xs text-gray-500 mb-1">Cập nhật</label>
+                  <div className="text-sm text-gray-700 bg-gray-50 p-2 rounded">{formatDisplayDate(formData.lastUpdated)}</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+        {/* Footer */}
+        <div className="px-8 py-6 bg-gray-50 rounded-b-3xl flex justify-end gap-3 border-t">
+          {isEditing ? (
+            <>
+              <button
+                onClick={() => setIsEditing(false)}
+                className="px-6 py-2.5 bg-white border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-100 transition"
+              >
+                Hủy
+              </button>
+              <button
+                onClick={handleSave}
+                className="px-6 py-2.5 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 transition"
+              >
+                {details.mode === 'add' ? 'Tạo mới' : 'Lưu thay đổi'}
+              </button>
+            </>
+          ) : (
+            <button
+              onClick={() => setIsEditing(true)}
+              className="px-6 py-2.5 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 transition"
+            >
+              Chỉnh sửa
+            </button>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// Add this new confirmation modal component
+const ConfirmationModal = ({ 
+  isOpen, 
+  onClose, 
+  onConfirm, 
+  title, 
+  message, 
+  confirmText = "Xác nhận",
+  cancelText = "Hủy",
+  type = "danger"
+}: {
+  isOpen: boolean;
+  onClose: () => void;
+  onConfirm: () => void;
+  title: string;
+  message: string;
+  confirmText?: string;
+  cancelText?: string;
+  type?: "danger" | "warning" | "info";
+}) => {
+  if (!isOpen) return null;
+
+  const getTypeStyles = () => {
+    switch (type) {
+      case "danger":
+        return {
+          icon: "⚠️",
+          bgColor: "bg-red-600",
+          buttonColor: "bg-red-600 hover:bg-red-700"
+        };
+      case "warning":
+        return {
+          icon: "⚠️",
+          bgColor: "bg-yellow-600",
+          buttonColor: "bg-yellow-600 hover:bg-yellow-700"
+        };
+      default:
+        return {
+          icon: "ℹ️",
+          bgColor: "bg-blue-600",
+          buttonColor: "bg-blue-600 hover:bg-blue-700"
+        };
+    }
+  };
+
+  const styles = getTypeStyles();
+
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50 transition-opacity duration-300 p-4">
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md mx-4">
+        <div className={`${styles.bgColor} p-6 text-white rounded-t-2xl`}>
+          <div className="flex items-center gap-3">
+            <div className="text-2xl">{styles.icon}</div>
+            <h3 className="text-xl font-bold">{title}</h3>
+          </div>
+        </div>
+        
+        <div className="p-6">
+          <p className="text-gray-700 mb-6">{message}</p>
+          
+          <div className="flex gap-3 justify-end">
+            <button
+              onClick={onClose}
+              className="px-6 py-2.5 bg-gray-100 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-200 transition"
+            >
+              {cancelText}
+            </button>
+            <button
+              onClick={() => {
+                onConfirm();
+                onClose();
+              }}
+              className={`px-6 py-2.5 text-white rounded-lg text-sm font-medium transition ${styles.buttonColor}`}
+            >
+              {confirmText}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
 
 const PackageManagement = () => {
   const [searchTerm, setSearchTerm] = useState('');
-  const [selectedCategory, setSelectedCategory] = useState('all');
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [editingPackage, setEditingPackage] = useState(null);
+  const [selectedPackage, setSelectedPackage] = useState<{ data: any, mode: 'view' | 'edit' | 'add' } | null>(null);
+  const [packages, setPackages] = useState<any[]>([]);
+  const [notification, setNotification] = useState<{ message: string; type: "success" | "error" | "info"; show: boolean; }>({ message: "", type: "info", show: false });
+  const [confirmationModal, setConfirmationModal] = useState<{
+    isOpen: boolean;
+    packageId: string | null;
+  }>({
+    isOpen: false,
+    packageId: null
+  });
 
-  // Sample service packages data
-  const [packages] = useState([
-    {
-      id: 'PKG001',
-      name: 'Gói An Ninh Cơ Bản',
-      description: 'Gói dịch vụ an ninh cơ bản cho khu dân cư',
-      category: 'security',
-      price: 500000,
-      duration: '1 tháng',
-      features: ['Giám sát 24/7', 'Báo cáo hàng tuần', 'Hỗ trợ khẩn cấp'],
-      status: 'active',
-      subscribers: 45,
-      createdDate: '2025-01-15'
-    },
-    {
-      id: 'PKG003',
-      name: 'Gói Báo Cáo Sự Cố',
-      description: 'Dịch vụ báo cáo và xử lý sự cố trong khu vực',
-      category: 'reporting',
-      price: 300000,
-      duration: '1 tháng',
-      features: ['Báo cáo nhanh', 'Theo dõi tiến độ', 'Thông báo SMS'],
-      status: 'active',
-      subscribers: 67,
-      createdDate: '2025-01-20'
-    },
-    {
-      id: 'PKG004',
-      name: 'Gói Quản Lý Cộng Đồng',
-      description: 'Công cụ quản lý và kết nối cộng đồng',
-      category: 'community',
-      price: 800000,
-      duration: '1 tháng',
-      features: ['Diễn đàn cộng đồng', 'Lịch sự kiện', 'Thông báo chung'],
-      status: 'inactive',
-      subscribers: 12,
-      createdDate: '2025-01-05'
-    }
-  ]);
+  useEffect(() => {
+    const fetchPackages = async () => {
+      try {
+        const data = await getAllPackages();
+        if (Array.isArray(data)) {
+          setPackages(data);
+        }
+      } catch (error) {
+        console.error('Failed to fetch packages:', error);
+      }
+    };
 
-  const categories = [
-    { value: 'all', label: 'Tất cả' },
-    { value: 'security', label: 'An ninh' },
-    { value: 'reporting', label: 'Báo cáo' },
-    { value: 'community', label: 'Cộng đồng' }
-  ];
+    fetchPackages();
+  }, []);
 
   // Filter packages based on search and category
   const filteredPackages = packages.filter(pkg => {
-    const matchesSearch = pkg.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         pkg.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         pkg.id.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesSearch = (pkg.name || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         (pkg.description || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         (String(pkg.id) || '').toLowerCase().includes(searchTerm.toLowerCase());
     
-    const matchesCategory = selectedCategory === 'all' || pkg.category === selectedCategory;
-    
-    return matchesSearch && matchesCategory;
+    return matchesSearch;
   });
 
   const formatPrice = (price: number) => {
@@ -75,17 +361,26 @@ const PackageManagement = () => {
     }).format(price);
   };
 
-  const getCategoryColor = (category: string) => {
-    const colors = {
-      security: 'bg-red-100 text-red-800',
-      reporting: 'bg-blue-100 text-blue-800',
-      community: 'bg-green-100 text-green-800'
-    };
-    return colors[category as keyof typeof colors] || 'bg-gray-100 text-gray-800';
+  const formatDuration = (days: number) => {
+    if (days >= 36500) { // More than 100 years, consider it permanent
+      return 'Vĩnh viễn';
+    }
+    return `${days} ngày`;
   };
 
-  const getStatusColor = (status: string) => {
-    return status === 'active' 
+  const formatDisplayDate = (date: string | Date | undefined) => {
+    if (!date) return 'N/A';
+    // Check if it's already a Date object or a string that can be parsed
+    const dateObj = typeof date === 'string' ? new Date(date) : date;
+    // Check if the date is valid
+    if (isNaN(dateObj.getTime())) {
+      return date.toString(); // Fallback to original string if invalid
+    }
+    return dateObj.toLocaleString();
+  };
+
+  const getStatusColor = (isActive: boolean) => {
+    return isActive
       ? 'bg-green-100 text-green-800' 
       : 'bg-gray-100 text-gray-800';
   };
@@ -95,11 +390,113 @@ const PackageManagement = () => {
   };
 
   const handleFilterChange = (filters: Record<string, string>) => {
-    setSelectedCategory(filters.category || 'all');
+    //setSelectedCategory(filters.category || 'all');
+  };
+
+  const emptyPackage = {
+    name: '',
+    description: '',
+    price: 0,
+    durationDays: 30,
+    isActive: true,
+    createAt: new Date(),
+    lastUpdated: new Date(),
+    id: '', // id will be set by backend
+  };
+
+  const handleAddNewPackage = () => {
+    setSelectedPackage({ data: emptyPackage, mode: 'add' });
+  };
+
+  const handleSavePackage = async (updatedPackageData: any) => {
+    if (!selectedPackage) return;
+
+    try {
+      if (selectedPackage.mode === 'add') {
+        // Call your create API
+        const responseData = await createPackage({
+          name: updatedPackageData.name,
+          description: updatedPackageData.description,
+          price: Number(updatedPackageData.price),
+          durationDays: Number(updatedPackageData.durationDays),
+          isActive: updatedPackageData.isActive,
+        });
+        setPackages([...packages, responseData.data]);
+        setNotification({ message: "Tạo gói mới thành công!", type: "success", show: true });
+      } else {
+        const dataToUpdate = {
+          name: updatedPackageData.name,
+          description: updatedPackageData.description,
+          price: Number(updatedPackageData.price),
+          durationDays: Number(updatedPackageData.durationDays),
+          isActive: updatedPackageData.isActive,
+        };
+
+        const responseData = await updatePackageById(selectedPackage.data.id.toString(), dataToUpdate);
+
+        setPackages(packages.map(p => {
+          if (p.id === selectedPackage.data.id) {
+            return { ...updatedPackageData, lastUpdated: responseData.lastUpdated };
+          }
+          return p;
+        }));
+      }
+      setSelectedPackage(null);
+    } catch (error) {
+      console.error("Failed to update package:", error);
+      setNotification({ message: "Lỗi khi lưu gói.", type: "error", show: true });
+    }
+  };
+
+  const handleDeletePackage = async (packageId: string) => {
+    try {
+      // Call the existing delete API - backend will handle status change instead of actual deletion
+      await deletePackageById(packageId);
+
+      // Update the local state to reflect the status change
+      setPackages(packages.map(p => {
+        if (p.id === packageId) {
+          return { ...p, isActive: false };
+        }
+        return p;
+      }));
+
+      setNotification({ message: "Tạm dừng gói dịch vụ thành công!", type: "success", show: true });
+    } catch (error) {
+      console.error("Failed to deactivate package:", error);
+      setNotification({ message: "Lỗi khi tạm dừng gói dịch vụ.", type: "error", show: true });
+    }
+  };
+
+  const openDeleteConfirmation = (packageId: string) => {
+    setConfirmationModal({
+      isOpen: true,
+      packageId
+    });
+  };
+
+  const closeConfirmationModal = () => {
+    setConfirmationModal({
+      isOpen: false,
+      packageId: null
+    });
+  };
+
+  const confirmDelete = () => {
+    if (confirmationModal.packageId) {
+      handleDeletePackage(confirmationModal.packageId);
+    }
   };
 
   return (
     <div className="min-h-screen flex bg-gradient-to-br from-blue-50 via-white to-purple-50">
+      <NotificationBar
+        message={notification.message}
+        type={notification.type}
+        show={notification.show}
+        onClose={() => setNotification(n => ({ ...n, show: false }))}
+        duration={3000}
+      />
     {/* Sidebar */}
     <SideBar />
 
@@ -124,7 +521,7 @@ const PackageManagement = () => {
             </div>
             
             <button
-              onClick={() => setIsModalOpen(true)}
+              onClick={handleAddNewPackage}
               className="flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-xl hover:from-blue-700 hover:to-blue-800 transition-all duration-200 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5"
             >
               <Plus className="w-5 h-5" />
@@ -138,73 +535,16 @@ const PackageManagement = () => {
               searchPlaceholder="Tìm kiếm gói dịch vụ..."
               onSearch={handleSearch}
               onFilterChange={handleFilterChange}
-              filterOptions={{
-                category: categories
-              }}
+              filterOptions={{}}
             />
           </div>
         </div>
 
-        {/* Statistics Cards */}
-        {/* <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-          <div className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-lg border border-white/20 p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-gray-600 text-sm font-medium">Tổng gói dịch vụ</p>
-                <p className="text-2xl font-bold text-gray-900">{packages.length}</p>
-              </div>
-              <div className="w-12 h-12 bg-blue-100 rounded-xl flex items-center justify-center">
-                <Package className="w-6 h-6 text-blue-600" />
-              </div>
-            </div>
-          </div>
-
-          <div className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-lg border border-white/20 p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-gray-600 text-sm font-medium">Gói đang hoạt động</p>
-                <p className="text-2xl font-bold text-gray-900">
-                  {packages.filter(p => p.status === 'active').length}
-                </p>
-              </div>
-              <div className="w-12 h-12 bg-green-100 rounded-xl flex items-center justify-center">
-                <Calendar className="w-6 h-6 text-green-600" />
-              </div>
-            </div>
-          </div>
-
-          <div className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-lg border border-white/20 p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-gray-600 text-sm font-medium">Tổng người đăng ký</p>
-                <p className="text-2xl font-bold text-gray-900">
-                  {packages.reduce((sum, p) => sum + p.subscribers, 0)}
-                </p>
-              </div>
-              <div className="w-12 h-12 bg-purple-100 rounded-xl flex items-center justify-center">
-                <Users className="w-6 h-6 text-purple-600" />
-              </div>
-            </div>
-          </div>
-
-          <div className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-lg border border-white/20 p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-gray-600 text-sm font-medium">Doanh thu ước tính</p>
-                <p className="text-2xl font-bold text-gray-900">
-                  {formatPrice(packages.reduce((sum, p) => sum + (p.price * p.subscribers), 0))}
-                </p>
-              </div>
-              <div className="w-12 h-12 bg-yellow-100 rounded-xl flex items-center justify-center">
-                <DollarSign className="w-6 h-6 text-yellow-600" />
-              </div>
-            </div>
-          </div>
-        </div> */}
+        
 
         {/* Packages Grid */}
         <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
-          {filteredPackages.map((pkg) => (
+          {filteredPackages.map((pkg: any) => (
             <div key={pkg.id} className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-lg border border-white/20 overflow-hidden hover:shadow-xl transition-all duration-200 transform hover:-translate-y-1">
               {/* Package Header */}
               <div className="bg-blue-600 p-6 text-white">
@@ -213,57 +553,49 @@ const PackageManagement = () => {
                     <h3 className="text-xl font-bold mb-2">{pkg.name}</h3>
                     <p className="text-blue-100 text-sm">{pkg.description}</p>
                   </div>
-                  <span className={`px-3 py-1 rounded-full text-xs font-medium ${getCategoryColor(pkg.category)}`}>
-                    {categories.find(c => c.value === pkg.category)?.label}
-                  </span>
                 </div>
                 
                 <div className="flex items-center justify-between">
                   <div>
                     <span className="text-2xl font-bold">{formatPrice(pkg.price)}</span>
-                    <span className="text-blue-100 text-sm">/{pkg.duration}</span>
-                  </div>
-                  <div className="text-right">
-                    <p className="text-blue-100 text-xs">Người đăng ký</p>
-                    <p className="text-xl font-bold">{pkg.subscribers}</p>
+                    <span className="text-blue-100 text-sm">/{formatDuration(pkg.durationDays)}</span>
                   </div>
                 </div>
               </div>
 
               {/* Package Content */}
               <div className="p-6">
-                <div className="mb-4">
-                  <h4 className="font-semibold text-gray-900 mb-2">Tính năng:</h4>
-                  <ul className="space-y-1">
-                    {pkg.features.map((feature, index) => (
-                      <li key={index} className="text-sm text-gray-600 flex items-center gap-2">
-                        <div className="w-1.5 h-1.5 bg-blue-600 rounded-full"></div>
-                        {feature}
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-
-                <div className="flex items-center justify-between mb-4">
-                  <span className="text-sm text-gray-500">
-                    Tạo: {new Date(pkg.createdDate).toLocaleDateString('vi-VN')}
-                  </span>
-                  <span className={`px-3 py-1 rounded-full text-xs font-medium ${getStatusColor(pkg.status)}`}>
-                    {pkg.status === 'active' ? 'Hoạt động' : 'Tạm dừng'}
+                <div className="flex items-start justify-between mb-4">
+                  <div className="text-sm text-gray-500 space-y-1">
+                    <p>Tạo: {formatDisplayDate(pkg.createAt)}</p>
+                    <p>Cập nhật: {formatDisplayDate(pkg.lastUpdated)}</p>
+                  </div>
+                  <span className={`px-3 py-1 rounded-full text-xs font-medium ${getStatusColor(pkg.isActive)}`}>
+                    {pkg.isActive ? 'Hoạt động' : 'Tạm dừng'}
                   </span>
                 </div>
 
                 {/* Action Buttons */}
                 <div className="flex gap-2">
-                  <button className="flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-blue-50 text-blue-600 rounded-xl hover:bg-blue-100 transition-colors">
+                  <button 
+                    onClick={() => setSelectedPackage({ data: pkg, mode: 'view' })} 
+                    className="flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-blue-50 text-blue-600 rounded-xl hover:bg-blue-100 transition-colors"
+                  >
                     <Eye className="w-4 h-4" />
                     Xem
                   </button>
-                  <button className="flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-gray-50 text-gray-600 rounded-xl hover:bg-gray-100 transition-colors">
+                  <button 
+                    onClick={() => setSelectedPackage({ data: pkg, mode: 'edit' })} 
+                    className="flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-gray-50 text-gray-600 rounded-xl hover:bg-gray-100 transition-colors"
+                  >
                     <Edit2 className="w-4 h-4" />
                     Sửa
                   </button>
-                  <button className="flex items-center justify-center px-4 py-2 bg-red-50 text-red-600 rounded-xl hover:bg-red-100 transition-colors">
+                  <button 
+                    onClick={() => openDeleteConfirmation(pkg.id)}
+                    className="flex items-center justify-center px-4 py-2 bg-red-50 text-red-600 rounded-xl hover:bg-red-100 transition-colors"
+                    title="Tạm dừng gói dịch vụ"
+                  >
                     <Trash2 className="w-4 h-4" />
                   </button>
                 </div>
@@ -283,6 +615,24 @@ const PackageManagement = () => {
       </div>
     </div>
     </div>
+    {selectedPackage && (
+      <PackageDetailModal
+        details={selectedPackage}
+        onClose={() => setSelectedPackage(null)}
+        onSave={handleSavePackage}
+      />
+    )}
+    {/* Add the confirmation modal */}
+    <ConfirmationModal
+      isOpen={confirmationModal.isOpen}
+      onClose={closeConfirmationModal}
+      onConfirm={confirmDelete}
+      title="Tạm dừng gói dịch vụ"
+      message="Bạn có chắc chắn muốn tạm dừng gói dịch vụ này? Gói dịch vụ sẽ không còn hoạt động sau khi tạm dừng."
+      confirmText="Tạm dừng"
+      cancelText="Hủy"
+      type="danger"
+    />
   </div>
 );
 };
