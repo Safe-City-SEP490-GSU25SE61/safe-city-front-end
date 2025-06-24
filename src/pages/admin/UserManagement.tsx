@@ -3,6 +3,19 @@ import Sidebar from '../../components/common/SideBar';
 import Header from '../../components/common/Header';
 import FilterBar from '../../components/common/FilterBar';
 import { Eye } from 'lucide-react';
+import { PaginationComponent } from '../../components/common/Pagination';
+import UserDetail from '../../components/admin/UserDetail';
+
+// Define a type for the user object for better type safety
+interface User {
+  id: string;
+  name: string;
+  createdDate: string;
+  phone: string;
+  role: string;
+  address: string;
+  status: 'active' | 'inactive';
+}
 
 const UserManagement: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');
@@ -12,15 +25,18 @@ const UserManagement: React.FC = () => {
     dateFrom: '',
     dateTo: ''
   });
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 10;
+  const [selectedUser, setSelectedUser] = useState<User | null>(null);
 
   // Sample data
-  const [users, setUsers] = useState([
+  const [users, setUsers] = useState<User[]>([
     {
       id: '#H001',
       name: 'Nguyen Van A',
       createdDate: '15/4/2025',
       phone: '0962710373',
-      role: 'citizen',
+      role: 'Người dân',
       address: '27 Đinh Tiên Hoàng Phường 1 Quận Bình Thạnh',
       status: 'active'
     },
@@ -29,7 +45,127 @@ const UserManagement: React.FC = () => {
       name: 'Tran Thi B',
       createdDate: '20/4/2025',
       phone: '0987654321',
-      role: 'admin',
+      role: 'Quản trị viên',
+      address: '123 Nguyen Hue Street District 1',
+      status: 'inactive'
+    },
+    {
+      id: '#H001',
+      name: 'Nguyen Van A',
+      createdDate: '15/4/2025',
+      phone: '0962710373',
+      role: 'Người dân',
+      address: '27 Đinh Tiên Hoàng Phường 1 Quận Bình Thạnh',
+      status: 'active'
+    },
+    {
+      id: '#H002',
+      name: 'Tran Thi B',
+      createdDate: '20/4/2025',
+      phone: '0987654321',
+      role: 'Quản trị viên',
+      address: '123 Nguyen Hue Street District 1',
+      status: 'inactive'
+    }, {
+      id: '#H001',
+      name: 'Nguyen Van A',
+      createdDate: '15/4/2025',
+      phone: '0962710373',
+      role: 'Người dân',
+      address: '27 Đinh Tiên Hoàng Phường 1 Quận Bình Thạnh',
+      status: 'active'
+    },
+    {
+      id: '#H002',
+      name: 'Tran Thi B',
+      createdDate: '20/4/2025',
+      phone: '0987654321',
+      role: 'Quản trị viên',
+      address: '123 Nguyen Hue Street District 1',
+      status: 'inactive'
+    }, {
+      id: '#H001',
+      name: 'Nguyen Van A',
+      createdDate: '15/4/2025',
+      phone: '0962710373',
+      role: 'Người dân',
+      address: '27 Đinh Tiên Hoàng Phường 1 Quận Bình Thạnh',
+      status: 'active'
+    },
+    {
+      id: '#H002',
+      name: 'Tran Thi B',
+      createdDate: '20/4/2025',
+      phone: '0987654321',
+      role: 'Quản trị viên',
+      address: '123 Nguyen Hue Street District 1',
+      status: 'inactive'
+    }, {
+      id: '#H001',
+      name: 'Nguyen Van A',
+      createdDate: '15/4/2025',
+      phone: '0962710373',
+      role: 'Người dân',
+      address: '27 Đinh Tiên Hoàng Phường 1 Quận Bình Thạnh',
+      status: 'active'
+    },
+    {
+      id: '#H002',
+      name: 'Tran Thi B',
+      createdDate: '20/4/2025',
+      phone: '0987654321',
+      role: 'Quản trị viên',
+      address: '123 Nguyen Hue Street District 1',
+      status: 'inactive'
+    }, {
+      id: '#H001',
+      name: 'Nguyen Van A',
+      createdDate: '15/4/2025',
+      phone: '0962710373',
+      role: 'Người dân',
+      address: '27 Đinh Tiên Hoàng Phường 1 Quận Bình Thạnh',
+      status: 'active'
+    },
+    {
+      id: '#H002',
+      name: 'Tran Thi B',
+      createdDate: '20/4/2025',
+      phone: '0987654321',
+      role: 'Quản trị viên',
+      address: '123 Nguyen Hue Street District 1',
+      status: 'inactive'
+    }, {
+      id: '#H001',
+      name: 'Nguyen Van A',
+      createdDate: '15/4/2025',
+      phone: '0962710373',
+      role: 'Người dân',
+      address: '27 Đinh Tiên Hoàng Phường 1 Quận Bình Thạnh',
+      status: 'active'
+    },
+    {
+      id: '#H002',
+      name: 'Tran Thi B',
+      createdDate: '20/4/2025',
+      phone: '0987654321',
+      role: 'Quản trị viên',
+      address: '123 Nguyen Hue Street District 1',
+      status: 'inactive'
+    }, {
+      id: '#H001',
+      name: 'Nguyen Van A',
+      createdDate: '15/4/2025',
+      phone: '0962710373',
+      role: 'Người dân',
+      address: '27 Đinh Tiên Hoàng Phường 1 Quận Bình Thạnh',
+      status: 'active'
+    },
+    {
+      id: '#H002',
+      name: 'Tran Thi B',
+      createdDate: '20/4/2025',
+      phone: '0987654321',
+      role: 'Quản trị viên',
       address: '123 Nguyen Hue Street District 1',
       status: 'inactive'
     },
@@ -38,7 +174,7 @@ const UserManagement: React.FC = () => {
       name: 'Le Van C',
       createdDate: '22/4/2025',
       phone: '0912345678',
-      role: 'citizen',
+      role: 'Người dân',
       address: '456 Le Loi Street District 3',
       status: 'active'
     }
@@ -53,18 +189,27 @@ const UserManagement: React.FC = () => {
     const matchesStatus = !filters.status || user.status === filters.status;
     const matchesRole = !filters.role || user.role === filters.role;
 
-    return matchesSearch && matchesStatus && matchesRole;
+    // Date filtering
+    let matchesDate = true;
+    if (filters.dateFrom) {
+      const from = new Date(filters.dateFrom.split('/').reverse().join('-'));
+      const userDate = new Date(user.createdDate.split('/').reverse().join('-'));
+      matchesDate = matchesDate && userDate >= from;
+    }
+    if (filters.dateTo) {
+      const to = new Date(filters.dateTo.split('/').reverse().join('-'));
+      const userDate = new Date(user.createdDate.split('/').reverse().join('-'));
+      matchesDate = matchesDate && userDate <= to;
+    }
+
+    return matchesSearch && matchesStatus && matchesRole && matchesDate;
   });
 
-  const toggleUserStatus = (id: string) => {
-    setUsers(prevUsers =>
-      prevUsers.map(user =>
-        user.id === id
-          ? { ...user, status: user.status === 'active' ? 'inactive' : 'active' }
-          : user
-      )
-    );
-  };
+  // Calculate paginated users
+  const paginatedUsers = filteredUsers.slice(
+    (currentPage - 1) * itemsPerPage,
+    currentPage * itemsPerPage
+  );
 
   const filterOptions = {
     status: [
@@ -72,8 +217,8 @@ const UserManagement: React.FC = () => {
       { label: 'Không hoạt động', value: 'inactive' }
     ],
     role: [
-      { label: 'Citizen', value: 'citizen' },
-      { label: 'Admin', value: 'admin' }
+      { label: 'Người dân', value: 'citizen' },
+      { label: 'Quản trị viên', value: 'admin' }
     ]
   };
 
@@ -93,7 +238,7 @@ const UserManagement: React.FC = () => {
               </p>
             </div>
             
-            {/* Replace the old search and filter with the new FilterBar component */}
+        
             <div className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-lg border border-white/20 p-6 mb-8">
             <FilterBar
               searchPlaceholder="Tìm kiếm thông tin báo cáo"
@@ -123,7 +268,7 @@ const UserManagement: React.FC = () => {
                   </tr>
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-200">
-                  {filteredUsers.map((user) => (
+                  {paginatedUsers.map((user) => (
                     <tr key={user.id} className="hover:bg-gray-50 transition-colors">
                       <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
                         {user.id}
@@ -144,20 +289,24 @@ const UserManagement: React.FC = () => {
                         {user.address}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
-                        <button
-                          className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium focus:outline-none ${
+                        <span
+                          className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
                             user.status === 'active'
                               ? 'bg-green-100 text-green-800'
-                              : 'bg-red-100 text-red-800'
+                              : 'bg-gray-100 text-gray-800'
                           }`}
-                          onClick={() => toggleUserStatus(user.id)}
                         >
-                          {user.status === 'active' ? 'Hoạt động' : 'Không hoạt động'}
-                        </button>
+                          {user.status === 'active'
+                            ? 'Hoạt động'
+                            : 'Không hoạt động'}
+                        </span>
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                        <div className="flex justify-center items-center">
-                          <button className="text-gray-400 hover:text-gray-600 transition-colors">
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <div className="flex gap-2">
+                          <button
+                            className="text-gray-400 hover:text-gray-600 transition-colors"
+                            onClick={() => setSelectedUser(user)}
+                          >
                             <Eye className="w-5 h-5" />
                           </button>
                         </div>
@@ -173,7 +322,21 @@ const UserManagement: React.FC = () => {
                 <p className="text-gray-500">Không tìm thấy dữ liệu phù hợp</p>
               </div>
             )}
+            {/* Pagination */}
+            {filteredUsers.length > 0 && (
+              <div className="flex justify-center">
+                <PaginationComponent
+                  totalItems={filteredUsers.length}
+                  itemsPerPage={itemsPerPage}
+                  currentPage={currentPage}
+                  onPageChange={setCurrentPage}
+                />
+              </div>
+            )}
           </div>
+          {selectedUser && (
+            <UserDetail onClose={() => setSelectedUser(null)} />
+          )}
         </main>
       </div>
     </div>
