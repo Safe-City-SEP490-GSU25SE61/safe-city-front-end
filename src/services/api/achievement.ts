@@ -1,22 +1,38 @@
 import axios from 'axios';
 import { API_ENDPOINTS } from '../../constants/api';
+const getAuthHeaders = () => {
+    const token = localStorage.getItem('accessToken');
+    return {
+      Authorization: `Bearer ${token}`,
+    };
+  };
 export const getAllAchievementConfigs = async () => {
-const response = await axios.get(API_ENDPOINTS.ACHIEVEMENT.CONFIG);
+const response = await axios.get(API_ENDPOINTS.ACHIEVEMENT.CONFIG, {
+    headers: getAuthHeaders(),
+});
 return response.data;
 };
 export const getAchievementConfigById = async (id: string) => {
-const response = await axios.get(API_ENDPOINTS.ACHIEVEMENT.CONFIG_BY_ID(id));
+const response = await axios.get(API_ENDPOINTS.ACHIEVEMENT.CONFIG_BY_ID(id), {
+    headers: getAuthHeaders(),
+});
 return response.data;
 };
 export const createAchievementConfig = async (data: any) => {
-const response = await axios.post(API_ENDPOINTS.ACHIEVEMENT.CONFIG, data);
+const response = await axios.post(API_ENDPOINTS.ACHIEVEMENT.CONFIG, data, {
+    headers: getAuthHeaders(),
+});
 return response.data;
 };
 export const updateAchievementConfig = async (id: string, data: any) => {
-const response = await axios.put(API_ENDPOINTS.ACHIEVEMENT.CONFIG_BY_ID(id), data);
+const response = await axios.put(API_ENDPOINTS.ACHIEVEMENT.CONFIG_BY_ID(id), data, {
+    headers: getAuthHeaders(),
+});
 return response.data;
 };
 export const deleteAchievementConfig = async (id: string) => {
-const response = await axios.delete(API_ENDPOINTS.ACHIEVEMENT.CONFIG_BY_ID(id));
+const response = await axios.delete(API_ENDPOINTS.ACHIEVEMENT.CONFIG_BY_ID(id), {
+    headers: getAuthHeaders(),
+});
 return response.data;
 };
