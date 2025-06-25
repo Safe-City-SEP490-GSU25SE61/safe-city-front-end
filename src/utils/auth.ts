@@ -1,4 +1,5 @@
 import { jwtDecode } from 'jwt-decode';
+import { refreshToken as apiRefreshToken } from '../services/api/auth';
 
 export function isAuthenticated() {
   const token = localStorage.getItem('accessToken');
@@ -30,4 +31,33 @@ export function hasRefreshToken() {
 export function clearTokens() {
   localStorage.removeItem('accessToken');
   localStorage.removeItem('refreshToken');
+}
+
+export function isTokenExpiringSoon(bufferSeconds = 120) {
+  const token = localStorage.getItem('accessToken');
+  if (!token) return true;
+  try {
+    const decoded = jwtDecode<{ exp?: number }>(token);
+    if (!decoded.exp) return true;
+    const now = Math.floor(Date.now() / 1000);
+    return decoded.exp - now < bufferSeconds;
+  } catch {
+    return true;
+  }
+}
+
+export async function tryRefreshToken() {
+  const refreshToken = localStorage.getItem('refreshToken');
+  if (!refreshToken) return false;
+  try {
+    const data = await apiRefreshToken({ refreshToken });
+    if (data.accessToken) {
+      localStorage.setItem('accessToken', data.accessToken);
+      return true;
+    }
+    return false;
+  } catch {
+    clearTokens();
+    return false;
+  }
 }

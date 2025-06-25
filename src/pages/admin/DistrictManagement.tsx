@@ -363,7 +363,12 @@ const DistrictManagement = () => {
             </div>
           </div>
         </td>
-        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-center">{district.totalIncidents}</td>
+        <td className="px-6 py-4 whitespace-nowrap text-center text-sm text-gray-900">
+          {district.wards?.length ?? 0}
+        </td>
+        <td className="px-6 py-4 whitespace-nowrap text-center text-sm text-gray-900">
+          {district.totalIncidents}
+        </td>
         <td className="px-6 py-4 whitespace-nowrap">
           <span className={`px-3 py-1.5 rounded-full text-sm font-semibold ${dangerLevelColor(district.avgDangerLevel)}`}>
             {district.avgDangerLevel}/10 - {district.dangerLevelLabel}
@@ -408,7 +413,12 @@ const DistrictManagement = () => {
             </div>
           </div>
         </td>
-        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-center">{ward.incidents}</td>
+        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+          {ward.districtName || 'Chưa xác định'}
+        </td>
+        <td className="px-6 py-4 whitespace-nowrap text-center text-sm text-gray-900">
+          {ward.incidents}
+        </td>
         <td className="px-6 py-4 whitespace-nowrap">
           <span className={`px-3 py-1.5 rounded-full text-sm font-semibold ${dangerLevelColor(ward.dangerLevel)}`}>
             {ward.dangerLevel}/10 - {ward.dangerLevelLabel}
@@ -758,98 +768,112 @@ const DistrictManagement = () => {
             </div>
 
             {/* Content */}
-            {viewMode === 'districts' ? (
-              <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
-                <div className="overflow-x-auto">
-                  <table className="min-w-full divide-y divide-gray-200">
-                    <thead className="bg-gray-50">
-                      <tr>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                          Khu vực
-                        </th>
-                        <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
-                          Số sự cố
-                        </th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                          Mức độ nguy hiểm
-                        </th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                          Trạng thái
-                        </th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                          Cập nhật cuối
-                        </th>
-                        <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
-                          Thao tác
-                        </th>
-                      </tr>
-                    </thead>
-                    <tbody className="bg-white divide-y divide-gray-200">
-                      {paginatedDistricts.map(district => (
-                        <DistrictRow key={district.id} district={district as unknown as EnrichedDistrict} /> 
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-                
-                {/* Pagination for Districts */}
-                {filteredDistricts.length > 0 && (
-                  <div className="flex justify-center">
-                    <PaginationComponent
-                      totalItems={filteredDistricts.length}
-                      itemsPerPage={itemsPerPage}
-                      currentPage={currentPage}
-                      onPageChange={setCurrentPage}
-                    />
-                  </div>
-                )}
+            {loading ? (
+              <div className="text-center py-12">
+                <MapPin className="w-16 h-16 text-gray-400 mx-auto mb-4" />
+                <h3 className="text-xl font-semibold text-gray-900 mb-2">Đang tải khu vực...</h3>
+                <p className="text-gray-600">Vui lòng chờ trong giây lát</p>
               </div>
             ) : (
-              <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
-                <div className="overflow-x-auto">
-                  <table className="min-w-full divide-y divide-gray-200">
-                    <thead className="bg-gray-50">
-                      <tr>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                          Khu vực
-                        </th>
-                        <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
-                          Số sự cố
-                        </th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                          Mức độ nguy hiểm
-                        </th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                          Trạng thái
-                        </th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                          Cập nhật cuối
-                        </th>
-                        <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
-                          Thao tác
-                        </th>
-                      </tr>
-                    </thead>
-                    <tbody className="bg-white divide-y divide-gray-200">
-                      {paginatedWards.map(ward => (
-                        <WardRow key={ward.id} ward={ward} />
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-                
-                {/* Pagination for Wards */}
-                {filteredWards.length > 0 && (
-                  <div className="flex justify-center">
-                    <PaginationComponent
-                      totalItems={filteredWards.length}
-                      itemsPerPage={itemsPerPage}
-                      currentPage={currentWardPage}
-                      onPageChange={setCurrentWardPage}
-                    />
+              viewMode === 'districts' ? (
+                <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+                  <div className="overflow-x-auto">
+                    <table className="min-w-full divide-y divide-gray-200">
+                      <thead className="bg-gray-50">
+                        <tr>
+                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Khu vực
+                          </th>
+                          <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Số phường
+                          </th>
+                          <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Số sự cố
+                          </th>
+                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Mức độ nguy hiểm
+                          </th>
+                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Trạng thái
+                          </th>
+                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Cập nhật cuối
+                          </th>
+                          <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Thao tác
+                          </th>
+                        </tr>
+                      </thead>
+                      <tbody className="bg-white divide-y divide-gray-200">
+                        {paginatedDistricts.map(district => (
+                          <DistrictRow key={district.id} district={district as unknown as EnrichedDistrict} /> 
+                        ))}
+                      </tbody>
+                    </table>
                   </div>
-                )}
-              </div>
+                  
+                  {/* Pagination for Districts */}
+                  {filteredDistricts.length > 0 && (
+                    <div className="flex justify-center">
+                      <PaginationComponent
+                        totalItems={filteredDistricts.length}
+                        itemsPerPage={itemsPerPage}
+                        currentPage={currentPage}
+                        onPageChange={setCurrentPage}
+                      />
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+                  <div className="overflow-x-auto">
+                    <table className="min-w-full divide-y divide-gray-200">
+                      <thead className="bg-gray-50">
+                        <tr>
+                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Khu vực
+                          </th>
+                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Quận
+                          </th>
+                          <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Số sự cố
+                          </th>
+                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Mức độ nguy hiểm
+                          </th>
+                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Trạng thái
+                          </th>
+                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Cập nhật cuối
+                          </th>
+                          <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Thao tác
+                          </th>
+                        </tr>
+                      </thead>
+                      <tbody className="bg-white divide-y divide-gray-200">
+                        {paginatedWards.map(ward => (
+                          <WardRow key={ward.id} ward={ward} />
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                  
+                  {/* Pagination for Wards */}
+                  {filteredWards.length > 0 && (
+                    <div className="flex justify-center">
+                      <PaginationComponent
+                        totalItems={filteredWards.length}
+                        itemsPerPage={itemsPerPage}
+                        currentPage={currentWardPage}
+                        onPageChange={setCurrentWardPage}
+                      />
+                    </div>
+                  )}
+                </div>
+              )
             )}
           </div>
         </div>

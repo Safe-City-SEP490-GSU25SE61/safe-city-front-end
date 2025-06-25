@@ -20,28 +20,29 @@ import {
   UserRoundPlus
 } from 'lucide-react';
 import logo from '../../../public/assets/logo.png';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 
 const Sidebar = () => {
-  const [isSettingsOpen, setIsSettingsOpen] = useState(true);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const navigate = useNavigate();
+  const location = useLocation();
+
+  const userRole = "admin"; // Replace with your actual user role logic
 
   const menuItems = [
-    { icon: BarChart3, text: 'Bảng thống kê', to: '/dashboard', active: false },
-
-    // admin
-    { icon: User, text: 'Quản lý tài khoản', to: '/user-management', active: false }, 
-    { icon: Box, text: 'Quản lý gói đăng ký', to: '/package-management', active: false },
-    { icon: MapPinned, text: 'Quản lý quận huyện', to: '/district-management', active: false },
-    { icon: UserRoundPlus, text: 'Thêm công an vào phường', to: '/add-police-to-ward', active: false },
-    { icon: Medal, text: 'Quản lý danh hiệu', to: '/achievement-management', active: false },
-    //officer
-    
-    // { icon: FileText, text: 'Đơn tố cáo', to: '/complaints', active: false },
-
-    
+    // Only admin can see these
+    { icon: User, text: 'Quản lý tài khoản', to: '/user-management', roles: ['admin'] },
+    { icon: Box, text: 'Quản lý gói đăng ký', to: '/package-management', roles: ['admin'] },
+    { icon: MapPinned, text: 'Quản lý quận huyện', to: '/district-management', roles: ['admin'] },
+    { icon: UserRoundPlus, text: 'Thêm công an vào phường', to: '/add-police-to-ward', roles: ['admin'] },
+    { icon: Medal, text: 'Quản lý danh hiệu', to: '/achievement-management', roles: ['admin'] },
+    // Common for all
+    { icon: BarChart3, text: 'Bảng thống kê', to: '/dashboard', roles: ['admin', 'officer', 'user'] },
+    // ... add more items as needed
   ];
+
+  // Filter items by role
+  const filteredMenuItems = menuItems.filter(item => item.roles.includes(userRole));
 
   const settingsItems = [
     { icon: Pencil, text: 'Tạo Blog', active: false },
@@ -61,7 +62,7 @@ const Sidebar = () => {
       {/* Sidebar */}
       <div
         className={`
-          bg-white shadow-lg flex flex-col
+          bg-gradient-to-b from-blue-50 via-white to-white shadow-lg flex flex-col
           w-64 
           fixed top-0 left-0 z-40 transition-transform duration-300
           ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}
@@ -88,58 +89,52 @@ const Sidebar = () => {
         {/* Menu Items */}
         <div className="flex-1 py-4">
           <nav className="space-y-1 px-3">
-            {menuItems.map((item, index) => (
-              <button
-                key={index}
-                className={`w-full flex items-center space-x-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${
-                  item.active
-                    ? 'bg-blue-50 text-blue-700'
-                    : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
-                }`}
-                onClick={() => navigate(item.to)}
-              >
-                <item.icon className="w-5 h-5" />
-                <span>{item.text}</span>
-              </button>
-            ))}
+            <div className="text-xs text-gray-400 uppercase mt-2 mb-1">Quản trị</div>
+            {/* Admin items */}
+            {filteredMenuItems
+              .filter(item => item.roles.includes('admin'))
+              .map((item, index) => {
+                const isActive = location.pathname === item.to;
+                return (
+                  <button
+                    key={index}
+                    className={`w-full flex items-center space-x-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${
+                      isActive
+                        ? 'bg-blue-50 text-blue-700'
+                        : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
+                    }`}
+                    onClick={() => navigate(item.to)}
+                  >
+                    <item.icon className="w-5 h-5" />
+                    <span>{item.text}</span>
+                  </button>
+                );
+              })}
+            
+            {/* Common items */}
+            {filteredMenuItems
+              .filter(item => !item.roles.includes('admin'))
+              .map((item, index) => {
+                const isActive = location.pathname === item.to;
+                return (
+                  <button
+                    key={index}
+                    className={`w-full flex items-center space-x-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${
+                      isActive
+                        ? 'bg-blue-50 text-blue-700'
+                        : 'text-gray-600 hover:bg-blue-100 hover:text-blue-900'
+                    }`}
+                    onClick={() => navigate(item.to)}
+                  >
+                    <item.icon className="w-5 h-5" />
+                    <span>{item.text}</span>
+                  </button>
+                );
+              })}
           </nav>
 
           {/* Settings Section */}
-          <div className="mt-4 px-3">
-            <button
-              onClick={() => setIsSettingsOpen(!isSettingsOpen)}
-              className="w-full flex items-center justify-between space-x-3 px-3 py-2.5 rounded-lg text-sm font-medium text-gray-600 hover:bg-gray-50 hover:text-gray-900 transition-colors"
-            >
-              <div className="flex items-center space-x-3">
-                <ClipboardPen className="w-5 h-5" />
-                <span>Blog</span>
-              </div>
-              {isSettingsOpen ? (
-                <ChevronUp className="w-4 h-4" />
-              ) : (
-                <ChevronDown className="w-4 h-4" />
-              )}
-            </button>
-
-            {/* Settings Submenu */}
-            {isSettingsOpen && (
-              <div className="ml-6 mt-1 space-y-1">
-                {settingsItems.map((item, index) => (
-                  <button
-                    key={index}
-                    className={`w-full flex items-center space-x-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
-                      item.active
-                        ? 'bg-blue-50 text-blue-700'
-                        : 'text-gray-500 hover:bg-gray-50 hover:text-gray-700'
-                    }`}
-                  >
-                    <item.icon className="w-4 h-4" />
-                    <span>{item.text}</span>
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>
+          <div className="border-t border-gray-100 mt-4"></div>
         </div>
       </div>
 

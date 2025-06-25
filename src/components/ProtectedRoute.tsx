@@ -1,6 +1,6 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { Navigate, useLocation } from 'react-router-dom';
-import { getUserRole, isAuthenticated } from '../utils/auth';
+import { getUserRole, isAuthenticated, isTokenExpiringSoon, tryRefreshToken } from '../utils/auth';
 import { type UserRole, hasRole } from '../utils/roleHelpers';
 import { type Permission } from '../utils/permissions';
 
@@ -30,6 +30,15 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ allowedRoles, children 
 
   // Permission check (optional, requires user object)
   // You may want to extend getUserRole or add a getUser utility to get permissions if needed
+
+  useEffect(() => {
+    const checkAndRefresh = async () => {
+      if (isTokenExpiringSoon()) {
+        await tryRefreshToken();
+      }
+    };
+    checkAndRefresh();
+  }, []);
 
   return <>{children}</>;
 };

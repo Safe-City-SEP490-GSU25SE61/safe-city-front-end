@@ -55,10 +55,10 @@ const PackageDetailModal = ({ details, onClose, onSave }: { details: { data: any
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50 transition-opacity duration-300 p-4">
-      <div className="bg-white rounded-3xl shadow-2xl w-full max-w-4xl mx-4 max-h-[90vh] overflow-hidden">
+      <div className="bg-white rounded-3xl shadow-2xl w-full max-w-4xl mx-4 max-h-[90vh] flex flex-col">
         {/* Header with solid blue background */}
         <div className="bg-blue-600 p-8 text-white relative overflow-hidden">
-          <div className="absolute inset-0 bg-black opacity-10"></div>
+          <div className="absolute inset-0 bg-black opacity-10 pb-10"></div>
           <div className="relative z-10">
             <div className="flex justify-between items-start mb-6">
               <div className="flex items-center gap-4">
@@ -119,7 +119,7 @@ const PackageDetailModal = ({ details, onClose, onSave }: { details: { data: any
         </div>
 
         {/* Content Area */}
-        <div className="p-8 space-y-6 bg-white">
+        <div className="flex-1 overflow-y-auto p-8 pt-4 space-y-6 bg-white">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
             {/* Left: Details */}
             <div className="space-y-4">
@@ -199,6 +199,42 @@ const PackageDetailModal = ({ details, onClose, onSave }: { details: { data: any
                   <div className="text-sm text-gray-700 bg-gray-50 p-2 rounded">{formatDisplayDate(formData.lastUpdated)}</div>
                 </div>
               </div>
+            </div>
+          </div>
+
+          {/* Divider */}
+          <hr className="my-8 border-t border-gray-200" />
+
+          {/* Price History Section */}
+          <div className="mt-4">
+            <h4 className="text-lg font-semibold mb-2">Lịch sử thay đổi giá</h4>
+            <div className="overflow-x-auto max-h-60 overflow-y-auto rounded-lg border border-gray-200 bg-white">
+              <table className="min-w-full">
+                <thead>
+                  <tr className="bg-gray-100 sticky top-0 z-10">
+                    <th className="px-4 py-2 text-left">Giá (VND)</th>
+                    <th className="px-4 py-2 text-left">Ngày bắt đầu</th>
+                    <th className="px-4 py-2 text-left">Ngày kết thúc</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {(formData.priceHistory || []).length === 0 ? (
+                    <tr>
+                      <td colSpan={3} className="px-4 py-2 text-center text-gray-500">Chưa có lịch sử giá</td>
+                    </tr>
+                  ) : (
+                    formData.priceHistory.map((entry: any, idx: number) => (
+                      <tr key={idx} className="border-t">
+                        <td className="px-4 py-2">{formatPrice(entry.price)}</td>
+                        <td className="px-4 py-2">{formatDisplayDate(entry.startDate)}</td>
+                        <td className="px-4 py-2">
+                          {entry.endDate ? formatDisplayDate(entry.endDate) : <span className="text-green-600 font-medium">Hiện tại</span>}
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
             </div>
           </div>
         </div>
@@ -329,16 +365,20 @@ const PackageManagement = () => {
     isOpen: false,
     packageId: null
   });
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const fetchPackages = async () => {
       try {
+        setLoading(true);
         const data = await getAllPackages();
         if (Array.isArray(data)) {
           setPackages(data);
         }
       } catch (error) {
         console.error('Failed to fetch packages:', error);
+      } finally {
+        setLoading(false);
       }
     };
 
@@ -543,74 +583,84 @@ const PackageManagement = () => {
         
 
         {/* Packages Grid */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
-          {filteredPackages.map((pkg: any) => (
-            <div key={pkg.id} className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-lg border border-white/20 overflow-hidden hover:shadow-xl transition-all duration-200 transform hover:-translate-y-1">
-              {/* Package Header */}
-              <div className="bg-blue-600 p-6 text-white">
-                <div className="flex items-start justify-between mb-4">
-                  <div>
-                    <h3 className="text-xl font-bold mb-2">{pkg.name}</h3>
-                    <p className="text-blue-100 text-sm">{pkg.description}</p>
-                  </div>
-                </div>
-                
-                <div className="flex items-center justify-between">
-                  <div>
-                    <span className="text-2xl font-bold">{formatPrice(pkg.price)}</span>
-                    <span className="text-blue-100 text-sm">/{formatDuration(pkg.durationDays)}</span>
-                  </div>
-                </div>
-              </div>
-
-              {/* Package Content */}
-              <div className="p-6">
-                <div className="flex items-start justify-between mb-4">
-                  <div className="text-sm text-gray-500 space-y-1">
-                    <p>Tạo: {formatDisplayDate(pkg.createAt)}</p>
-                    <p>Cập nhật: {formatDisplayDate(pkg.lastUpdated)}</p>
-                  </div>
-                  <span className={`px-3 py-1 rounded-full text-xs font-medium ${getStatusColor(pkg.isActive)}`}>
-                    {pkg.isActive ? 'Hoạt động' : 'Tạm dừng'}
-                  </span>
-                </div>
-
-                {/* Action Buttons */}
-                <div className="flex gap-2">
-                  <button 
-                    onClick={() => setSelectedPackage({ data: pkg, mode: 'view' })} 
-                    className="flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-blue-50 text-blue-600 rounded-xl hover:bg-blue-100 transition-colors"
-                  >
-                    <Eye className="w-4 h-4" />
-                    Xem
-                  </button>
-                  <button 
-                    onClick={() => setSelectedPackage({ data: pkg, mode: 'edit' })} 
-                    className="flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-gray-50 text-gray-600 rounded-xl hover:bg-gray-100 transition-colors"
-                  >
-                    <Edit2 className="w-4 h-4" />
-                    Sửa
-                  </button>
-                  <button 
-                    onClick={() => openDeleteConfirmation(pkg.id)}
-                    className="flex items-center justify-center px-4 py-2 bg-red-50 text-red-600 rounded-xl hover:bg-red-100 transition-colors"
-                    title="Tạm dừng gói dịch vụ"
-                  >
-                    <Trash2 className="w-4 h-4" />
-                  </button>
-                </div>
-              </div>
-            </div>
-          ))}
-        </div>
-
-        {/* Empty State */}
-        {filteredPackages.length === 0 && (
+        {loading ? (
           <div className="text-center py-12">
             <Package className="w-16 h-16 text-gray-400 mx-auto mb-4" />
-            <h3 className="text-xl font-semibold text-gray-900 mb-2">Không tìm thấy gói dịch vụ</h3>
-            <p className="text-gray-600">Thử thay đổi từ khóa tìm kiếm hoặc bộ lọc</p>
+            <h3 className="text-xl font-semibold text-gray-900 mb-2">Đang tải gói dịch vụ...</h3>
+            <p className="text-gray-600">Vui lòng chờ trong giây lát</p>
           </div>
+        ) : (
+          <>
+            <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
+              {filteredPackages.map((pkg: any) => (
+                <div key={pkg.id} className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-lg border border-white/20 overflow-hidden hover:shadow-xl transition-all duration-200 transform hover:-translate-y-1">
+                  {/* Package Header */}
+                  <div className="bg-blue-600 p-6 text-white">
+                    <div className="flex items-start justify-between mb-4">
+                      <div>
+                        <h3 className="text-xl font-bold mb-2">{pkg.name}</h3>
+                        <p className="text-blue-100 text-sm">{pkg.description}</p>
+                      </div>
+                    </div>
+                    
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <span className="text-2xl font-bold">{formatPrice(pkg.price)}</span>
+                        <span className="text-blue-100 text-sm">/{formatDuration(pkg.durationDays)}</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Package Content */}
+                  <div className="p-6">
+                    <div className="flex items-start justify-between mb-4">
+                      <div className="text-sm text-gray-500 space-y-1">
+                        <p>Tạo: {formatDisplayDate(pkg.createAt)}</p>
+                        <p>Cập nhật: {formatDisplayDate(pkg.lastUpdated)}</p>
+                      </div>
+                      <span className={`px-3 py-1 rounded-full text-xs font-medium ${getStatusColor(pkg.isActive)}`}>
+                        {pkg.isActive ? 'Hoạt động' : 'Tạm dừng'}
+                      </span>
+                    </div>
+
+                    {/* Action Buttons */}
+                    <div className="flex gap-2">
+                      <button 
+                        onClick={() => setSelectedPackage({ data: pkg, mode: 'view' })} 
+                        className="flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-blue-50 text-blue-600 rounded-xl hover:bg-blue-100 transition-colors"
+                      >
+                        <Eye className="w-4 h-4" />
+                        Xem
+                      </button>
+                      <button 
+                        onClick={() => setSelectedPackage({ data: pkg, mode: 'edit' })} 
+                        className="flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-gray-50 text-gray-600 rounded-xl hover:bg-gray-100 transition-colors"
+                      >
+                        <Edit2 className="w-4 h-4" />
+                        Sửa
+                      </button>
+                      <button 
+                        onClick={() => openDeleteConfirmation(pkg.id)}
+                        className="flex items-center justify-center px-4 py-2 bg-red-50 text-red-600 rounded-xl hover:bg-red-100 transition-colors"
+                        title="Tạm dừng gói dịch vụ"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* Empty State */}
+            {filteredPackages.length === 0 && (
+              <div className="text-center py-12">
+                <Package className="w-16 h-16 text-gray-400 mx-auto mb-4" />
+                <h3 className="text-xl font-semibold text-gray-900 mb-2">Không tìm thấy gói dịch vụ</h3>
+                <p className="text-gray-600">Thử thay đổi từ khóa tìm kiếm hoặc bộ lọc</p>
+              </div>
+            )}
+          </>
         )}
       </div>
     </div>

@@ -24,10 +24,10 @@ export const login = async (data: any) => {
   const response = await axios.post(API_ENDPOINTS.AUTH.LOGIN, data);
   return response.data;
 };
-
+const refreshAxios = axios.create();
 // Refresh Token
 export const refreshToken = async (data: any) => {
-  const response = await axios.post(API_ENDPOINTS.AUTH.REFRESH_TOKEN, data);
+  const response = await refreshAxios.post(API_ENDPOINTS.AUTH.REFRESH_TOKEN, data);
   return response.data;
 };
 
