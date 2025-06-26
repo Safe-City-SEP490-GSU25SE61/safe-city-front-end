@@ -9,6 +9,7 @@ import NotificationBar from '../../components/common/NotificationBar';
 const PackageDetailModal = ({ details, onClose, onSave }: { details: { data: any, mode: 'view' | 'edit' | 'add' }, onClose: () => void, onSave: (data: any) => Promise<void> }) => {
   const [isEditing, setIsEditing] = useState(details.mode === 'edit' || details.mode === 'add');
   const [formData, setFormData] = useState(details.data);
+  const [selectedHistory, setSelectedHistory] = useState<any | null>(null);
 
   useEffect(() => {
     setIsEditing(details.mode === 'edit' || details.mode === 'add');
@@ -51,6 +52,10 @@ const PackageDetailModal = ({ details, onClose, onSave }: { details: { data: any
       return date.toString();
     }
     return dateObj.toLocaleString('vi-VN');
+  };
+
+  const onViewHistoryDetail = (entry: any) => {
+    setSelectedHistory(entry);
   };
 
   return (
@@ -213,25 +218,47 @@ const PackageDetailModal = ({ details, onClose, onSave }: { details: { data: any
                 <thead>
                   <tr className="bg-gray-100 sticky top-0 z-10">
                     <th className="px-4 py-2 text-left">Giá (VND)</th>
+                    <th className="px-4 py-2 text-left">Thời hạn</th>
+                    <th className="px-4 py-2 text-left">Trạng thái</th>
                     <th className="px-4 py-2 text-left">Ngày bắt đầu</th>
                     <th className="px-4 py-2 text-left">Ngày kết thúc</th>
+                    <th className="px-4 py-2 text-left"></th>
                   </tr>
                 </thead>
                 <tbody>
                   {(formData.priceHistory || []).length === 0 ? (
                     <tr>
-                      <td colSpan={3} className="px-4 py-2 text-center text-gray-500">Chưa có lịch sử giá</td>
+                      <td colSpan={6} className="px-4 py-2 text-center text-gray-500">Chưa có lịch sử giá</td>
                     </tr>
                   ) : (
-                    formData.priceHistory.map((entry: any, idx: number) => (
-                      <tr key={idx} className="border-t">
-                        <td className="px-4 py-2">{formatPrice(entry.price)}</td>
-                        <td className="px-4 py-2">{formatDisplayDate(entry.startDate)}</td>
-                        <td className="px-4 py-2">
-                          {entry.endDate ? formatDisplayDate(entry.endDate) : <span className="text-green-600 font-medium">Hiện tại</span>}
-                        </td>
-                      </tr>
-                    ))
+                    formData.priceHistory
+                      .slice(-3)
+                      .reverse()
+                      .map((entry: any, idx: number) => (
+                        <tr key={idx} className="border-t">
+                          <td className="px-4 py-2">{formatPrice(entry.price)}</td>
+                          <td className="px-4 py-2">{formatDuration(entry.packageSnapshot?.durationDays)}</td>
+                          <td className="px-4 py-2">
+                            {entry.packageSnapshot?.isActive ? (
+                              <span className="text-green-600 font-medium">Hoạt động</span>
+                            ) : (
+                              <span className="text-red-600 font-medium">Tạm dừng</span>
+                            )}
+                          </td>
+                          <td className="px-4 py-2">{formatDisplayDate(entry.startDate)}</td>
+                          <td className="px-4 py-2">
+                            {entry.endDate ? formatDisplayDate(entry.endDate) : <span className="text-green-600 font-medium">Hiện tại</span>}
+                          </td>
+                          <td className="px-4 py-2">
+                            <button
+                              className="text-blue-600 underline"
+                              onClick={() => setSelectedHistory(entry)}
+                            >
+                              Xem chi tiết
+                            </button>
+                          </td>
+                        </tr>
+                      ))
                   )}
                 </tbody>
               </table>
@@ -265,6 +292,79 @@ const PackageDetailModal = ({ details, onClose, onSave }: { details: { data: any
           )}
         </div>
       </div>
+      {selectedHistory && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-60">
+          <div className="w-full max-w-md mx-4 bg-white rounded-2xl shadow-2xl overflow-hidden">
+            {/* Header */}
+            <div className="flex items-center justify-between bg-blue-600 p-5">
+              <div className="flex items-center gap-2">
+                <DollarSign className="w-7 h-7 text-white" />
+                <span className="text-xl font-bold text-white">Chi tiết thay đổi giá</span>
+              </div>
+              <button
+                className="p-2 rounded-full bg-white/20 hover:bg-white/30 transition"
+                onClick={() => setSelectedHistory(null)}
+              >
+                <X className="w-5 h-5 text-white" />
+              </button>
+            </div>
+            {/* Content */}
+            <div className="p-6 space-y-5">
+              <div className="flex items-center gap-3">
+                <span className="text-gray-500 min-w-[90px]">Giá cũ:</span>
+                <span className="text-lg font-semibold text-red-500 line-through">{formatPrice(selectedHistory.oldPrice)}</span>
+              </div>
+              <div className="flex items-center gap-3">
+                <span className="text-gray-500 min-w-[90px]">Giá mới:</span>
+                <span className="text-lg font-semibold text-green-600">{formatPrice(selectedHistory.price)}</span>
+              </div>
+              <div className="flex items-center gap-3">
+                <Calendar className="w-4 h-4 text-blue-500" />
+                <span className="text-gray-500 min-w-[90px]">Ngày bắt đầu:</span>
+                <span className="font-medium">{formatDisplayDate(selectedHistory.startDate)}</span>
+              </div>
+              <div className="flex items-center gap-3">
+                <Calendar className="w-4 h-4 text-blue-500" />
+                <span className="text-gray-500 min-w-[90px]">Ngày kết thúc:</span>
+                <span className="font-medium">
+                  {selectedHistory.endDate ? formatDisplayDate(selectedHistory.endDate) : <span className="text-green-600 font-medium">Hiện tại</span>}
+                </span>
+              </div>
+              <div className="flex items-center gap-3">
+                <Users className="w-4 h-4 text-blue-500" />
+                <span className="text-gray-500 min-w-[90px]">Người thay đổi:</span>
+                <span className="font-medium">{selectedHistory.changedBy}</span>
+              </div>
+              {/* Package snapshot details */}
+              {selectedHistory.packageSnapshot && (
+                <div className="mt-6 border-t pt-4">
+                  <h4 className="text-lg font-semibold mb-2 text-blue-700">Thông tin gói tại thời điểm thay đổi</h4>
+                  <div className="space-y-2">
+                    <div><span className="font-medium text-gray-600">Tên gói:</span> {selectedHistory.packageSnapshot.name}</div>
+                    <div><span className="font-medium text-gray-600">Mô tả:</span> {selectedHistory.packageSnapshot.description}</div>
+                    <div><span className="font-medium text-gray-600">Thời hạn:</span> {selectedHistory.packageSnapshot.durationDays} ngày</div>
+                    <div>
+                      <span className="font-medium text-gray-600">Trạng thái:</span>
+                      {selectedHistory.packageSnapshot.isActive ? (
+                        <span className="ml-2 text-green-600 font-semibold">Hoạt động</span>
+                      ) : (
+                        <span className="ml-2 text-red-600 font-semibold">Tạm dừng</span>
+                      )}
+                    </div>
+                    {/* Add more fields as needed */}
+                  </div>
+                </div>
+              )}
+              <button
+                className="w-full mt-6 px-4 py-2 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 transition"
+                onClick={() => setSelectedHistory(null)}
+              >
+                Đóng
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
@@ -366,13 +466,61 @@ const PackageManagement = () => {
     packageId: null
   });
   const [loading, setLoading] = useState(true);
+  const [selectedHistory, setSelectedHistory] = useState<any | null>(null);
 
   useEffect(() => {
     const fetchPackages = async () => {
       try {
         setLoading(true);
-        const data = await getAllPackages();
+        let data = await getAllPackages();
         if (Array.isArray(data)) {
+          // Add demo priceHistory to each package for demo
+          data = data.map(pkg => ({
+            ...pkg,
+            priceHistory: [
+              {
+                price: 100000,
+                startDate: '2023-01-01T00:00:00Z',
+                endDate: '2023-06-01T00:00:00Z',
+                oldPrice: 80000,
+                changedBy: 'admin1',
+                packageSnapshot: {
+                  name: 'Gói Cơ Bản',
+                  description: 'Dịch vụ cơ bản',
+                  durationDays: 30,
+                  isActive: true,
+                  // ... any other fields you want to show
+                }
+              },
+              {
+                price: 120000,
+                startDate: '2023-06-02T00:00:00Z',
+                endDate: '2024-01-01T00:00:00Z',
+                oldPrice: 100000,
+                changedBy: 'admin2',
+                packageSnapshot: {
+                  name: 'Gói Cơ Bản',
+                  description: 'Dịch vụ cơ bản',
+                  durationDays: 30,
+                  isActive: true,
+                  // ... any other fields you want to show
+                }
+              },
+              {
+                price: 150000,
+                startDate: '2024-01-02T00:00:00Z',
+                oldPrice: 120000,
+                changedBy: 'admin3',
+                packageSnapshot: {
+                  name: 'Gói Cơ Bản',
+                  description: 'Dịch vụ cơ bản',
+                  durationDays: 30,
+                  isActive: true,
+                  // ... any other fields you want to show
+                }
+              },
+            ],
+          }));
           setPackages(data);
         }
       } catch (error) {
@@ -442,6 +590,50 @@ const PackageManagement = () => {
     createAt: new Date(),
     lastUpdated: new Date(),
     id: '', // id will be set by backend
+    priceHistory: [
+      {
+        price: 100000,
+        startDate: '2023-01-01T00:00:00Z',
+        endDate: '2023-06-01T00:00:00Z',
+        oldPrice: 80000,
+        changedBy: 'admin1',
+        packageSnapshot: {
+          name: 'Gói Cơ Bản',
+          description: 'Dịch vụ cơ bản',
+          durationDays: 30,
+          isActive: true,
+          // ... any other fields you want to show
+        }
+      },
+      {
+        price: 120000,
+        startDate: '2023-06-02T00:00:00Z',
+        endDate: '2024-01-01T00:00:00Z',
+        oldPrice: 100000,
+        changedBy: 'admin2',
+        packageSnapshot: {
+          name: 'Gói Cơ Bản',
+          description: 'Dịch vụ cơ bản',
+          durationDays: 30,
+          isActive: true,
+          // ... any other fields you want to show
+        }
+      },
+      {
+        price: 150000,
+        startDate: '2024-01-02T00:00:00Z',
+        // No endDate means it's the current price
+        oldPrice: 120000,
+        changedBy: 'admin3',
+        packageSnapshot: {
+          name: 'Gói Cơ Bản',
+          description: 'Dịch vụ cơ bản',
+          durationDays: 30,
+          isActive: true,
+          // ... any other fields you want to show
+        }
+      },
+    ],
   };
 
   const handleAddNewPackage = () => {
@@ -526,6 +718,10 @@ const PackageManagement = () => {
     if (confirmationModal.packageId) {
       handleDeletePackage(confirmationModal.packageId);
     }
+  };
+
+  const onViewHistoryDetail = (entry: any) => {
+    setSelectedHistory(entry);
   };
 
   return (

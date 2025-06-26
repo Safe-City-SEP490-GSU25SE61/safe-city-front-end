@@ -30,5 +30,11 @@ export const API_ENDPOINTS = {
     CONFIG: `${API_BASE_URL}/achievement/config`,
     CONFIG_BY_ID: (id: string) => `${API_BASE_URL}/achievement/config/${id}`,
   },
+  USERS: {
+    BASE: `${API_BASE_URL}/accounts`,
+    BY_ID: (id: string) => `${API_BASE_URL}/accounts/${id}`,
+    CREATE: `${API_BASE_URL}/accounts`,
+    DELETE: (id: string) => `${API_BASE_URL}/accounts/${id}`,
+  },
   // Add other groups (e.g., USERS, REPORTS) here as needed
 };

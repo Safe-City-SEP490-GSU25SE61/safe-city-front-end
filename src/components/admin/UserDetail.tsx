@@ -1,94 +1,32 @@
 import React, { useState } from 'react';
 import { X, User, Mail, Phone, MapPin, Calendar, Shield, Activity, Edit, Ban, Key, AlertTriangle, FileText, Users, Flag, MessageSquare, Star, Clock, Trophy } from 'lucide-react';
+import { deleteUser } from '../../services/api/account';
 
-const UserDetailModal = ({ onClose }: { onClose: () => void }) => {
- 
+const UserDetailModal = ({
+  user,
+  loading,
+  onClose,
+}: {
+  user: any;
+  loading: boolean;
+  onClose: () => void;
+}) => {
+  // If loading, show a spinner or loading text
+  if (loading) {
+    return (
+      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+        <div className="bg-white rounded-xl shadow-2xl w-full max-w-md p-8 text-center">
+          <div className="text-lg font-semibold mb-4">Đang tải thông tin người dùng...</div>
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mx-auto"></div>
+        </div>
+      </div>
+    );
+  }
+
+  if (!user) return null;
+
   const [activeTab, setActiveTab] = useState('overview');
-
-  // Sample user data for SafeCity platform
-  const userData = {
-    id: 'USR-001234',
-    avatar: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=150&h=150&fit=crop&crop=face',
-    name: 'Nguyễn Văn A',
-    email: 'nguyenvana@gmail.com',
-    phone: '0909090909',
-    status: 'active', // 'active', 'suspended', 'pending'
-    role: 'Công dân đã xác thực',
-    joinDate: '2023-03-15',
-    lastActive: '2024-06-19 14:32',
-    location: 'Quận Hoàn Kiếm, Hà Nội',
-    timezone: 'EST (UTC-5)',
-    verified: true,
-    twoFactor: true,
-    subscription: {
-      plan: 'SafeCity Pro',
-      status: 'active',
-      nextBilling: '2024-07-15',
-      amount: '465,000₫/tháng'
-    },
-    paymentHistory: [
-      { id: 'GD-004', date: '2024-06-15', package: 'Gói Pro - 1 Tháng', amount: '465,000₫', status: 'Thành công' },
-      { id: 'GD-003', date: '2024-05-15', package: 'Gói Pro - 1 Tháng', amount: '465,000₫', status: 'Thành công' },
-      { id: 'GD-002', date: '2024-04-15', package: 'Gói Pro - 1 Tháng', amount: '465,000₫', status: 'Thành công' },
-      { id: 'GD-001', date: '2024-03-15', package: 'Gói Cơ bản - 1 Tháng', amount: '232,000₫', status: 'Thành công' },
-    ],
-    stats: {
-      totalLogins: 1247,
-      failedLogins: 3,
-      sessionsToday: 2,
-      escortSessions: 42,
-      blogPosts: 8,
-      incidentReports: 3,
-      communityPoints: 1250
-    },
-    virtualEscort: {
-      totalSessions: 42,
-      avgSessionTime: '25 phút',
-      favoriteRoutes: ['Công viên Trung tâm đến Mall', 'Đại học về Nhà', 'Tuyến đường Chợ đêm'],
-      safetyIncidents: 0,
-      lastUsed: '2024-06-18 22:30'
-    },
-    blogActivity: {
-      totalPosts: 8,
-      totalViews: 2450,
-      totalLikes: 189,
-      categories: ['Mẹo an toàn', 'Sự kiện cộng đồng', 'Đánh giá địa phương'],
-      lastPost: '2024-06-17 16:45',
-      mostPopularPost: 'Mẹo an toàn ban đêm cho khu vực trung tâm'
-    },
-    incidentReports: [
-      { 
-        id: 'SC-001', 
-        type: 'Hoạt động đáng ngờ', 
-        location: 'Đường Oak & Đại lộ 5', 
-        date: '2024-06-15 20:30',
-        status: 'Đã giải quyết',
-        priority: 'Trung bình'
-      },
-      { 
-        id: 'SC-002', 
-        type: 'Đèn đường hỏng', 
-        location: 'Đại lộ Park', 
-        date: '2024-05-22 19:15',
-        status: 'Đã sửa',
-        priority: 'Thấp'
-      },
-      { 
-        id: 'SC-003', 
-        type: 'Quấy rối', 
-        location: 'Trạm xe buýt #47', 
-        date: '2024-04-10 18:45',
-        status: 'Đang xem xét',
-        priority: 'Cao'
-      }
-    ],
-    recentActivity: [
-      { action: 'Phiên Hộ tống ảo', detail: 'Tuyến đường từ Trung tâm về Nhà', time: '2024-06-19 22:30', location: 'Quận Trung tâm' },
-      { action: 'Đăng bài viết Blog', detail: '"Sự kiện an toàn mùa hè tại SafeCity"', time: '2024-06-18 16:45', location: 'Nhà' },
-      { action: 'Gửi báo cáo sự cố', detail: 'Đèn đường hỏng trên đường Oak', time: '2024-06-17 20:15', location: 'Đường Oak' },
-      { action: 'Tham gia sự kiện cộng đồng', detail: 'Buổi họp giám sát khu phố', time: '2024-06-16 19:00', location: 'Trung tâm cộng đồng' }
-    ]
-  };
+  const [suspending, setSuspending] = useState(false);
 
   const achievements = [
     { id: 'ACH000', name: 'Newbie', category: 'newbie', points: 0 },
@@ -104,7 +42,7 @@ const UserDetailModal = ({ onClose }: { onClose: () => void }) => {
     return sortedAchievements.find(a => points >= a.points);
   };
 
-  const userAchievement = getUserAchievement(userData.stats.communityPoints);
+  const userAchievement = getUserAchievement(user.stats.communityPoints);
 
   const getAchievementBadgeColor = (category: string) => {
     switch (category) {
@@ -147,7 +85,18 @@ const UserDetailModal = ({ onClose }: { onClose: () => void }) => {
     { id: 'billing', label: 'Thanh toán', icon: Clock }
   ];
 
-
+  const handleSuspend = async () => {
+    if (!user?.id) return;
+    setSuspending(true);
+    try {
+      await deleteUser(user.id);
+      onClose();
+    } catch (error) {
+      alert('Có lỗi xảy ra khi đình chỉ tài khoản.');
+    } finally {
+      setSuspending(false);
+    }
+  };
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
@@ -156,18 +105,18 @@ const UserDetailModal = ({ onClose }: { onClose: () => void }) => {
         <div className="flex items-start justify-between p-6 border-b border-gray-200">
           <div className="flex items-start space-x-4">
             <img 
-              src={userData.avatar} 
-              alt={userData.name}
+              src={user.avatar} 
+              alt={user.name}
               className="w-12 h-12 rounded-full object-cover"
             />
             <div>
               <div className="flex items-center space-x-3">
-                <h2 className="text-xl font-semibold text-gray-900">{userData.name}</h2>
-                <span className={`px-3 py-1 rounded-full text-xs font-medium ${getStatusColor(userData.status)}`}>
-                  {userData.status === 'active' ? 'Hoạt động' : userData.status === 'suspended' ? 'Đã đình chỉ' : 'Chờ xử lý'}
+                <h2 className="text-xl font-semibold text-gray-900">{user.name}</h2>
+                <span className={`px-3 py-1 rounded-full text-xs font-medium ${getStatusColor(user.status)}`}>
+                  {user.status === 'active' ? 'Hoạt động' : user.status === 'suspended' ? 'Đã đình chỉ' : 'Chờ xử lý'}
                 </span>
               </div>
-              <p className="text-sm text-gray-500 mt-1">ID: {userData.id}</p>
+              <p className="text-sm text-gray-500 mt-1">ID: {user.id}</p>
               {userAchievement && (
                 <div className="mt-2">
                   <span className={`inline-flex items-center space-x-1.5 px-3 py-1 rounded-full text-xs font-medium ${getAchievementBadgeColor(userAchievement.category)}`}>
@@ -220,23 +169,32 @@ const UserDetailModal = ({ onClose }: { onClose: () => void }) => {
                   <div className="flex items-center space-x-3">
                     <Mail className="w-4 h-4 text-gray-400" />
                     <span className="text-sm text-gray-600">Email:</span>
-                    <span className="text-sm font-medium">{userData.email}</span>
-                    {userData.verified && <span className="text-xs bg-green-100 text-green-800 px-2 py-1 rounded">Đã xác thực</span>}
+                    <span className="text-sm font-medium">{user.email}</span>
+                    {user.verified && <span className="text-xs bg-green-100 text-green-800 px-2 py-1 rounded">Đã xác thực</span>}
                   </div>
                   <div className="flex items-center space-x-3">
                     <Phone className="w-4 h-4 text-gray-400" />
                     <span className="text-sm text-gray-600">Số điện thoại:</span>
-                    <span className="text-sm font-medium">{userData.phone}</span>
+                    <span className="text-sm font-medium">{user.phone}</span>
                   </div>
                   <div className="flex items-center space-x-3">
                     <MapPin className="w-4 h-4 text-gray-400" />
                     <span className="text-sm text-gray-600">Địa chỉ:</span>
-                    <span className="text-sm font-medium">{userData.location}</span>
+                    <span className="text-sm font-medium">{user.location}</span>
+                  </div>
+                  <div className="flex items-center space-x-3">
+                    <Calendar className="w-4 h-4 text-gray-400" />
+                    <span className="text-sm text-gray-600">Ngày sinh:</span>
+                    <span className="text-sm font-medium">
+                      {user.dateOfBirth ? new Date(user.dateOfBirth).toLocaleDateString('vi-VN') : ''}
+                    </span>
                   </div>
                   <div className="flex items-center space-x-3">
                     <Calendar className="w-4 h-4 text-gray-400" />
                     <span className="text-sm text-gray-600">Ngày tham gia:</span>
-                    <span className="text-sm font-medium">{userData.joinDate}</span>
+                    <span className="text-sm font-medium">
+                      {user.joinDate ? new Date(user.joinDate).toLocaleDateString('vi-VN') : ''}
+                    </span>
                   </div>
                 </div>
               </div>
@@ -246,19 +204,19 @@ const UserDetailModal = ({ onClose }: { onClose: () => void }) => {
                 <h3 className="text-lg font-medium text-gray-900">Hoạt động SafeCity</h3>
                 <div className="grid grid-cols-2 gap-3">
                   <div className="bg-blue-50 p-3 rounded-lg">
-                    <div className="text-xl font-bold text-blue-600">{userData.stats.escortSessions}</div>
+                    <div className="text-xl font-bold text-blue-600">{user.stats.escortSessions}</div>
                     <div className="text-xs text-blue-600">Số lần hộ tống</div>
                   </div>
                   <div className="bg-green-50 p-3 rounded-lg">
-                    <div className="text-xl font-bold text-green-600">{userData.stats.blogPosts}</div>
+                    <div className="text-xl font-bold text-green-600">{user.stats.blogPosts}</div>
                     <div className="text-xs text-green-600">Bài viết Blog</div>
                   </div>
                   <div className="bg-red-50 p-3 rounded-lg">
-                    <div className="text-xl font-bold text-red-600">{userData.stats.incidentReports}</div>
+                    <div className="text-xl font-bold text-red-600">{user.stats.incidentReports}</div>
                     <div className="text-xs text-red-600">Báo cáo sự cố</div>
                   </div>
                   <div className="bg-purple-50 p-3 rounded-lg">
-                    <div className="text-xl font-bold text-purple-600">{userData.stats.communityPoints}</div>
+                    <div className="text-xl font-bold text-purple-600">{user.stats.communityPoints}</div>
                     <div className="text-xs text-purple-600">Điểm cộng đồng</div>
                   </div>
                 </div>
@@ -274,19 +232,19 @@ const UserDetailModal = ({ onClose }: { onClose: () => void }) => {
                   <div className="space-y-3">
                     <div className="flex justify-between items-center p-3 bg-blue-50 rounded-lg">
                       <span className="text-sm text-gray-600">Tổng số phiên</span>
-                      <span className="text-sm font-bold text-blue-600">{userData.virtualEscort.totalSessions}</span>
+                      <span className="text-sm font-bold text-blue-600">{user.virtualEscort.totalSessions}</span>
                     </div>
                     <div className="flex justify-between items-center p-3 bg-green-50 rounded-lg">
                       <span className="text-sm text-gray-600">Thời gian trung bình</span>
-                      <span className="text-sm font-bold text-green-600">{userData.virtualEscort.avgSessionTime}</span>
+                      <span className="text-sm font-bold text-green-600">{user.virtualEscort.avgSessionTime}</span>
                     </div>
                     <div className="flex justify-between items-center p-3 bg-red-50 rounded-lg">
                       <span className="text-sm text-gray-600">Sự cố an toàn</span>
-                      <span className="text-sm font-bold text-red-600">{userData.virtualEscort.safetyIncidents}</span>
+                      <span className="text-sm font-bold text-red-600">{user.virtualEscort.safetyIncidents}</span>
                     </div>
                     <div className="p-3 bg-gray-50 rounded-lg">
                       <span className="text-sm text-gray-600">Lần cuối sử dụng: </span>
-                      <span className="text-sm font-medium">{userData.virtualEscort.lastUsed}</span>
+                      <span className="text-sm font-medium">{user.virtualEscort.lastUsed}</span>
                     </div>
                   </div>
                 </div>
@@ -294,7 +252,7 @@ const UserDetailModal = ({ onClose }: { onClose: () => void }) => {
                 <div>
                   <h3 className="text-lg font-medium text-gray-900 mb-4">Tuyến đường yêu thích</h3>
                   <div className="space-y-2">
-                    {userData.virtualEscort.favoriteRoutes.map((route, index) => (
+                    {user.virtualEscort.favoriteRoutes.map((route: any, index: any) => (
                       <div key={index} className="p-3 border border-gray-200 rounded-lg">
                         <div className="flex items-center space-x-2">
                           <MapPin className="w-4 h-4 text-gray-400" />
@@ -316,15 +274,15 @@ const UserDetailModal = ({ onClose }: { onClose: () => void }) => {
                   <div className="space-y-3">
                     <div className="flex justify-between items-center p-3 bg-blue-50 rounded-lg">
                       <span className="text-sm text-gray-600">Tổng số bài viết</span>
-                      <span className="text-sm font-bold text-blue-600">{userData.blogActivity.totalPosts}</span>
+                      <span className="text-sm font-bold text-blue-600">{user.blogActivity.totalPosts}</span>
                     </div>
                     <div className="flex justify-between items-center p-3 bg-green-50 rounded-lg">
                       <span className="text-sm text-gray-600">Tổng lượt xem</span>
-                      <span className="text-sm font-bold text-green-600">{userData.blogActivity.totalViews}</span>
+                      <span className="text-sm font-bold text-green-600">{user.blogActivity.totalViews}</span>
                     </div>
                     <div className="flex justify-between items-center p-3 bg-purple-50 rounded-lg">
                       <span className="text-sm text-gray-600">Tổng lượt thích</span>
-                      <span className="text-sm font-bold text-purple-600">{userData.blogActivity.totalLikes}</span>
+                      <span className="text-sm font-bold text-purple-600">{user.blogActivity.totalLikes}</span>
                     </div>
                   </div>
                 </div>
@@ -332,7 +290,7 @@ const UserDetailModal = ({ onClose }: { onClose: () => void }) => {
                 <div>
                   <h3 className="text-lg font-medium text-gray-900 mb-4">Danh mục nội dung</h3>
                   <div className="space-y-2">
-                    {userData.blogActivity.categories.map((category, index) => (
+                    {user.blogActivity.categories.map((category: any, index: any) => (
                       <div key={index} className="p-2 bg-gray-100 rounded text-sm text-center">
                         {category}
                       </div>
@@ -340,7 +298,7 @@ const UserDetailModal = ({ onClose }: { onClose: () => void }) => {
                   </div>
                   <div className="mt-4 p-3 bg-yellow-50 rounded-lg">
                     <div className="text-xs text-gray-600">Bài viết phổ biến nhất:</div>
-                    <div className="text-sm font-medium text-yellow-800">{userData.blogActivity.mostPopularPost}</div>
+                    <div className="text-sm font-medium text-yellow-800">{user.blogActivity.mostPopularPost}</div>
                   </div>
                 </div>
               </div>
@@ -351,7 +309,7 @@ const UserDetailModal = ({ onClose }: { onClose: () => void }) => {
             <div className="space-y-4">
               <h3 className="text-lg font-medium text-gray-900">Các báo cáo sự cố đã gửi</h3>
               <div className="space-y-3">
-                {userData.incidentReports.map((incident) => (
+                {user.incidentReports.map((incident: any) => (
                   <div key={incident.id} className="p-4 border border-gray-200 rounded-lg">
                     <div className="flex items-start justify-between">
                       <div className="flex-1">
@@ -382,7 +340,7 @@ const UserDetailModal = ({ onClose }: { onClose: () => void }) => {
             <div className="space-y-4">
               <h3 className="text-lg font-medium text-gray-900">Hoạt động gần đây</h3>
               <div className="space-y-3">
-                {userData.recentActivity.map((activity, index) => (
+                {user.recentActivity.map((activity: any, index: any) => (
                   <div key={index} className="flex items-start space-x-3 p-3 bg-gray-50 rounded-lg">
                     <Activity className="w-4 h-4 text-gray-400 mt-0.5" />
                     <div className="flex-1">
@@ -406,21 +364,21 @@ const UserDetailModal = ({ onClose }: { onClose: () => void }) => {
                 <div className="p-4 bg-gray-50 rounded-lg space-y-3">
                     <div className="flex justify-between items-center">
                       <span className="text-sm text-gray-600">Gói dịch vụ:</span>
-                      <span className="text-sm font-medium">{userData.subscription.plan}</span>
+                      <span className="text-sm font-medium">{user.subscription.plan}</span>
                     </div>
                     <div className="flex justify-between items-center">
                       <span className="text-sm text-gray-600">Trạng thái:</span>
-                      <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(userData.subscription.status)}`}>
-                        {userData.subscription.status === 'active' ? 'Đang hoạt động' : 'Không hoạt động'}
+                      <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(user.subscription.status)}`}>
+                        {user.subscription.status === 'active' ? 'Đang hoạt động' : 'Không hoạt động'}
                       </span>
                     </div>
                     <div className="flex justify-between items-center">
                       <span className="text-sm text-gray-600">Thanh toán tiếp theo:</span>
-                      <span className="text-sm font-medium">{userData.subscription.nextBilling}</span>
+                      <span className="text-sm font-medium">{user.subscription.nextBilling}</span>
                     </div>
                     <div className="flex justify-between items-center">
                       <span className="text-sm text-gray-600">Phí hàng tháng:</span>
-                      <span className="text-sm font-medium">{userData.subscription.amount}</span>
+                      <span className="text-sm font-medium">{user.subscription.amount}</span>
                     </div>
                 </div>
               </div>
@@ -439,7 +397,7 @@ const UserDetailModal = ({ onClose }: { onClose: () => void }) => {
                       </tr>
                     </thead>
                     <tbody className="bg-white divide-y divide-gray-200">
-                      {userData.paymentHistory.map((payment) => (
+                      {user.paymentHistory.map((payment: any) => (
                         <tr key={payment.id}>
                           <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-500">{payment.id}</td>
                           <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-500">{payment.date}</td>
@@ -463,11 +421,16 @@ const UserDetailModal = ({ onClose }: { onClose: () => void }) => {
         {/* Action Buttons */}
         <div className="flex justify-between items-center p-6 border-t border-gray-200 bg-gray-50">
           <div className="flex space-x-3">
-            <button className="flex items-center space-x-2 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors">
+            <button
+              className="flex items-center space-x-2 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors disabled:opacity-50"
+              onClick={handleSuspend}
+              disabled={suspending}
+            >
               <Ban className="w-4 h-4" />
-              <span>Đình chỉ tài khoản</span>
+              <span>
+                {suspending ? 'Đang đình chỉ...' : 'Đình chỉ tài khoản'}
+              </span>
             </button>
-            
           </div>
           <div className="flex space-x-3">
             <button 
@@ -476,7 +439,6 @@ const UserDetailModal = ({ onClose }: { onClose: () => void }) => {
             >
               Đóng
             </button>
-           
           </div>
         </div>
       </div>

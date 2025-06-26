@@ -12,38 +12,32 @@ interface Officer {
   phone: string;
   email: string;
   status: string;
-  currentWard?: string;
+  currentDistrict?: string;
 }
 
-interface Ward {
+interface District {
   id: number;
   name: string;
   code: string;
-  districtName: string;
-  districtCode: string;
   officers: Officer[];
 }
 
 interface OfficerFormData {
   officerId: string;
-  wardId: string;
+  districtId: string;
 }
 
-const AddOfficerWardPage = () => {
+const AddOfficerDistrictPage = () => {
   const [searchTerm, setSearchTerm] = useState('');
-  const [statusFilter, setStatusFilter] = useState('all');
-  const [districtFilter, setDistrictFilter] = useState('all');
   const [showAddOfficerModal, setShowAddOfficerModal] = useState(false);
-  const [selectedWard, setSelectedWard] = useState<Ward | null>(null);
+  const [selectedDistrict, setSelectedDistrict] = useState<District | null>(null);
 
   // Sample data - replace with actual API calls
-  const [wards, setWards] = useState<Ward[]>([
+  const [districts, setDistricts] = useState<District[]>([
     {
       id: 1,
-      name: "Phường Bến Nghé",
-      code: "P01",
-      districtName: "Quận 1",
-      districtCode: "Q01",
+      name: "Quận 1",
+      code: "Q01",
       officers: [
         {
           id: 1,
@@ -52,16 +46,14 @@ const AddOfficerWardPage = () => {
           phone: "0962710373",
           email: "nguyenvana@email.com",
           status: "active",
-          currentWard: "Phường Bến Nghé"
+          currentDistrict: "Quận 1"
         }
       ]
     },
     {
       id: 2,
-      name: "Phường Bến Thành",
-      code: "P02",
-      districtName: "Quận 1",
-      districtCode: "Q01",
+      name: "Quận 2",
+      code: "Q02",
       officers: []
     }
   ]);
@@ -74,7 +66,7 @@ const AddOfficerWardPage = () => {
       phone: "0962710373",
       email: "nguyenvana@email.com",
       status: "active",
-      currentWard: "Phường Bến Nghé"
+      currentDistrict: "Quận 1"
     },
     {
       id: 2,
@@ -88,38 +80,19 @@ const AddOfficerWardPage = () => {
 
   const [officerFormData, setOfficerFormData] = useState<OfficerFormData>({
     officerId: '',
-    wardId: ''
+    districtId: ''
   });
 
-  // Get unique districts from wards
-  const districts = useMemo(() => {
-    const uniqueDistricts = new Set(wards.map(ward => ward.districtName));
-    return Array.from(uniqueDistricts).map(district => ({
-      label: district,
-      value: district
-    }));
-  }, [wards]);
-
-  // Update the filter wards function to include district filtering
-  const filteredWards = useMemo(() => {
-    return wards.filter(ward => {
-      const matchesSearch = ward.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                           ward.code.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                           ward.districtName.toLowerCase().includes(searchTerm.toLowerCase());
-      
-      const matchesDistrict = districtFilter === 'all' || ward.districtName === districtFilter;
-      
-      return matchesSearch && matchesDistrict;
-    });
-  }, [wards, searchTerm, districtFilter]);
-
-  // Handle filter changes
-  const handleFilterChange = (filters: Record<string, string>) => {
-    setDistrictFilter(filters.district || 'all');
-  };
+  // Filter districts by search term
+  const filteredDistricts = useMemo(() => {
+    return districts.filter(district =>
+      district.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      district.code.toLowerCase().includes(searchTerm.toLowerCase())
+    );
+  }, [districts, searchTerm]);
 
   const handleAddOfficer = () => {
-    if (!officerFormData.officerId || !officerFormData.wardId) {
+    if (!officerFormData.officerId || !selectedDistrict) {
       alert('Vui lòng chọn đầy đủ thông tin');
       return;
     }
@@ -127,81 +100,32 @@ const AddOfficerWardPage = () => {
     const selectedOfficer = officers.find(o => o.id === parseInt(officerFormData.officerId));
     if (!selectedOfficer) return;
 
-    setWards(prevWards => 
-      prevWards.map(ward => 
-        ward.id === parseInt(officerFormData.wardId)
-          ? { ...ward, officers: [...ward.officers, selectedOfficer] }
-          : ward
+    setDistricts(prevDistricts =>
+      prevDistricts.map(district =>
+        district.id === selectedDistrict.id
+          ? { ...district, officers: [...district.officers, selectedOfficer] }
+          : district
       )
     );
 
-    setOfficerFormData({ officerId: '', wardId: '' });
+    setOfficerFormData({ officerId: '', districtId: '' });
     setShowAddOfficerModal(false);
-    alert('Thêm công an vào phường thành công!');
+    alert('Thêm sĩ quan vào quận thành công!');
   };
 
-  const handleRemoveOfficer = (wardId: number, officerId: number) => {
-    if (window.confirm('Bạn có chắc chắn muốn xóa công an này khỏi phường?')) {
-      setWards(prevWards =>
-        prevWards.map(ward =>
-          ward.id === wardId
-            ? { ...ward, officers: ward.officers.filter(o => o.id !== officerId) }
-            : ward
+  const handleRemoveOfficer = (districtId: number, officerId: number) => {
+    if (window.confirm('Bạn có chắc chắn muốn xóa sĩ quan này khỏi quận?')) {
+      setDistricts(prevDistricts =>
+        prevDistricts.map(district =>
+          district.id === districtId
+            ? { ...district, officers: district.officers.filter(o => o.id !== officerId) }
+            : district
         )
       );
     }
   };
 
-  const WardCard: React.FC<{ ward: Ward }> = ({ ward }) => (
-    <div className="bg-white rounded-xl border border-gray-200 hover:border-blue-300 transition-all duration-200 hover:shadow-lg">
-      <div className="p-6">
-        <div className="flex items-start justify-between mb-4">
-          <div>
-            <h3 className="text-lg font-semibold text-gray-900">{ward.name}</h3>
-            <p className="text-sm text-gray-500">Mã phường: {ward.code}</p>
-            <p className="text-sm text-gray-500">Thuộc quận: {ward.districtName}</p>
-          </div>
-          <button
-            onClick={() => {
-              setSelectedWard(ward);
-              setShowAddOfficerModal(true);
-            }}
-            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2"
-          >
-            <Plus className="h-4 w-4" />
-            Thêm công an
-          </button>
-        </div>
-
-        <div className="mt-4">
-          <h4 className="text-sm font-medium text-gray-700 mb-2">Danh sách công an ({ward.officers.length})</h4>
-          {ward.officers.length > 0 ? (
-            <div className="space-y-2">
-              {ward.officers.map(officer => (
-                <div key={officer.id} className="flex items-center justify-between p-2 bg-gray-50 rounded-lg">
-                  <div>
-                    <p className="font-medium text-gray-900">{officer.name}</p>
-                    <p className="text-sm text-gray-500">Mã công an: {officer.code}</p>
-                  </div>
-                  <button
-                    onClick={() => handleRemoveOfficer(ward.id, officer.id)}
-                    className="text-red-600 hover:text-red-800"
-                    title="Xóa công an khỏi phường"
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </button>
-                </div>
-              ))}
-            </div>
-          ) : (
-            <p className="text-sm text-gray-500 italic">Chưa có công an nào được phân công</p>
-          )}
-        </div>
-      </div>
-    </div>
-  );
-
-  // Add this new component for the searchable dropdown
+  // SearchableDropdown component
   const SearchableDropdown: React.FC<{
     options: Officer[];
     value: string;
@@ -212,13 +136,11 @@ const AddOfficerWardPage = () => {
     const [searchTerm, setSearchTerm] = useState('');
     const dropdownRef = useRef<HTMLDivElement>(null);
 
-    // Filter options based on search term
     const filteredOptions = options.filter(officer =>
       officer.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       officer.code.toLowerCase().includes(searchTerm.toLowerCase())
     );
 
-    // Close dropdown when clicking outside
     useEffect(() => {
       const handleClickOutside = (event: MouseEvent) => {
         if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
@@ -252,7 +174,7 @@ const AddOfficerWardPage = () => {
                 type="text"
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                placeholder="Tìm kiếm công an..."
+                placeholder="Tìm kiếm sĩ quan..."
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
               />
             </div>
@@ -275,7 +197,7 @@ const AddOfficerWardPage = () => {
                   </button>
                 ))
               ) : (
-                <div className="px-4 py-2 text-gray-500">Không tìm thấy công an</div>
+                <div className="px-4 py-2 text-gray-500">Không tìm thấy sĩ quan</div>
               )}
             </div>
           </div>
@@ -283,6 +205,55 @@ const AddOfficerWardPage = () => {
       </div>
     );
   };
+
+  // DistrictCard component
+  const DistrictCard: React.FC<{ district: District }> = ({ district }) => (
+    <div className="bg-white rounded-xl border border-gray-200 hover:border-blue-300 transition-all duration-200 hover:shadow-lg">
+      <div className="p-6">
+        <div className="flex items-start justify-between mb-4">
+          <div>
+            <h3 className="text-lg font-semibold text-gray-900">{district.name}</h3>
+            <p className="text-sm text-gray-500">Mã quận: {district.code}</p>
+          </div>
+          <button
+            onClick={() => {
+              setSelectedDistrict(district);
+              setShowAddOfficerModal(true);
+            }}
+            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2"
+          >
+            <Plus className="h-4 w-4" />
+            Thêm sĩ quan
+          </button>
+        </div>
+
+        <div className="mt-4">
+          <h4 className="text-sm font-medium text-gray-700 mb-2">Danh sách sĩ quan ({district.officers.length})</h4>
+          {district.officers.length > 0 ? (
+            <div className="space-y-2">
+              {district.officers.map(officer => (
+                <div key={officer.id} className="flex items-center justify-between p-2 bg-gray-50 rounded-lg">
+                  <div>
+                    <p className="font-medium text-gray-900">{officer.name}</p>
+                    <p className="text-sm text-gray-500">Mã sĩ quan: {officer.code}</p>
+                  </div>
+                  <button
+                    onClick={() => handleRemoveOfficer(district.id, officer.id)}
+                    className="text-red-600 hover:text-red-800"
+                    title="Xóa sĩ quan khỏi quận"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </button>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p className="text-sm text-gray-500 italic">Chưa có sĩ quan nào được phân công</p>
+          )}
+        </div>
+      </div>
+    </div>
+  );
 
   return (
     <div className="min-h-screen flex bg-gradient-to-br from-blue-50 via-white to-purple-50">
@@ -295,33 +266,28 @@ const AddOfficerWardPage = () => {
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
                 <div>
                   <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-2">
-                    Phân công công an vào phường
+                    Phân công sĩ quan vào quận
                   </h1>
                   <p className="text-gray-600">
-                    Quản lý việc phân công công an vào các phường
+                    Quản lý việc phân công sĩ quan vào các quận
                   </p>
                 </div>
               </div>
             </div>
 
             <div className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-lg border border-white/20 p-6 mb-8">
-              <FilterBar
-                searchPlaceholder="Tìm kiếm theo tên phường, mã phường..."
-                onSearch={setSearchTerm}
-                onFilterChange={handleFilterChange}
-                filterOptions={{
-                  district: [
-                    { label: 'Tất cả quận', value: 'all' },
-                    ...districts
-                  ]
-                }}
-                showExport={false}
+              <input
+                type="text"
+                placeholder="Tìm kiếm theo tên quận, mã quận..."
+                value={searchTerm}
+                onChange={e => setSearchTerm(e.target.value)}
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg"
               />
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6 mt-6">
-              {filteredWards.map(ward => (
-                <WardCard key={ward.id} ward={ward} />
+              {filteredDistricts.map(district => (
+                <DistrictCard key={district.id} district={district} />
               ))}
             </div>
           </div>
@@ -329,18 +295,18 @@ const AddOfficerWardPage = () => {
       </div>
 
       {/* Add Officer Modal */}
-      {showAddOfficerModal && (
+      {showAddOfficerModal && selectedDistrict && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-white rounded-xl p-6 w-full max-w-lg">
-            <h2 className="text-xl font-bold mb-4">Thêm công an vào phường {selectedWard?.name}</h2>
+            <h2 className="text-xl font-bold mb-4">Thêm sĩ quan vào quận {selectedDistrict?.name}</h2>
             <div className="space-y-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Chọn công an</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Chọn sĩ quan</label>
                 <SearchableDropdown
-                  options={officers.filter(o => !o.currentWard || o.currentWard === selectedWard?.name)}
+                  options={officers.filter(o => !o.currentDistrict || o.currentDistrict === selectedDistrict?.name)}
                   value={officerFormData.officerId}
                   onChange={(value) => setOfficerFormData(prev => ({ ...prev, officerId: value }))}
-                  placeholder="Chọn công an"
+                  placeholder="Chọn sĩ quan"
                 />
               </div>
               <div className="flex gap-2 justify-end">
@@ -365,4 +331,4 @@ const AddOfficerWardPage = () => {
   );
 };
 
-export default AddOfficerWardPage;
+export default AddOfficerDistrictPage;
