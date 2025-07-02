@@ -3,6 +3,9 @@ import { User, MapPin, Plus, Users, Eye, Edit3, Trash2, Search, Filter, ChevronD
 import SideBar from '../../components/common/SideBar';
 import Header from '../../components/common/Header';
 import FilterBar from '../../components/common/FilterBar';
+import { getAllDistricts, assignToOfficer } from '../../services/api/district';
+import { getUsers } from '../../services/api/account';
+import NotificationBar from '../../components/common/NotificationBar';
 
 // Interfaces
 interface Officer {
@@ -13,6 +16,7 @@ interface Officer {
   email: string;
   status: string;
   currentDistrict?: string;
+  roleId?: number;
 }
 
 interface District {
@@ -22,238 +26,200 @@ interface District {
   officers: Officer[];
 }
 
-interface OfficerFormData {
-  officerId: string;
+interface DistrictFormData {
   districtId: string;
 }
 
-const AddOfficerDistrictPage = () => {
+// SearchableDropdown component (for districts)
+const SearchableDropdown: React.FC<{
+  options: { id: number; name: string; code: string }[];
+  value: string;
+  onChange: (value: string) => void;
+  placeholder: string;
+}> = ({ options, value, onChange, placeholder }) => {
+  const [isOpen, setIsOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
-  const [showAddOfficerModal, setShowAddOfficerModal] = useState(false);
-  const [selectedDistrict, setSelectedDistrict] = useState<District | null>(null);
+  const dropdownRef = useRef<HTMLDivElement>(null);
 
-  // Sample data - replace with actual API calls
-  const [districts, setDistricts] = useState<District[]>([
-    {
-      id: 1,
-      name: "Quận 1",
-      code: "Q01",
-      officers: [
-        {
-          id: 1,
-          name: "Nguyễn Văn A",
-          code: "CA001",
-          phone: "0962710373",
-          email: "nguyenvana@email.com",
-          status: "active",
-          currentDistrict: "Quận 1"
-        }
-      ]
-    },
-    {
-      id: 2,
-      name: "Quận 2",
-      code: "Q02",
-      officers: []
-    }
-  ]);
+  const filteredOptions = options.filter(option =>
+    option.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    option.code.toLowerCase().includes(searchTerm.toLowerCase())
+  );
 
-  const [officers, setOfficers] = useState<Officer[]>([
-    {
-      id: 1,
-      name: "Nguyễn Văn A",
-      code: "CA001",
-      phone: "0962710373",
-      email: "nguyenvana@email.com",
-      status: "active",
-      currentDistrict: "Quận 1"
-    },
-    {
-      id: 2,
-      name: "Trần Văn B",
-      code: "CA002",
-      phone: "0987654321",
-      email: "tranvanb@email.com",
-      status: "active"
-    }
-  ]);
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        setIsOpen(false);
+      }
+    };
 
-  const [officerFormData, setOfficerFormData] = useState<OfficerFormData>({
-    officerId: '',
-    districtId: ''
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  const selectedOption = options.find(o => o.id.toString() === value);
+
+  return (
+    <div className="relative" ref={dropdownRef}>
+      <button
+        type="button"
+        onClick={() => setIsOpen(!isOpen)}
+        className="w-full flex items-center justify-between px-4 py-2 border border-gray-300 rounded-lg bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500"
+      >
+        <span className="block truncate">
+          {selectedOption ? `${selectedOption.name} - ${selectedOption.code}` : placeholder}
+        </span>
+        <ChevronDown className={`w-5 h-5 text-gray-400 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
+      </button>
+
+      {isOpen && (
+        <div className="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg max-h-60 overflow-hidden">
+          <div className="p-2 border-b border-gray-200">
+            <input
+              type="text"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              placeholder="Tìm kiếm quận..."
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
+          </div>
+          <div className="overflow-y-auto max-h-48">
+            {filteredOptions.length > 0 ? (
+              filteredOptions.map((option) => (
+                <button
+                  key={option.id}
+                  onClick={() => {
+                    onChange(option.id.toString());
+                    setIsOpen(false);
+                    setSearchTerm('');
+                  }}
+                  className={`w-full px-4 py-2 text-left hover:bg-gray-100 ${
+                    value === option.id.toString() ? 'bg-blue-50' : ''
+                  }`}
+                >
+                  <div className="font-medium">{option.name}</div>
+                  <div className="text-sm text-gray-500">{option.code}</div>
+                </button>
+              ))
+            ) : (
+              <div className="px-4 py-2 text-gray-500">Không tìm thấy quận</div>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
+const AddOfficerDistrictPage = () => {
+  const [districts, setDistricts] = useState<District[]>([]);
+  const [officers, setOfficers] = useState<Officer[]>([]);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [selectedOfficer, setSelectedOfficer] = useState<Officer | null>(null);
+  const [showAssignDistrictModal, setShowAssignDistrictModal] = useState(false);
+  const [districtFormData, setDistrictFormData] = useState<DistrictFormData>({ districtId: '' });
+  const [notification, setNotification] = useState<{ show: boolean; message: string; type: "success" | "error" | "info" }>({
+    show: false,
+    message: '',
+    type: 'info',
   });
 
-  // Filter districts by search term
-  const filteredDistricts = useMemo(() => {
-    return districts.filter(district =>
-      district.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      district.code.toLowerCase().includes(searchTerm.toLowerCase())
-    );
-  }, [districts, searchTerm]);
+  // Fetch districts and officers from API
+  useEffect(() => {
+    const fetchData = async () => {
+      // Fetch districts
+      const districtsData = await getAllDistricts();
+      setDistricts(districtsData);
+      const usersData = await getUsers();
+      const userArray = Array.isArray(usersData) ? usersData : usersData.data;    
+      const officerUsers = userArray
+        .filter((user: any) => user.roleName === 'Officer')
+        .map((user: any) => ({
+          id: user.id,
+          name: user.fullName,
+          phone: user.phone,
+          email: user.email,
+          status: user.status,
+          roleId: user.roleId,
+        }));
+      setOfficers(officerUsers);
+    };
+    fetchData();
+  }, []);
 
-  const handleAddOfficer = () => {
-    if (!officerFormData.officerId || !selectedDistrict) {
-      alert('Vui lòng chọn đầy đủ thông tin');
+
+  // Handler to assign officer to district (local state only, update with API if needed)
+  const handleAssignDistrict = async () => {
+    if (!districtFormData.districtId || !selectedOfficer) {
+      setNotification({ show: true, message: 'Vui lòng chọn đầy đủ thông tin', type: 'error' });
       return;
     }
 
-    const selectedOfficer = officers.find(o => o.id === parseInt(officerFormData.officerId));
-    if (!selectedOfficer) return;
+    try {
+      // Call the API to assign officer to district
+      await assignToOfficer({
+        districtId: parseInt(districtFormData.districtId, 10),
+        accountId: selectedOfficer.id, // Make sure this is the correct field for officer's account ID
+      });
 
-    setDistricts(prevDistricts =>
-      prevDistricts.map(district =>
-        district.id === selectedDistrict.id
-          ? { ...district, officers: [...district.officers, selectedOfficer] }
-          : district
-      )
-    );
+      // Update local state as before
+      const selectedDistrict = districts.find(d => d.id === parseInt(districtFormData.districtId));
+      if (!selectedDistrict) return;
 
-    setOfficerFormData({ officerId: '', districtId: '' });
-    setShowAddOfficerModal(false);
-    alert('Thêm sĩ quan vào quận thành công!');
-  };
-
-  const handleRemoveOfficer = (districtId: number, officerId: number) => {
-    if (window.confirm('Bạn có chắc chắn muốn xóa sĩ quan này khỏi quận?')) {
-      setDistricts(prevDistricts =>
-        prevDistricts.map(district =>
-          district.id === districtId
-            ? { ...district, officers: district.officers.filter(o => o.id !== officerId) }
-            : district
+      setOfficers(prevOfficers =>
+        prevOfficers.map(o =>
+          o.id === selectedOfficer.id
+            ? { ...o, currentDistrict: selectedDistrict.name }
+            : o
         )
       );
+
+      setDistricts(prevDistricts =>
+        prevDistricts.map(d =>
+          d.id === selectedDistrict.id
+            ? {
+                ...d,
+                officers: d.officers?.some(o => o.id === selectedOfficer.id)
+                  ? d.officers
+                  : [...(d.officers || []), { ...selectedOfficer, currentDistrict: selectedDistrict.name }]
+              }
+            : d
+        )
+      );
+
+      setDistrictFormData({ districtId: '' });
+      setShowAssignDistrictModal(false);
+      setSelectedOfficer(null);
+      setNotification({ show: true, message: 'Phân công sĩ quan vào quận thành công!', type: 'success' });
+    } catch (error) {
+      setNotification({ show: true, message: 'Có lỗi xảy ra khi phân công sĩ quan!', type: 'error' });
+      // Optionally log error or handle it further
     }
   };
 
-  // SearchableDropdown component
-  const SearchableDropdown: React.FC<{
-    options: Officer[];
-    value: string;
-    onChange: (value: string) => void;
-    placeholder: string;
-  }> = ({ options, value, onChange, placeholder }) => {
-    const [isOpen, setIsOpen] = useState(false);
-    const [searchTerm, setSearchTerm] = useState('');
-    const dropdownRef = useRef<HTMLDivElement>(null);
+  // Handler to remove officer from district (local state only, update with API if needed)
+  const handleRemoveFromDistrict = (officer: Officer) => {
+    if (!officer.currentDistrict) return;
+    if (!window.confirm('Bạn có chắc chắn muốn xóa sĩ quan này khỏi quận?')) return;
 
-    const filteredOptions = options.filter(officer =>
-      officer.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      officer.code.toLowerCase().includes(searchTerm.toLowerCase())
+    // Remove officer from district's officers list
+    setDistricts(prevDistricts =>
+      prevDistricts.map(d =>
+        d.name === officer.currentDistrict
+          ? { ...d, officers: d.officers.filter(o => o.id !== officer.id) }
+          : d
+      )
     );
 
-    useEffect(() => {
-      const handleClickOutside = (event: MouseEvent) => {
-        if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
-          setIsOpen(false);
-        }
-      };
-
-      document.addEventListener('mousedown', handleClickOutside);
-      return () => document.removeEventListener('mousedown', handleClickOutside);
-    }, []);
-
-    const selectedOfficer = options.find(o => o.id.toString() === value);
-
-    return (
-      <div className="relative" ref={dropdownRef}>
-        <button
-          type="button"
-          onClick={() => setIsOpen(!isOpen)}
-          className="w-full flex items-center justify-between px-4 py-2 border border-gray-300 rounded-lg bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500"
-        >
-          <span className="block truncate">
-            {selectedOfficer ? `${selectedOfficer.name} - ${selectedOfficer.code}` : placeholder}
-          </span>
-          <ChevronDown className={`w-5 h-5 text-gray-400 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
-        </button>
-
-        {isOpen && (
-          <div className="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg max-h-60 overflow-hidden">
-            <div className="p-2 border-b border-gray-200">
-              <input
-                type="text"
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                placeholder="Tìm kiếm sĩ quan..."
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-              />
-            </div>
-            <div className="overflow-y-auto max-h-48">
-              {filteredOptions.length > 0 ? (
-                filteredOptions.map((officer) => (
-                  <button
-                    key={officer.id}
-                    onClick={() => {
-                      onChange(officer.id.toString());
-                      setIsOpen(false);
-                      setSearchTerm('');
-                    }}
-                    className={`w-full px-4 py-2 text-left hover:bg-gray-100 ${
-                      value === officer.id.toString() ? 'bg-blue-50' : ''
-                    }`}
-                  >
-                    <div className="font-medium">{officer.name}</div>
-                    <div className="text-sm text-gray-500">{officer.code}</div>
-                  </button>
-                ))
-              ) : (
-                <div className="px-4 py-2 text-gray-500">Không tìm thấy sĩ quan</div>
-              )}
-            </div>
-          </div>
-        )}
-      </div>
+    // Remove currentDistrict from officer
+    setOfficers(prevOfficers =>
+      prevOfficers.map(o =>
+        o.id === officer.id
+          ? { ...o, currentDistrict: undefined }
+          : o
+      )
     );
   };
-
-  // DistrictCard component
-  const DistrictCard: React.FC<{ district: District }> = ({ district }) => (
-    <div className="bg-white rounded-xl border border-gray-200 hover:border-blue-300 transition-all duration-200 hover:shadow-lg">
-      <div className="p-6">
-        <div className="flex items-start justify-between mb-4">
-          <div>
-            <h3 className="text-lg font-semibold text-gray-900">{district.name}</h3>
-            <p className="text-sm text-gray-500">Mã quận: {district.code}</p>
-          </div>
-          <button
-            onClick={() => {
-              setSelectedDistrict(district);
-              setShowAddOfficerModal(true);
-            }}
-            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2"
-          >
-            <Plus className="h-4 w-4" />
-            Thêm sĩ quan
-          </button>
-        </div>
-
-        <div className="mt-4">
-          <h4 className="text-sm font-medium text-gray-700 mb-2">Danh sách sĩ quan ({district.officers.length})</h4>
-          {district.officers.length > 0 ? (
-            <div className="space-y-2">
-              {district.officers.map(officer => (
-                <div key={officer.id} className="flex items-center justify-between p-2 bg-gray-50 rounded-lg">
-                  <div>
-                    <p className="font-medium text-gray-900">{officer.name}</p>
-                    <p className="text-sm text-gray-500">Mã sĩ quan: {officer.code}</p>
-                  </div>
-                  <button
-                    onClick={() => handleRemoveOfficer(district.id, officer.id)}
-                    className="text-red-600 hover:text-red-800"
-                    title="Xóa sĩ quan khỏi quận"
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </button>
-                </div>
-              ))}
-            </div>
-          ) : (
-            <p className="text-sm text-gray-500 italic">Chưa có sĩ quan nào được phân công</p>
-          )}
-        </div>
-      </div>
-    </div>
-  );
 
   return (
     <div className="min-h-screen flex bg-gradient-to-br from-blue-50 via-white to-purple-50">
@@ -278,47 +244,99 @@ const AddOfficerDistrictPage = () => {
             <div className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-lg border border-white/20 p-6 mb-8">
               <input
                 type="text"
-                placeholder="Tìm kiếm theo tên quận, mã quận..."
+                placeholder="Tìm kiếm theo tên sĩ quan, mã sĩ quan..."
                 value={searchTerm}
                 onChange={e => setSearchTerm(e.target.value)}
                 className="w-full px-4 py-2 border border-gray-300 rounded-lg"
               />
             </div>
 
-            <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6 mt-6">
-              {filteredDistricts.map(district => (
-                <DistrictCard key={district.id} district={district} />
-              ))}
+            {/* Officer Table */}
+            
+            <div className="overflow-x-auto">
+              <table className="min-w-full bg-white rounded-xl shadow border">
+                <thead>
+                  <tr>
+                    <th className="px-4 py-3 border-b text-left">Tên sĩ quan</th>
+                    <th className="px-4 py-3 border-b text-left">Số điện thoại</th>
+                    <th className="px-4 py-3 border-b text-left">Email</th>
+                    <th className="px-4 py-3 border-b text-center">Hành động</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {officers.length === 0 && (
+                    <tr>
+                      <td colSpan={4} className="text-center py-6 text-gray-500 italic">
+                        Không có sĩ quan nào phù hợp
+                      </td>
+                    </tr>
+                  )}
+                  {officers.map(officer => (
+                    <tr key={officer.id} className="hover:bg-gray-50">
+                      <td className="px-4 py-3 border-b">{officer.name}</td>
+                      <td className="px-4 py-3 border-b">{officer.phone}</td>
+                      <td className="px-4 py-3 border-b">{officer.email}</td>
+                      <td className="px-4 py-3 border-b text-center">
+                        <button
+                          onClick={() => {
+                            setSelectedOfficer(officer);
+                            setShowAssignDistrictModal(true);
+                          }}
+                          className="inline-flex items-center px-3 py-1 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors mr-2"
+                        >
+                          <Plus className="h-4 w-4 mr-1" />
+                          Phân công
+                        </button>
+                        {officer.currentDistrict && (
+                          <button
+                            onClick={() => handleRemoveFromDistrict(officer)}
+                            className="inline-flex items-center px-3 py-1 bg-red-100 text-red-600 rounded-lg hover:bg-red-200 transition-colors"
+                            title="Xóa sĩ quan khỏi quận"
+                          >
+                            <Trash2 className="h-4 w-4 mr-1" />
+                            Xóa khỏi quận
+                          </button>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
+            {/* End Officer Table */}
           </div>
         </div>
       </div>
 
-      {/* Add Officer Modal */}
-      {showAddOfficerModal && selectedDistrict && (
+      {/* Assign District Modal */}
+      {showAssignDistrictModal && selectedOfficer && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-white rounded-xl p-6 w-full max-w-lg">
-            <h2 className="text-xl font-bold mb-4">Thêm sĩ quan vào quận {selectedDistrict?.name}</h2>
+            <h2 className="text-xl font-bold mb-4">Phân công sĩ quan {selectedOfficer?.name} vào quận</h2>
             <div className="space-y-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Chọn sĩ quan</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Chọn quận</label>
                 <SearchableDropdown
-                  options={officers.filter(o => !o.currentDistrict || o.currentDistrict === selectedDistrict?.name)}
-                  value={officerFormData.officerId}
-                  onChange={(value) => setOfficerFormData(prev => ({ ...prev, officerId: value }))}
-                  placeholder="Chọn sĩ quan"
+                  options={districts.map(d => ({
+                    id: d.id,
+                    name: d.name,
+                    code: d.code
+                  }))}
+                  value={districtFormData.districtId}
+                  onChange={(value) => setDistrictFormData({ districtId: value })}
+                  placeholder="Chọn quận"
                 />
               </div>
               <div className="flex gap-2 justify-end">
                 <button
                   className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
-                  onClick={handleAddOfficer}
+                  onClick={handleAssignDistrict}
                 >
-                  Thêm
+                  Phân công
                 </button>
                 <button
                   className="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300"
-                  onClick={() => setShowAddOfficerModal(false)}
+                  onClick={() => setShowAssignDistrictModal(false)}
                 >
                   Hủy
                 </button>
@@ -327,6 +345,13 @@ const AddOfficerDistrictPage = () => {
           </div>
         </div>
       )}
+
+      <NotificationBar
+        show={notification.show}
+        message={notification.message}
+        type={notification.type}
+        onClose={() => setNotification({ ...notification, show: false })}
+      />
     </div>
   );
 };
