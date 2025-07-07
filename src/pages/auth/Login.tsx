@@ -51,7 +51,7 @@ const Login = () => {
         if (role === ROLES.ADMIN) {
           navigate('/user-management');
         } else if (role === ROLES.OFFICER) {
-          navigate('/package-management');
+          navigate('/officer/incident-report');
         } else {
           setNotification({
             message: "Quyền truy cập không hợp lệ",

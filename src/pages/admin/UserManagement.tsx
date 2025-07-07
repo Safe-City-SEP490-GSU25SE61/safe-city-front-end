@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import Sidebar from '../../components/common/SideBar';
 import Header from '../../components/common/Header';
 import FilterBar from '../../components/common/FilterBar';
-import { Eye } from 'lucide-react';
+import { Eye, Package, UserRound, Plus } from 'lucide-react';
 import { PaginationComponent } from '../../components/common/Pagination';
 import UserDetail from '../../components/admin/UserDetail';
 import { getUsers, getUserById, createUser } from '../../services/api/account';
@@ -35,6 +35,7 @@ const UserManagement: React.FC = () => {
   const [loadingDetail, setLoadingDetail] = useState(false);
   const [users, setUsers] = useState<User[]>([]);
   const [showCreateModal, setShowCreateModal] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [notification, setNotification] = useState({
     show: false,
     message: "",
@@ -43,6 +44,7 @@ const UserManagement: React.FC = () => {
 
   const fetchUsers = async () => {
     try {
+      setLoading(true);
       const res = await getUsers();
       const mappedUsers = (res.data || []).map((u: any) => ({
         id: u.id,
@@ -56,6 +58,8 @@ const UserManagement: React.FC = () => {
       setUsers(mappedUsers);
     } catch (error) {
       setUsers([]);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -201,9 +205,10 @@ const UserManagement: React.FC = () => {
                   </p>
                 </div>
                 <button
-                  className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 transition"
                   onClick={() => setShowCreateModal(true)}
+                  className="flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-xl hover:from-blue-700 hover:to-blue-800 transition-all duration-200 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5"
                 >
+                  <Plus className="w-5 h-5" />
                   Tạo tài khoản cán bộ
                 </button>
               </div>
@@ -223,82 +228,92 @@ const UserManagement: React.FC = () => {
 
             {/* Data Table */}
             <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
-              <div className="overflow-x-auto">
-                <table className="w-full">
-                  <thead className="bg-gray-50 border-b border-gray-200">
-                    <tr>
-                    
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Tên tài khoản</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Ngày sinh nhật</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Số điện thoại</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Chức vụ</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Email</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Trạng thái</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Hành động</th>
-                    </tr>
-                  </thead>
-                  <tbody className="bg-white divide-y divide-gray-200">
-                    {paginatedUsers.map((user) => (
-                      <tr key={user.id} className="hover:bg-gray-50 transition-colors">
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                          {user.name}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                          {user.createdDate}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                          {user.phone}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                          {user.role}
-                        </td>
-                        <td className="px-6 py-4 text-sm text-gray-900 max-w-xs truncate">
-                          {user.address}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <span
-                            className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
-                              user.status === 'active'
-                                ? 'bg-green-100 text-green-800'
-                                : 'bg-gray-100 text-gray-800'
-                            }`}
-                          >
-                            {user.status === 'active'
-                              ? 'Hoạt động'
-                              : 'Không hoạt động'}
-                          </span>
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <div className="flex gap-2">
-                            <button
-                              className="text-gray-400 hover:text-gray-600 transition-colors"
-                              onClick={() => handleViewUser(user)}
-                            >
-                              <Eye className="w-5 h-5" />
-                            </button>
-                          </div>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-
-              {filteredUsers.length === 0 && (
+              {loading ? (
                 <div className="text-center py-12">
-                  <p className="text-gray-500">Không tìm thấy dữ liệu phù hợp</p>
+                  <UserRound className="w-16 h-16 text-gray-400 mx-auto mb-4" />                
+                  <h3 className="text-xl font-semibold text-gray-900 mb-2">Đang tải danh sách người dùng...</h3>
+                  <p className="text-gray-600">Vui lòng chờ trong giây lát</p>
                 </div>
-              )}
-              {/* Pagination */}
-              {filteredUsers.length > 0 && (
-                <div className="flex justify-center">
-                  <PaginationComponent
-                    totalItems={filteredUsers.length}
-                    itemsPerPage={itemsPerPage}
-                    currentPage={currentPage}
-                    onPageChange={setCurrentPage}
-                  />
-                </div>
+              ) : (
+                <>
+                  <div className="overflow-x-auto">
+                    <table className="w-full">
+                      <thead className="bg-gray-50 border-b border-gray-200">
+                        <tr>
+                        
+                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Tên tài khoản</th>
+                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Ngày sinh nhật</th>
+                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Số điện thoại</th>
+                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Chức vụ</th>
+                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Email</th>
+                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Trạng thái</th>
+                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Hành động</th>
+                        </tr>
+                      </thead>
+                      <tbody className="bg-white divide-y divide-gray-200">
+                        {paginatedUsers.map((user) => (
+                          <tr key={user.id} className="hover:bg-gray-50 transition-colors">
+                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                              {user.name}
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                              {user.createdDate}
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                              {user.phone}
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                              {user.role}
+                            </td>
+                            <td className="px-6 py-4 text-sm text-gray-900 max-w-xs truncate">
+                              {user.address}
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap">
+                              <span
+                                className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
+                                  user.status === 'active'
+                                    ? 'bg-green-100 text-green-800'
+                                    : 'bg-gray-100 text-gray-800'
+                                }`}
+                              >
+                                {user.status === 'active'
+                                  ? 'Hoạt động'
+                                  : 'Không hoạt động'}
+                              </span>
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap">
+                              <div className="flex gap-2">
+                                <button
+                                  className="text-gray-400 hover:text-gray-600 transition-colors"
+                                  onClick={() => handleViewUser(user)}
+                                >
+                                  <Eye className="w-5 h-5" />
+                                </button>
+                              </div>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+
+                  {filteredUsers.length === 0 && (
+                    <div className="text-center py-12">
+                      <p className="text-gray-500">Không tìm thấy dữ liệu phù hợp</p>
+                    </div>
+                  )}
+                  {/* Pagination */}
+                  {filteredUsers.length > 0 && (
+                    <div className="flex justify-center">
+                      <PaginationComponent
+                        totalItems={filteredUsers.length}
+                        itemsPerPage={itemsPerPage}
+                        currentPage={currentPage}
+                        onPageChange={setCurrentPage}
+                      />
+                    </div>
+                  )}
+                </>
               )}
             </div>
             {selectedUser && (

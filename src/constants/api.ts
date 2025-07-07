@@ -16,6 +16,8 @@ export const API_ENDPOINTS = {
     ASSIGN_TO_OFFICER: `${API_BASE_URL}/districts/assign-to-officer`,
     VIEW_OFFICER_DISTRICT_CHANGE: (accountId: string) => `${API_BASE_URL}/districts/officer/${accountId}/history`,
     SEARCH: `${API_BASE_URL}/districts/search`,
+    UNASSIGN_FROM_OFFICER: (accountId: string) => `${API_BASE_URL}/districts/unassign-from-officer/${accountId}`,
+    
   },
   WARD: {
     BASE: `${API_BASE_URL}/wards`,
@@ -26,6 +28,7 @@ export const API_ENDPOINTS = {
   PACKAGES: {
     BASE: `${API_BASE_URL}/packages`,
     BY_ID: (id: string) => `${API_BASE_URL}/packages/${id}`,
+    CHANGE_HISTORY: (id: string) => `${API_BASE_URL}/packages/${id}/history`,
   },
   ACHIEVEMENT: {
     CONFIG: `${API_BASE_URL}/achievement/config`,
@@ -36,6 +39,7 @@ export const API_ENDPOINTS = {
     BY_ID: (id: string) => `${API_BASE_URL}/accounts/${id}`,
     CREATE: `${API_BASE_URL}/accounts`,
     DELETE: (id: string) => `${API_BASE_URL}/accounts/${id}`,
+    GET_OFFICER: `${API_BASE_URL}/accounts/officer`,
   },
   // Add other groups (e.g., USERS, REPORTS) here as needed
 };
