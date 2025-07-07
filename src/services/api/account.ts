@@ -23,7 +23,10 @@ export const createUser = async (userData: any) => {
   return response.data;
 };
 
-
+export const getOfficers= async () => {
+  const response = await axios.get(API_ENDPOINTS.USERS.GET_OFFICER);
+  return response.data.data;
+};
 
 // Delete user by ID
 export const deleteUser = async (id: string) => {

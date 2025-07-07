@@ -1,15 +1,16 @@
 import React, { useState, useMemo, useRef, useEffect } from 'react';
-import { User, MapPin, Plus, Users, Eye, Edit3, Trash2, Search, Filter, ChevronDown } from 'lucide-react';
+import { User, MapPin, Plus, Users, Eye, Edit3, Trash2, Search, Filter, ChevronDown, UserRoundPlus } from 'lucide-react';
 import SideBar from '../../components/common/SideBar';
 import Header from '../../components/common/Header';
 import FilterBar from '../../components/common/FilterBar';
-import { getAllDistricts, assignToOfficer } from '../../services/api/district';
-import { getUsers } from '../../services/api/account';
+import { getAllDistricts, assignToOfficer, unassignFromOfficer, getOfficerDistrictHistory } from '../../services/api/district';
+import { getOfficers } from '../../services/api/account';
 import NotificationBar from '../../components/common/NotificationBar';
+import OfficerAssignHistory from '../../components/admin/OfficerAssignHistory';
 
 // Interfaces
 interface Officer {
-  id: number;
+  id: string;
   name: string;
   code: string;
   phone: string;
@@ -123,30 +124,39 @@ const AddOfficerDistrictPage = () => {
     message: '',
     type: 'info',
   });
+  const [historyPopup, setHistoryPopup] = useState<{ open: boolean; accountId?: number }>({ open: false });
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [officerHistory, setOfficerHistory] = useState([]);
 
   // Fetch districts and officers from API
   useEffect(() => {
     const fetchData = async () => {
-      // Fetch districts
-      const districtsData = await getAllDistricts();
-      setDistricts(districtsData);
-      const usersData = await getUsers();
-      const userArray = Array.isArray(usersData) ? usersData : usersData.data;    
-      const officerUsers = userArray
-        .filter((user: any) => user.roleName === 'Officer')
-        .map((user: any) => ({
+      try {
+        setLoading(true);
+        const districtsData = await getAllDistricts();
+        setDistricts(districtsData);
+
+        const officerData = await getOfficers();
+        const officerUsers = officerData.map((user: any) => ({
           id: user.id,
           name: user.fullName,
           phone: user.phone,
           email: user.email,
           status: user.status,
-          roleId: user.roleId,
+          currentDistrict: user.districtName,
         }));
-      setOfficers(officerUsers);
+        setOfficers(officerUsers);
+        console.log(officerUsers);
+      } catch (error) {
+        console.error('Failed to fetch data:', error);
+        setError('Có lỗi xảy ra khi tải dữ liệu');
+      } finally {
+        setLoading(false);
+      }
     };
     fetchData();
   }, []);
-
 
   // Handler to assign officer to district (local state only, update with API if needed)
   const handleAssignDistrict = async () => {
@@ -198,27 +208,46 @@ const AddOfficerDistrictPage = () => {
   };
 
   // Handler to remove officer from district (local state only, update with API if needed)
-  const handleRemoveFromDistrict = (officer: Officer) => {
+  const handleRemoveFromDistrict = async (officer: Officer) => {
     if (!officer.currentDistrict) return;
     if (!window.confirm('Bạn có chắc chắn muốn xóa sĩ quan này khỏi quận?')) return;
 
-    // Remove officer from district's officers list
-    setDistricts(prevDistricts =>
-      prevDistricts.map(d =>
-        d.name === officer.currentDistrict
-          ? { ...d, officers: d.officers.filter(o => o.id !== officer.id) }
-          : d
-      )
-    );
+    try {
+      await unassignFromOfficer(officer.id.toString());
+      // Remove officer from district's officers list
+      setDistricts(prevDistricts =>
+        prevDistricts.map(d =>
+          d.name === officer.currentDistrict
+            ? { ...d, officers: d.officers.filter(o => o.id !== officer.id) }
+            : d
+        )
+      );
+      // Remove currentDistrict from officer
+      setOfficers(prevOfficers =>
+        prevOfficers.map(o =>
+          o.id === officer.id
+            ? { ...o, currentDistrict: undefined }
+            : o
+        )
+      );
+      setNotification({ show: true, message: 'Đã xóa sĩ quan khỏi quận thành công!', type: 'success' });
+    } catch (error) {
+      setNotification({ show: true, message: 'Có lỗi xảy ra khi xóa sĩ quan khỏi quận!', type: 'error' });
+    }
+  };
 
-    // Remove currentDistrict from officer
-    setOfficers(prevOfficers =>
-      prevOfficers.map(o =>
-        o.id === officer.id
-          ? { ...o, currentDistrict: undefined }
-          : o
-      )
-    );
+  const handleOpenHistory = (officerId: string) => {
+    setLoading(true);
+    getOfficerDistrictHistory(officerId)
+      .then((data) => {
+        setOfficerHistory(data || []);
+        setHistoryPopup({ open: true, accountId: parseInt(officerId) });
+      })
+      .catch(() => {
+        setOfficerHistory([]);
+        setHistoryPopup({ open: true, accountId: parseInt(officerId) });
+      })
+      .finally(() => setLoading(false));
   };
 
   return (
@@ -252,57 +281,85 @@ const AddOfficerDistrictPage = () => {
             </div>
 
             {/* Officer Table */}
-            
-            <div className="overflow-x-auto">
-              <table className="min-w-full bg-white rounded-xl shadow border">
-                <thead>
-                  <tr>
-                    <th className="px-4 py-3 border-b text-left">Tên sĩ quan</th>
-                    <th className="px-4 py-3 border-b text-left">Số điện thoại</th>
-                    <th className="px-4 py-3 border-b text-left">Email</th>
-                    <th className="px-4 py-3 border-b text-center">Hành động</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {officers.length === 0 && (
+            {loading ? (
+              <div className="text-center py-12">
+                <UserRoundPlus className="w-16 h-16 text-gray-400 mx-auto mb-4" />
+                <h3 className="text-xl font-semibold text-gray-900 mb-2">Đang tải danh sách sĩ quan...</h3>
+                <p className="text-gray-600">Vui lòng chờ trong giây lát</p>
+              </div>
+            ) : error ? (
+              <div className="text-center py-12">
+                <Users className="w-16 h-16 text-red-400 mx-auto mb-4" />
+                <h3 className="text-xl font-semibold text-gray-900 mb-2">Có lỗi xảy ra</h3>
+                <p className="text-gray-600">{error}</p>
+              </div>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="min-w-full bg-white rounded-xl shadow border">
+                  <thead>
                     <tr>
-                      <td colSpan={4} className="text-center py-6 text-gray-500 italic">
-                        Không có sĩ quan nào phù hợp
-                      </td>
+                      <th className="px-4 py-3 border-b text-left">Tên sĩ quan</th>
+                      <th className="px-4 py-3 border-b text-left">Số điện thoại</th>
+                      <th className="px-4 py-3 border-b text-left">Email</th>
+                      <th className="px-4 py-3 border-b text-left">Quận hiện tại</th>
+                      <th className="px-4 py-3 border-b text-center">Hành động</th>
                     </tr>
-                  )}
-                  {officers.map(officer => (
-                    <tr key={officer.id} className="hover:bg-gray-50">
-                      <td className="px-4 py-3 border-b">{officer.name}</td>
-                      <td className="px-4 py-3 border-b">{officer.phone}</td>
-                      <td className="px-4 py-3 border-b">{officer.email}</td>
-                      <td className="px-4 py-3 border-b text-center">
-                        <button
-                          onClick={() => {
-                            setSelectedOfficer(officer);
-                            setShowAssignDistrictModal(true);
-                          }}
-                          className="inline-flex items-center px-3 py-1 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors mr-2"
-                        >
-                          <Plus className="h-4 w-4 mr-1" />
-                          Phân công
-                        </button>
-                        {officer.currentDistrict && (
-                          <button
-                            onClick={() => handleRemoveFromDistrict(officer)}
-                            className="inline-flex items-center px-3 py-1 bg-red-100 text-red-600 rounded-lg hover:bg-red-200 transition-colors"
-                            title="Xóa sĩ quan khỏi quận"
-                          >
-                            <Trash2 className="h-4 w-4 mr-1" />
-                            Xóa khỏi quận
-                          </button>
-                        )}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+                  </thead>
+                  <tbody>
+                    {officers.length === 0 && (
+                      <tr>
+                        <td colSpan={5} className="text-center py-6 text-gray-500 italic">
+                          Không có sĩ quan nào phù hợp
+                        </td>
+                      </tr>
+                    )}
+                    {officers.map(officer => (
+                      <tr key={officer.id} className="hover:bg-gray-50">
+                        <td className="px-4 py-3 border-b">{officer.name}</td>
+                        <td className="px-4 py-3 border-b">{officer.phone}</td>
+                        <td className="px-4 py-3 border-b">{officer.email}</td>
+                        <td className="px-4 py-3 border-b">
+                          {officer.currentDistrict === 'N/A' || !officer.currentDistrict
+                            ? 'Chưa được phân công'
+                            : officer.currentDistrict}
+                        </td>
+                        <td className="px-4 py-3 border-b text-center">
+                          <div className="flex flex-wrap justify-center items-center gap-2">
+                            <button
+                              onClick={() => {
+                                setSelectedOfficer(officer);
+                                setShowAssignDistrictModal(true);
+                              }}
+                              className="inline-flex items-center px-3 py-1 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                            >
+                              <Plus className="h-4 w-4 mr-1" />
+                              Phân công
+                            </button>
+                            {officer.currentDistrict && officer.currentDistrict !== 'N/A' && (
+                              <button
+                                onClick={() => handleRemoveFromDistrict(officer)}
+                                className="inline-flex items-center px-3 py-1 bg-red-100 text-red-600 rounded-lg hover:bg-red-200 transition-colors"
+                                title="Xóa sĩ quan khỏi quận"
+                              >
+                                <Trash2 className="h-4 w-4 mr-1" />
+                                Xóa khỏi quận
+                              </button>
+                            )}
+                            <button
+                              onClick={() => handleOpenHistory(officer.id)}
+                              className="inline-flex items-center px-3 py-1 bg-gray-100 text-blue-600 rounded-lg hover:bg-gray-200 transition-colors"
+                            >
+                              <Eye className="h-4 w-4 mr-1" />
+                              Lịch sử
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
             {/* End Officer Table */}
           </div>
         </div>
@@ -345,6 +402,14 @@ const AddOfficerDistrictPage = () => {
           </div>
         </div>
       )}
+
+      <OfficerAssignHistory
+        open={historyPopup.open}
+        accountId={historyPopup.accountId || 0}
+        onClose={() => setHistoryPopup({ open: false })}
+        history={officerHistory}
+        loading={loading}
+      />
 
       <NotificationBar
         show={notification.show}
