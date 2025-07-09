@@ -51,6 +51,7 @@ interface EnrichedDistrict extends District {
   avgDangerLevel: number;
   dangerLevelLabel: string;
   lastUpdated: string | Date;
+  totalAssignedOfficers?: number;
 }
 
 interface WardFormData {
@@ -186,14 +187,18 @@ const DistrictManagement = () => {
   };
 
   const handleViewDetails = async (districtId: number) => {
-    // Show the modal immediately with basic info from the list
     setSelectedDistrict(districts.find(d => d.id === districtId) as unknown as EnrichedDistrict || null);
     setIsDetailLoading(true);
-  
+
     try {
       const detailedData = await getDistrictById(districtId.toString());
       if (detailedData) {
-        // Create a new enriched district object with the full details from the API
+        // Map wardNames to wards array
+        const wards = (detailedData.wardNames || []).map((name: string, idx: number) => ({
+          id: idx + 1, // or use a better unique id if available
+          name,
+        }));
+
         const enrichedDetailedDistrict: EnrichedDistrict = {
           id: detailedData.id,
           name: detailedData.name,
@@ -201,7 +206,7 @@ const DistrictManagement = () => {
           population: detailedData.population || 0,
           area: detailedData.area || 'N/A',
           status: detailedData.isActive ? 'hoạt động' : 'tạm dừng',
-          wards: detailedData.wards || [], // Important: wards are now fetched
+          wards, // <-- use mapped wards here
           createAt: detailedData.createAt,
           notes: detailedData.note,
           coordinates: detailedData.polygonData,
@@ -209,6 +214,7 @@ const DistrictManagement = () => {
           avgDangerLevel: detailedData.dangerLevel ?? 0,
           dangerLevelLabel: getDangerLevelLabel(detailedData.dangerLevel ?? 0),
           lastUpdated: detailedData.lastUpdated,
+          totalAssignedOfficers: detailedData.totalAssignedOfficers,
         };
         setSelectedDistrict(enrichedDetailedDistrict);
       }
@@ -1052,6 +1058,8 @@ const DistrictManagement = () => {
             lastUpdate: selectedDistrict.lastUpdated,
             notes: selectedDistrict.notes,
             coordinates: selectedDistrict.coordinates,
+            wards: selectedDistrict.wards,
+            totalAssignedOfficers: selectedDistrict.totalAssignedOfficers,     
           }}
           onClose={() => setSelectedDistrict(null)}
           onSave={handleSaveDistrict}
