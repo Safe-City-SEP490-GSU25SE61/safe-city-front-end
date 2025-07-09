@@ -9,6 +9,7 @@ import NotificationBar from '../../components/common/NotificationBar';
 const PackageDetailModal = ({ details, onClose, onSave }: { details: { data: any, mode: 'view' | 'edit' | 'add' }, onClose: () => void, onSave: (data: any) => Promise<void> }) => {
   const [isEditing, setIsEditing] = useState(details.mode === 'edit' || details.mode === 'add');
   const [formData, setFormData] = useState(details.data);
+  const [selectedHistory, setSelectedHistory] = useState<any | null>(null);
 
   useEffect(() => {
     setIsEditing(details.mode === 'edit' || details.mode === 'add');
@@ -53,12 +54,16 @@ const PackageDetailModal = ({ details, onClose, onSave }: { details: { data: any
     return dateObj.toLocaleString('vi-VN');
   };
 
+  const onViewHistoryDetail = (entry: any) => {
+    setSelectedHistory(entry);
+  };
+
   return (
     <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50 transition-opacity duration-300 p-4">
-      <div className="bg-white rounded-3xl shadow-2xl w-full max-w-4xl mx-4 max-h-[90vh] overflow-hidden">
+      <div className="bg-white rounded-3xl shadow-2xl w-full max-w-4xl mx-4 max-h-[90vh] flex flex-col">
         {/* Header with solid blue background */}
         <div className="bg-blue-600 p-8 text-white relative overflow-hidden">
-          <div className="absolute inset-0 bg-black opacity-10"></div>
+          <div className="absolute inset-0 bg-black opacity-10 pb-10"></div>
           <div className="relative z-10">
             <div className="flex justify-between items-start mb-6">
               <div className="flex items-center gap-4">
@@ -119,7 +124,7 @@ const PackageDetailModal = ({ details, onClose, onSave }: { details: { data: any
         </div>
 
         {/* Content Area */}
-        <div className="p-8 space-y-6 bg-white">
+        <div className="flex-1 overflow-y-auto p-8 pt-4 space-y-6 bg-white">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
             {/* Left: Details */}
             <div className="space-y-4">
@@ -201,6 +206,64 @@ const PackageDetailModal = ({ details, onClose, onSave }: { details: { data: any
               </div>
             </div>
           </div>
+
+          {/* Divider */}
+          <hr className="my-8 border-t border-gray-200" />
+
+          {/* Price History Section */}
+          <div className="mt-4">
+            <h4 className="text-lg font-semibold mb-2">Lịch sử thay đổi giá</h4>
+            <div className="overflow-x-auto max-h-60 overflow-y-auto rounded-lg border border-gray-200 bg-white">
+              <table className="min-w-full">
+                <thead>
+                  <tr className="bg-gray-100 sticky top-0 z-10">
+                    <th className="px-4 py-2 text-left">Giá (VND)</th>
+                    <th className="px-4 py-2 text-left">Thời hạn</th>
+                    <th className="px-4 py-2 text-left">Trạng thái</th>
+                    <th className="px-4 py-2 text-left">Ngày bắt đầu</th>
+                    <th className="px-4 py-2 text-left">Ngày kết thúc</th>
+                    <th className="px-4 py-2 text-left"></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {(formData.priceHistory || []).length === 0 ? (
+                    <tr>
+                      <td colSpan={6} className="px-4 py-2 text-center text-gray-500">Chưa có lịch sử giá</td>
+                    </tr>
+                  ) : (
+                    formData.priceHistory
+                      .slice(-3)
+                      .reverse()
+                      .map((entry: any, idx: number) => (
+                        <tr key={idx} className="border-t">
+                          <td className="px-4 py-2">{formatPrice(entry.price)}</td>
+                          <td className="px-4 py-2">{formatDuration(entry.packageSnapshot?.durationDays)}</td>
+                          <td className="px-4 py-2">
+                            {entry.packageSnapshot?.isActive ? (
+                              <span className="text-green-600 font-medium">Hoạt động</span>
+                            ) : (
+                              <span className="text-red-600 font-medium">Tạm dừng</span>
+                            )}
+                          </td>
+                          <td className="px-4 py-2">{formatDisplayDate(entry.startDate)}</td>
+                          <td className="px-4 py-2">
+                            {entry.endDate ? formatDisplayDate(entry.endDate) : <span className="text-green-600 font-medium">Hiện tại</span>}
+                          </td>
+                          <td className="px-4 py-2">
+                            <button
+                              className="text-blue-600 underline"
+                              onClick={() => setSelectedHistory(entry)}
+                            >
+                              Xem chi tiết
+                            </button>
+                          </td>
+                        </tr>
+                      ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
         </div>
         {/* Footer */}
         <div className="px-8 py-6 bg-gray-50 rounded-b-3xl flex justify-end gap-3 border-t">
@@ -229,6 +292,79 @@ const PackageDetailModal = ({ details, onClose, onSave }: { details: { data: any
           )}
         </div>
       </div>
+      {selectedHistory && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-60">
+          <div className="w-full max-w-md mx-4 bg-white rounded-2xl shadow-2xl overflow-hidden">
+            {/* Header */}
+            <div className="flex items-center justify-between bg-blue-600 p-5">
+              <div className="flex items-center gap-2">
+                <DollarSign className="w-7 h-7 text-white" />
+                <span className="text-xl font-bold text-white">Chi tiết thay đổi giá</span>
+              </div>
+              <button
+                className="p-2 rounded-full bg-white/20 hover:bg-white/30 transition"
+                onClick={() => setSelectedHistory(null)}
+              >
+                <X className="w-5 h-5 text-white" />
+              </button>
+            </div>
+            {/* Content */}
+            <div className="p-6 space-y-5">
+              <div className="flex items-center gap-3">
+                <span className="text-gray-500 min-w-[90px]">Giá cũ:</span>
+                <span className="text-lg font-semibold text-red-500 line-through">{formatPrice(selectedHistory.oldPrice)}</span>
+              </div>
+              <div className="flex items-center gap-3">
+                <span className="text-gray-500 min-w-[90px]">Giá mới:</span>
+                <span className="text-lg font-semibold text-green-600">{formatPrice(selectedHistory.price)}</span>
+              </div>
+              <div className="flex items-center gap-3">
+                <Calendar className="w-4 h-4 text-blue-500" />
+                <span className="text-gray-500 min-w-[90px]">Ngày bắt đầu:</span>
+                <span className="font-medium">{formatDisplayDate(selectedHistory.startDate)}</span>
+              </div>
+              <div className="flex items-center gap-3">
+                <Calendar className="w-4 h-4 text-blue-500" />
+                <span className="text-gray-500 min-w-[90px]">Ngày kết thúc:</span>
+                <span className="font-medium">
+                  {selectedHistory.endDate ? formatDisplayDate(selectedHistory.endDate) : <span className="text-green-600 font-medium">Hiện tại</span>}
+                </span>
+              </div>
+              <div className="flex items-center gap-3">
+                <Users className="w-4 h-4 text-blue-500" />
+                <span className="text-gray-500 min-w-[90px]">Người thay đổi:</span>
+                <span className="font-medium">{selectedHistory.changedBy}</span>
+              </div>
+              {/* Package snapshot details */}
+              {selectedHistory.packageSnapshot && (
+                <div className="mt-6 border-t pt-4">
+                  <h4 className="text-lg font-semibold mb-2 text-blue-700">Thông tin gói tại thời điểm thay đổi</h4>
+                  <div className="space-y-2">
+                    <div><span className="font-medium text-gray-600">Tên gói:</span> {selectedHistory.packageSnapshot.name}</div>
+                    <div><span className="font-medium text-gray-600">Mô tả:</span> {selectedHistory.packageSnapshot.description}</div>
+                    <div><span className="font-medium text-gray-600">Thời hạn:</span> {selectedHistory.packageSnapshot.durationDays} ngày</div>
+                    <div>
+                      <span className="font-medium text-gray-600">Trạng thái:</span>
+                      {selectedHistory.packageSnapshot.isActive ? (
+                        <span className="ml-2 text-green-600 font-semibold">Hoạt động</span>
+                      ) : (
+                        <span className="ml-2 text-red-600 font-semibold">Tạm dừng</span>
+                      )}
+                    </div>
+                    {/* Add more fields as needed */}
+                  </div>
+                </div>
+              )}
+              <button
+                className="w-full mt-6 px-4 py-2 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 transition"
+                onClick={() => setSelectedHistory(null)}
+              >
+                Đóng
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
@@ -329,16 +465,68 @@ const PackageManagement = () => {
     isOpen: false,
     packageId: null
   });
+  const [loading, setLoading] = useState(true);
+  const [selectedHistory, setSelectedHistory] = useState<any | null>(null);
 
   useEffect(() => {
     const fetchPackages = async () => {
       try {
-        const data = await getAllPackages();
+        setLoading(true);
+        let data = await getAllPackages();
         if (Array.isArray(data)) {
+          // Add demo priceHistory to each package for demo
+          data = data.map(pkg => ({
+            ...pkg,
+            priceHistory: [
+              {
+                price: 100000,
+                startDate: '2023-01-01T00:00:00Z',
+                endDate: '2023-06-01T00:00:00Z',
+                oldPrice: 80000,
+                changedBy: 'admin1',
+                packageSnapshot: {
+                  name: 'Gói Cơ Bản',
+                  description: 'Dịch vụ cơ bản',
+                  durationDays: 30,
+                  isActive: true,
+                  // ... any other fields you want to show
+                }
+              },
+              {
+                price: 120000,
+                startDate: '2023-06-02T00:00:00Z',
+                endDate: '2024-01-01T00:00:00Z',
+                oldPrice: 100000,
+                changedBy: 'admin2',
+                packageSnapshot: {
+                  name: 'Gói Cơ Bản',
+                  description: 'Dịch vụ cơ bản',
+                  durationDays: 30,
+                  isActive: true,
+                  // ... any other fields you want to show
+                }
+              },
+              {
+                price: 150000,
+                startDate: '2024-01-02T00:00:00Z',
+                oldPrice: 120000,
+                changedBy: 'admin3',
+                packageSnapshot: {
+                  name: 'Gói Cơ Bản',
+                  description: 'Dịch vụ cơ bản',
+                  durationDays: 30,
+                  isActive: true,
+                  // ... any other fields you want to show
+                }
+              },
+            ],
+          }));
           setPackages(data);
         }
       } catch (error) {
         console.error('Failed to fetch packages:', error);
+      } finally {
+        setLoading(false);
       }
     };
 
@@ -402,6 +590,50 @@ const PackageManagement = () => {
     createAt: new Date(),
     lastUpdated: new Date(),
     id: '', // id will be set by backend
+    priceHistory: [
+      {
+        price: 100000,
+        startDate: '2023-01-01T00:00:00Z',
+        endDate: '2023-06-01T00:00:00Z',
+        oldPrice: 80000,
+        changedBy: 'admin1',
+        packageSnapshot: {
+          name: 'Gói Cơ Bản',
+          description: 'Dịch vụ cơ bản',
+          durationDays: 30,
+          isActive: true,
+          // ... any other fields you want to show
+        }
+      },
+      {
+        price: 120000,
+        startDate: '2023-06-02T00:00:00Z',
+        endDate: '2024-01-01T00:00:00Z',
+        oldPrice: 100000,
+        changedBy: 'admin2',
+        packageSnapshot: {
+          name: 'Gói Cơ Bản',
+          description: 'Dịch vụ cơ bản',
+          durationDays: 30,
+          isActive: true,
+          // ... any other fields you want to show
+        }
+      },
+      {
+        price: 150000,
+        startDate: '2024-01-02T00:00:00Z',
+        // No endDate means it's the current price
+        oldPrice: 120000,
+        changedBy: 'admin3',
+        packageSnapshot: {
+          name: 'Gói Cơ Bản',
+          description: 'Dịch vụ cơ bản',
+          durationDays: 30,
+          isActive: true,
+          // ... any other fields you want to show
+        }
+      },
+    ],
   };
 
   const handleAddNewPackage = () => {
@@ -488,6 +720,10 @@ const PackageManagement = () => {
     }
   };
 
+  const onViewHistoryDetail = (entry: any) => {
+    setSelectedHistory(entry);
+  };
+
   return (
     <div className="min-h-screen flex bg-gradient-to-br from-blue-50 via-white to-purple-50">
       <NotificationBar
@@ -543,74 +779,84 @@ const PackageManagement = () => {
         
 
         {/* Packages Grid */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
-          {filteredPackages.map((pkg: any) => (
-            <div key={pkg.id} className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-lg border border-white/20 overflow-hidden hover:shadow-xl transition-all duration-200 transform hover:-translate-y-1">
-              {/* Package Header */}
-              <div className="bg-blue-600 p-6 text-white">
-                <div className="flex items-start justify-between mb-4">
-                  <div>
-                    <h3 className="text-xl font-bold mb-2">{pkg.name}</h3>
-                    <p className="text-blue-100 text-sm">{pkg.description}</p>
-                  </div>
-                </div>
-                
-                <div className="flex items-center justify-between">
-                  <div>
-                    <span className="text-2xl font-bold">{formatPrice(pkg.price)}</span>
-                    <span className="text-blue-100 text-sm">/{formatDuration(pkg.durationDays)}</span>
-                  </div>
-                </div>
-              </div>
-
-              {/* Package Content */}
-              <div className="p-6">
-                <div className="flex items-start justify-between mb-4">
-                  <div className="text-sm text-gray-500 space-y-1">
-                    <p>Tạo: {formatDisplayDate(pkg.createAt)}</p>
-                    <p>Cập nhật: {formatDisplayDate(pkg.lastUpdated)}</p>
-                  </div>
-                  <span className={`px-3 py-1 rounded-full text-xs font-medium ${getStatusColor(pkg.isActive)}`}>
-                    {pkg.isActive ? 'Hoạt động' : 'Tạm dừng'}
-                  </span>
-                </div>
-
-                {/* Action Buttons */}
-                <div className="flex gap-2">
-                  <button 
-                    onClick={() => setSelectedPackage({ data: pkg, mode: 'view' })} 
-                    className="flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-blue-50 text-blue-600 rounded-xl hover:bg-blue-100 transition-colors"
-                  >
-                    <Eye className="w-4 h-4" />
-                    Xem
-                  </button>
-                  <button 
-                    onClick={() => setSelectedPackage({ data: pkg, mode: 'edit' })} 
-                    className="flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-gray-50 text-gray-600 rounded-xl hover:bg-gray-100 transition-colors"
-                  >
-                    <Edit2 className="w-4 h-4" />
-                    Sửa
-                  </button>
-                  <button 
-                    onClick={() => openDeleteConfirmation(pkg.id)}
-                    className="flex items-center justify-center px-4 py-2 bg-red-50 text-red-600 rounded-xl hover:bg-red-100 transition-colors"
-                    title="Tạm dừng gói dịch vụ"
-                  >
-                    <Trash2 className="w-4 h-4" />
-                  </button>
-                </div>
-              </div>
-            </div>
-          ))}
-        </div>
-
-        {/* Empty State */}
-        {filteredPackages.length === 0 && (
+        {loading ? (
           <div className="text-center py-12">
             <Package className="w-16 h-16 text-gray-400 mx-auto mb-4" />
-            <h3 className="text-xl font-semibold text-gray-900 mb-2">Không tìm thấy gói dịch vụ</h3>
-            <p className="text-gray-600">Thử thay đổi từ khóa tìm kiếm hoặc bộ lọc</p>
+            <h3 className="text-xl font-semibold text-gray-900 mb-2">Đang tải gói dịch vụ...</h3>
+            <p className="text-gray-600">Vui lòng chờ trong giây lát</p>
           </div>
+        ) : (
+          <>
+            <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
+              {filteredPackages.map((pkg: any) => (
+                <div key={pkg.id} className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-lg border border-white/20 overflow-hidden hover:shadow-xl transition-all duration-200 transform hover:-translate-y-1">
+                  {/* Package Header */}
+                  <div className="bg-blue-600 p-6 text-white">
+                    <div className="flex items-start justify-between mb-4">
+                      <div>
+                        <h3 className="text-xl font-bold mb-2">{pkg.name}</h3>
+                        <p className="text-blue-100 text-sm">{pkg.description}</p>
+                      </div>
+                    </div>
+                    
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <span className="text-2xl font-bold">{formatPrice(pkg.price)}</span>
+                        <span className="text-blue-100 text-sm">/{formatDuration(pkg.durationDays)}</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Package Content */}
+                  <div className="p-6">
+                    <div className="flex items-start justify-between mb-4">
+                      <div className="text-sm text-gray-500 space-y-1">
+                        <p>Tạo: {formatDisplayDate(pkg.createAt)}</p>
+                        <p>Cập nhật: {formatDisplayDate(pkg.lastUpdated)}</p>
+                      </div>
+                      <span className={`px-3 py-1 rounded-full text-xs font-medium ${getStatusColor(pkg.isActive)}`}>
+                        {pkg.isActive ? 'Hoạt động' : 'Tạm dừng'}
+                      </span>
+                    </div>
+
+                    {/* Action Buttons */}
+                    <div className="flex gap-2">
+                      <button 
+                        onClick={() => setSelectedPackage({ data: pkg, mode: 'view' })} 
+                        className="flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-blue-50 text-blue-600 rounded-xl hover:bg-blue-100 transition-colors"
+                      >
+                        <Eye className="w-4 h-4" />
+                        Xem
+                      </button>
+                      <button 
+                        onClick={() => setSelectedPackage({ data: pkg, mode: 'edit' })} 
+                        className="flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-gray-50 text-gray-600 rounded-xl hover:bg-gray-100 transition-colors"
+                      >
+                        <Edit2 className="w-4 h-4" />
+                        Sửa
+                      </button>
+                      <button 
+                        onClick={() => openDeleteConfirmation(pkg.id)}
+                        className="flex items-center justify-center px-4 py-2 bg-red-50 text-red-600 rounded-xl hover:bg-red-100 transition-colors"
+                        title="Tạm dừng gói dịch vụ"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* Empty State */}
+            {filteredPackages.length === 0 && (
+              <div className="text-center py-12">
+                <Package className="w-16 h-16 text-gray-400 mx-auto mb-4" />
+                <h3 className="text-xl font-semibold text-gray-900 mb-2">Không tìm thấy gói dịch vụ</h3>
+                <p className="text-gray-600">Thử thay đổi từ khóa tìm kiếm hoặc bộ lọc</p>
+              </div>
+            )}
+          </>
         )}
       </div>
     </div>

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Search, Filter, Plus, Edit2, Trash2, Eye, Trophy, Calendar, Star, Users, X } from 'lucide-react';
+import { Search, Filter, Plus, Edit2, Trash2, Eye, Trophy, Calendar, Star, Users, X, Package, Medal } from 'lucide-react';
 import SideBar from '../../components/common/SideBar';
 import Header from '../../components/common/Header';
 import FilterBar from '../../components/common/FilterBar';
@@ -481,8 +481,10 @@ const AchievementManagement = () => {
             </div>
 
             {loading ? (
-              <div className="text-center py-12">
-                <p>Loading achievements...</p>
+                <div className="text-center py-12">
+                <Medal className="w-16 h-16 text-gray-400 mx-auto mb-4" />
+                <h3 className="text-xl font-semibold text-gray-900 mb-2">Đang tải thành tích...</h3>
+                <p className="text-gray-600">Vui lòng chờ trong giây lát</p>
               </div>
             ) : (
               <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
