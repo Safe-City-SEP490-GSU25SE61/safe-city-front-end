@@ -52,7 +52,7 @@ const Sidebar = () => {
     { icon: UserRoundPlus, text: 'Phân công sĩ quan', to: '/add-police-to-ward', roles: ['admin'] },
     // Officer only
     { icon: ShieldAlert, text: 'Báo cáo', to: '/officer/incident-report', roles: ['officer'] },
-
+    { icon: FileText, text: 'Bài viết', to: '/officer/blog-view', roles: ['officer'] },
     // Admin and Officer shared
    
 

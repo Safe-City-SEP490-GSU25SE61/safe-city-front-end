@@ -331,26 +331,25 @@ const AddOfficerDistrictPage = () => {
                                 setShowAssignDistrictModal(true);
                               }}
                               className="inline-flex items-center px-3 py-1 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                              title="Phân công"
                             >
-                              <Plus className="h-4 w-4 mr-1" />
-                              Phân công
+                              <Plus className="h-4 w-4" />
                             </button>
                             {officer.currentDistrict && officer.currentDistrict !== 'N/A' && (
                               <button
                                 onClick={() => handleRemoveFromDistrict(officer)}
                                 className="inline-flex items-center px-3 py-1 bg-red-100 text-red-600 rounded-lg hover:bg-red-200 transition-colors"
-                                title="Xóa sĩ quan khỏi quận"
+                                title="Xóa khỏi quận"
                               >
-                                <Trash2 className="h-4 w-4 mr-1" />
-                                Xóa khỏi quận
+                                <Trash2 className="h-4 w-4" />
                               </button>
                             )}
                             <button
                               onClick={() => handleOpenHistory(officer.id)}
                               className="inline-flex items-center px-3 py-1 bg-gray-100 text-blue-600 rounded-lg hover:bg-gray-200 transition-colors"
+                              title="Lịch sử"
                             >
-                              <Eye className="h-4 w-4 mr-1" />
-                              Lịch sử
+                              <Eye className="h-4 w-4" />
                             </button>
                           </div>
                         </td>

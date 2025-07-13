@@ -16,6 +16,9 @@ import { ROLES } from './utils/roleHelpers';
 import Unauthorized from './components/common/Unauthorized';
 import NotificationPage from './pages/common/Notification';
 import IncidentReport from './pages/officer/IncidentReport';
+import BlogView from './pages/officer/BlogView';
+import BlogDetailPage from './pages/officer/BlogDetail';
+import CreateBlogPage from './pages/officer/CreateBlog';
 
 const App = () => {
   return (
@@ -61,6 +64,21 @@ const App = () => {
         <Route path="/officer/incident-report" element={
           <ProtectedRoute allowedRoles={[ROLES.OFFICER]}>
             <IncidentReport />
+          </ProtectedRoute>
+        } />
+        <Route path="/officer/blog-view" element={
+          <ProtectedRoute allowedRoles={[ROLES.OFFICER]}>
+            <BlogView />
+          </ProtectedRoute>
+        } />
+        <Route path="/officer/blog-detail/:id" element={
+          <ProtectedRoute allowedRoles={[ROLES.OFFICER]}>
+            <BlogDetailPage />
+          </ProtectedRoute>
+        } />
+        <Route path="/officer/blog-create" element={
+          <ProtectedRoute allowedRoles={[ROLES.OFFICER]}>
+            <CreateBlogPage />
           </ProtectedRoute>
         } />
       </Routes>

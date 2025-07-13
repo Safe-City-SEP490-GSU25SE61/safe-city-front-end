@@ -10,9 +10,12 @@ interface IncidentDetailProps {
 const IncidentDetail: React.FC<IncidentDetailProps> = ({ incident, loading, onClose }) => {
   const [showNoteModal, setShowNoteModal] = useState(false);
   const [newNote, setNewNote] = useState('');
+  const [officerName, setOfficerName] = useState('');
   const [showMediaModal, setShowMediaModal] = useState(false);
   const [selectedMedia, setSelectedMedia] = useState<any>(null);
   const [localUpdates, setLocalUpdates] = useState(incident?.updates || []);
+  const [showStatusModal, setShowStatusModal] = useState(false);
+  const [localStatus, setLocalStatus] = useState(incident.status);
 
   if (loading) {
     return (
@@ -33,6 +36,9 @@ const IncidentDetail: React.FC<IncidentDetailProps> = ({ incident, loading, onCl
       case 'investigating': return 'bg-gradient-to-r from-blue-500 to-indigo-500 text-white shadow-lg';
       case 'resolved': return 'bg-gradient-to-r from-green-500 to-emerald-500 text-white shadow-lg';
       case 'closed': return 'bg-gradient-to-r from-gray-500 to-slate-500 text-white shadow-lg';
+      case 'overdue': return 'bg-gradient-to-r from-red-500 to-pink-500 text-white shadow-lg';
+      case 'completed': return 'bg-gradient-to-r from-green-600 to-teal-600 text-white shadow-lg';
+      case 'public': return 'bg-gradient-to-r from-purple-500 to-violet-500 text-white shadow-lg';
       default: return 'bg-gradient-to-r from-gray-500 to-slate-500 text-white shadow-lg';
     }
   };
@@ -43,19 +49,23 @@ const IncidentDetail: React.FC<IncidentDetailProps> = ({ incident, loading, onCl
       case 'investigating': return <Activity className="w-4 h-4" />;
       case 'resolved': return <Shield className="w-4 h-4" />;
       case 'closed': return <X className="w-4 h-4" />;
+      case 'overdue': return <Clock className="w-4 h-4" />;
+      case 'completed': return <Shield className="w-4 h-4" />;
+      case 'public': return <Eye className="w-4 h-4" />;
       default: return <AlertTriangle className="w-4 h-4" />;
     }
   };
 
   const handleAddNote = () => {
-    if (newNote.trim()) {
+    if (newNote.trim() && officerName.trim()) {
       const newUpdate = {
-        officer: 'Sĩ quan hiện tại',
+        officer: officerName.trim(),
         date: new Date().toLocaleDateString('vi-VN'),
         action: newNote.trim()
       };
       setLocalUpdates([newUpdate, ...localUpdates]);
       setNewNote('');
+      setOfficerName('');
       setShowNoteModal(false);
     }
   };
@@ -188,11 +198,14 @@ const IncidentDetail: React.FC<IncidentDetailProps> = ({ incident, loading, onCl
                     <h4 className="font-bold text-gray-900">Trạng thái hiện tại</h4>
                   </div>
                   <div className="text-center">
-                    <span className={`inline-flex items-center gap-2 px-4 py-3 rounded-full text-sm font-semibold ${getStatusColor(incident.status)}`}>
-                      {getStatusIcon(incident.status)}
-                      {incident.status === 'pending' ? 'Chờ xử lý' :
-                       incident.status === 'investigating' ? 'Đang điều tra' :
-                       incident.status === 'resolved' ? 'Đã giải quyết' : 'Đã đóng'}
+                    <span className={`inline-flex items-center gap-2 px-4 py-3 rounded-full text-sm font-semibold ${getStatusColor(localStatus)}`}>
+                      {getStatusIcon(localStatus)}
+                      {localStatus === 'pending' ? 'Chờ xác nhận' :
+                       localStatus === 'investigating' ? 'Đang điều tra' :
+                       localStatus === 'overdue' ? 'Quá hạn' :
+                       localStatus === 'closed' ? 'Đã đóng' :
+                       localStatus === 'completed' ? 'Hoàn thành' :
+                       localStatus === 'public' ? 'Đã công khai' : 'Chờ xác nhận'}
                     </span>
                   </div>
                 </div>
@@ -214,6 +227,24 @@ const IncidentDetail: React.FC<IncidentDetailProps> = ({ incident, loading, onCl
                     >
                       <Phone className="w-4 h-4" />
                       Liên hệ báo cáo
+                    </button>
+                    <button
+                      onClick={() => setShowStatusModal(true)}
+                      className="w-full bg-yellow-500 hover:bg-yellow-600 text-white py-3 px-4 rounded-xl font-semibold transition-colors duration-200 flex items-center justify-center gap-2"
+                    >
+                      <Activity className="w-4 h-4" />
+                      Thay đổi trạng thái
+                    </button>
+                    <button
+                      onClick={() => {
+                        setLocalStatus('public');
+                        // Here you would typically call an API to update the incident status
+                        
+                      }}
+                      className="w-full bg-purple-600 hover:bg-purple-700 text-white py-3 px-4 rounded-xl font-semibold transition-colors duration-200 flex items-center justify-center gap-2"
+                    >
+                      <Eye className="w-4 h-4" />
+                      Công khai sự cố
                     </button>
                   </div>
                 </div>
@@ -266,6 +297,13 @@ const IncidentDetail: React.FC<IncidentDetailProps> = ({ incident, loading, onCl
                 <X className="w-5 h-5 text-gray-500" />
               </button>
             </div>
+            <input
+              type="text"
+              value={officerName}
+              onChange={e => setOfficerName(e.target.value)}
+              placeholder="Tên sĩ quan..."
+              className="w-full mb-3 p-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            />
             <textarea
               value={newNote}
               onChange={(e) => setNewNote(e.target.value)}
@@ -281,7 +319,7 @@ const IncidentDetail: React.FC<IncidentDetailProps> = ({ incident, loading, onCl
               </button>
               <button
                 onClick={handleAddNote}
-                disabled={!newNote.trim()}
+                disabled={!newNote.trim() || !officerName.trim()}
                 className="flex-1 py-2 px-4 bg-blue-600 text-white rounded-xl hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors duration-200 flex items-center justify-center gap-2"
               >
                 <Send className="w-4 h-4" />
@@ -352,6 +390,44 @@ const IncidentDetail: React.FC<IncidentDetailProps> = ({ incident, loading, onCl
                   </div>
                 </div>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showStatusModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[60] p-4">
+          <div className="bg-white rounded-2xl p-6 shadow-2xl max-w-md w-full">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-xl font-bold text-gray-900">Thay đổi trạng thái</h3>
+              <button
+                onClick={() => setShowStatusModal(false)}
+                className="p-2 hover:bg-gray-100 rounded-lg transition-colors duration-200"
+              >
+                <X className="w-5 h-5 text-gray-500" />
+              </button>
+            </div>
+            <div className="space-y-3">
+              {[
+                { value: 'pending', label: 'Chờ xác nhận' },
+                { value: 'investigating', label: 'Đang điều tra' },
+                { value: 'overdue', label: 'Quá hạn' },
+                { value: 'closed', label: 'Đã đóng' },
+                { value: 'completed', label: 'Hoàn thành' },
+                { value: 'public', label: 'Đã công khai' }
+              ].map((status) => (
+                <button
+                  key={status.value}
+                  onClick={() => {
+                    setLocalStatus(status.value);
+                    setShowStatusModal(false);
+                  }}
+                  className={`w-full py-2 px-4 rounded-xl font-semibold transition-colors duration-200 ${localStatus === status.value ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-800 hover:bg-blue-100'}`}
+                >
+                 
+                  {status.label}
+                </button>
+              ))}
             </div>
           </div>
         </div>
