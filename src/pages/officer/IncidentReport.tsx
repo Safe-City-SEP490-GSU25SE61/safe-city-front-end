@@ -2,11 +2,12 @@ import React, { useState, useEffect } from 'react';
 import Sidebar from '../../components/common/SideBar';
 import Header from '../../components/common/Header';
 import FilterBar from '../../components/common/FilterBar';
-import { Eye, AlertTriangle, Plus, FileText } from 'lucide-react';
+import { Eye, AlertTriangle, Plus, FileText, MapPin } from 'lucide-react';
 import { PaginationComponent } from '../../components/common/Pagination';
 
 import NotificationBar from '../../components/common/NotificationBar';
 import IncidentDetail from '../../components/officer/IncidentDetail';
+import { getIncident, getIncidentById } from '../../services/api/incident';
 
 // Define a type for the incident object for better type safety
 interface Incident {
@@ -15,94 +16,15 @@ interface Incident {
   reportedDate: string;
   location: string;
   reporter: string;
-  status: 'pending' | 'investigating' | 'resolved' | 'closed';
+  status: 'pending' | 'verified' | 'solved' | 'cancelled' | 'closed' | 'malicious';
   category: string;
+  lat?: string; // Added for latitude
+  lng?: string; // Added for longitude
 }
 
-// Mock data for incidents - now filtered by district
-const mockIncidents = [
-  {
-    id: 'INC-2024-001',
-    title: 'Trộm cắp xe máy tại khu vực chợ',
-    reportedDate: '19/06/2024',
-    location: 'Chợ Bến Thành, Quận 1',
-    reporter: 'Anonymous',
-    status: 'investigating' as const,
-    category: 'Trộm cắp'
-  },
-  {
-    id: 'INC-2024-002',
-    title: 'Tai nạn giao thông tại ngã tư',
-    reportedDate: '18/06/2024',
-    location: 'Ngã tư Lê Lợi - Nguyễn Huệ, Quận 1',
-    reporter: 'Anonymous',
-    status: 'resolved' as const,
-    category: 'Giao thông'
-  },
-  {
-    id: 'INC-2024-005',
-    title: 'Xe đỗ sai quy định gây ùn tắc',
-    reportedDate: '15/06/2024',
-    location: 'Đường Nguyễn Huệ, Quận 1',
-    reporter: 'Anonymous',
-    status: 'investigating' as const,
-    category: 'Giao thông'
-  },
-  {
-    id: 'INC-2024-008',
-    title: 'Tai nạn xe máy tại đường vòng',
-    reportedDate: '12/06/2024',
-    location: 'Đường vòng Hàng Xanh, Quận 1',
-    reporter: 'Nguyễn Văn B',
-    status: 'closed' as const,
-    category: 'Giao thông'
-  },
-  {
-    id: 'INC-2024-011',
-    title: 'Cãi vã tại quán cà phê',
-    reportedDate: '11/06/2024',
-    location: 'Quán cà phê Highlands, Quận 1',
-    reporter: 'Anonymous',
-    status: 'pending' as const,
-    category: 'Bạo lực'
-  },
-  {
-    id: 'INC-2024-012',
-    title: 'Trộm cắp ví tại trung tâm thương mại',
-    reportedDate: '10/06/2024',
-    location: 'Trung tâm thương mại Diamond Plaza, Quận 1',
-    reporter: 'Anonymous',
-    status: 'resolved' as const,
-    category: 'Trộm cắp'
-  }
-];
 
-// Mock function to simulate API call
-const getIncidents = async () => {
-  // Simulate API delay
-  await new Promise(resolve => setTimeout(resolve, 1000));
-  return { data: mockIncidents };
-};
 
-// Mock function to get incident by ID
-const getIncidentById = async (id: string) => {
-  await new Promise(resolve => setTimeout(resolve, 500));
-  const incident = mockIncidents.find(inc => inc.id === id);
-  if (!incident) throw new Error('Incident not found');
-  
-  return {
-    data: {
-      id: incident.id,
-      title: incident.title,
-      description: `Mô tả chi tiết về sự cố ${incident.id}. Đây là thông tin mô tả đầy đủ về tình huống đã xảy ra và các chi tiết liên quan.`,
-      location: incident.location,
-      reportedDate: incident.reportedDate,
-      reporterName: incident.reporter,
-      status: incident.status,
-      category: incident.category,
-    }
-  };
-};
+// Remove the mock getIncidents function
 
 const IncidentReport: React.FC = () => {
   // Mock officer district - in real app this would come from user context/auth
@@ -132,15 +54,17 @@ const IncidentReport: React.FC = () => {
   const fetchIncidents = async () => {
     try {
       setLoading(true);
-      const res = await getIncidents();
-      const mappedIncidents = (res.data || []).map((incident: any) => ({
+      const res = await getIncident();
+      const mappedIncidents = (res || []).map((incident: any) => ({
         id: incident.id,
-        title: incident.title,
-        reportedDate: incident.reportedDate,
-        location: incident.location,
-        reporter: incident.reporter,
+        title: incident.description || incident.type || 'Không có tiêu đề',
+        reportedDate: incident.createdAt ? new Date(incident.createdAt).toLocaleDateString('vi-VN') : '',
+        location: incident.address || '',
+        reporter: incident.isAnonymous ? 'Anonymous' : (incident.userName || ''),
         status: incident.status,
-        category: incident.category,
+        category: incident.type || 'Khác',
+        lat: incident.lat, // Map latitude
+        lng: incident.lng, // Map longitude
       }));
       setIncidents(mappedIncidents);
     } catch (error) {
@@ -188,10 +112,12 @@ const IncidentReport: React.FC = () => {
 
   const filterOptions = {
     status: [
-      { label: 'Chờ xử lý', value: 'pending' },
-      { label: 'Đang điều tra', value: 'investigating' },
-      { label: 'Đã giải quyết', value: 'resolved' },
-      { label: 'Đã đóng', value: 'closed' }
+      { label: 'Chờ xác nhận', value: 'pending' },
+      { label: 'Đã xác minh', value: 'verified' },
+      { label: 'Đã giải quyết', value: 'solved' },
+      { label: 'Đã hủy', value: 'cancelled' },
+      { label: 'Đã đóng', value: 'closed' },
+      { label: 'Sai phạm', value: 'malicious' }
     ],
     category: [
       { label: 'Trộm cắp', value: 'theft' },
@@ -245,7 +171,47 @@ const IncidentReport: React.FC = () => {
     setSelectedIncident(incident);
     try {
       const res = await getIncidentById(incident.id);
-      const detail = enrichIncidentDetail(res.data);
+      // Map API data to detail format expected by IncidentDetail
+      const detail = {
+        id: res.id,
+        title: res.description || res.type || 'Không có tiêu đề',
+        description: res.description || '',
+        location: res.address || '',
+        reportedDate: res.createdAt ? new Date(res.createdAt).toLocaleDateString('vi-VN') : '',
+        reporter: res.isAnonymous ? 'Anonymous' : (res.userName || ''),
+        status: res.status,
+        lat: res.lat,
+        lng: res.lng,
+        category: res.type || 'Khác',
+        evidence: [
+          ...(res.imageUrls || []).map((url: string) => ({
+            type: 'image',
+            url,
+            description: 'Hình ảnh hiện trường'
+          })),
+          ...(res.videoUrl ? [{
+            type: 'video',
+            url: res.videoUrl,
+            description: 'Video hiện trường'
+          }] : [])
+        ],
+        updates: (res.notes || []).map((note: string) => {
+          // Try to extract officer and date from the note string
+          const match = note.match(/^\[(.*?)\]\s*(.*?):\s*(.*)$/);
+          if (match) {
+            return {
+              date: match[1],
+              officer: match[2],
+              action: match[3]
+            };
+          }
+          return { date: '', officer: '', action: note };
+        }),
+        assignedOfficer: res.assignedOfficer || '',
+        estimatedResolution: res.estimatedResolution || '',
+        relatedIncidents: res.relatedIncidents || [],
+        attachments: [],
+      };
       setIncidentDetail(detail);
     } catch (e) {
       setIncidentDetail(null);
@@ -256,19 +222,23 @@ const IncidentReport: React.FC = () => {
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'pending': return 'bg-yellow-100 text-yellow-800';
-      case 'investigating': return 'bg-blue-100 text-blue-800';
-      case 'resolved': return 'bg-green-100 text-green-800';
+      case 'verified': return 'bg-blue-100 text-blue-800';
+      case 'solved': return 'bg-green-100 text-green-800';
+      case 'cancelled': return 'bg-gray-400 text-gray-800';
       case 'closed': return 'bg-gray-100 text-gray-800';
+      case 'malicious': return 'bg-red-100 text-red-800';
       default: return 'bg-gray-100 text-gray-800';
     }
   };
 
   const getStatusText = (status: string) => {
     switch (status) {
-      case 'pending': return 'Chờ xử lý';
-      case 'investigating': return 'Đang điều tra';
-      case 'resolved': return 'Đã giải quyết';
+      case 'pending': return 'Chờ xác nhận';
+      case 'verified': return 'Đã xác minh';
+      case 'solved': return 'Đã giải quyết';
+      case 'cancelled': return 'Đã hủy';
       case 'closed': return 'Đã đóng';
+      case 'malicious': return 'Sai phạm';
       default: return status;
     }
   };

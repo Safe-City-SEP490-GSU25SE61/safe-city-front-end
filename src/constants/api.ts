@@ -41,5 +41,11 @@ export const API_ENDPOINTS = {
     DELETE: (id: string) => `${API_BASE_URL}/accounts/${id}`,
     GET_OFFICER: `${API_BASE_URL}/accounts/officer`,
   },
+  INCIDENT: {
+    BASE: `${API_BASE_URL}/reports/officer`,
+    BY_ID: (id: string) => `${API_BASE_URL}/reports/${id}`,
+    NOTE: (id: string) => `${API_BASE_URL}/reports/${id}/note`,
+    STATUS: (id: string) => `${API_BASE_URL}/reports/${id}/status`,
+  },
   // Add other groups (e.g., USERS, REPORTS) here as needed
 };

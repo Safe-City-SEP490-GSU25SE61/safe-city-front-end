@@ -19,6 +19,7 @@ import IncidentReport from './pages/officer/IncidentReport';
 import BlogView from './pages/officer/BlogView';
 import BlogDetailPage from './pages/officer/BlogDetail';
 import CreateBlogPage from './pages/officer/CreateBlog';
+import LiveMap from './pages/officer/LiveMap';
 
 const App = () => {
   return (
@@ -79,6 +80,11 @@ const App = () => {
         <Route path="/officer/blog-create" element={
           <ProtectedRoute allowedRoles={[ROLES.OFFICER]}>
             <CreateBlogPage />
+          </ProtectedRoute>
+        } />
+        <Route path="/officer/live-map" element={
+          <ProtectedRoute allowedRoles={[ROLES.OFFICER]}>
+            <LiveMap />
           </ProtectedRoute>
         } />
       </Routes>

@@ -1,5 +1,10 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { X, MapPin, Calendar, User, AlertTriangle, FileText, Phone, Clock, Shield, Camera, Video, MessageSquare, Activity, Plus, Play, Eye, Send } from 'lucide-react';
+import { createIncidentNote, updateIncidentStatus } from '../../services/api/incident'; // 1. Import the API function
+import NotificationBar from '../common/NotificationBar'; // Add this import
+import { getAllDistricts } from '../../services/api/district'; // Import at the top
+import goongjs from '@goongmaps/goong-js';
+import '@goongmaps/goong-js/dist/goong-js.css';
 
 interface IncidentDetailProps {
   incident: any;
@@ -7,15 +12,119 @@ interface IncidentDetailProps {
   onClose: () => void;
 }
 
+// Helper to decode JWT and get officer name
+function getOfficerNameFromToken() {
+  const token = localStorage.getItem('accessToken');
+  if (!token) return 'Sĩ quan';
+  try {
+    // Properly decode base64url and handle UTF-8
+    const base64Url = token.split('.')[1];
+    const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+    const jsonPayload = decodeURIComponent(
+      atob(base64)
+        .split('')
+        .map(function(c) {
+          return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
+        })
+        .join('')
+    );
+    const payload = JSON.parse(jsonPayload);
+    return payload.name || payload.username || 'Sĩ quan';
+  } catch {
+    return 'Sĩ quan';
+  }
+}
+
 const IncidentDetail: React.FC<IncidentDetailProps> = ({ incident, loading, onClose }) => {
   const [showNoteModal, setShowNoteModal] = useState(false);
   const [newNote, setNewNote] = useState('');
-  const [officerName, setOfficerName] = useState('');
+  // Remove officerName state
+  // const [officerName, setOfficerName] = useState('');
   const [showMediaModal, setShowMediaModal] = useState(false);
   const [selectedMedia, setSelectedMedia] = useState<any>(null);
   const [localUpdates, setLocalUpdates] = useState(incident?.updates || []);
   const [showStatusModal, setShowStatusModal] = useState(false);
   const [localStatus, setLocalStatus] = useState(incident.status);
+  const [currentImageIndex, setCurrentImageIndex] = useState(0);
+  const [notification, setNotification] = useState({
+    show: false,
+    message: '',
+    type: 'info' as 'success' | 'error' | 'info'
+  });
+  const [districts, setDistricts] = useState<any[]>([]);
+  const [selectedDistrict, setSelectedDistrict] = useState<string>('');
+  const [loadingDistricts, setLoadingDistricts] = useState(false);
+  const [showMapModal, setShowMapModal] = useState(false);
+  const mapContainerRef = useRef<HTMLDivElement>(null);
+
+  // Helper to show notification
+  const showNotification = (message: string, type: 'success' | 'error' | 'info' = 'info') => {
+    setNotification({ show: true, message, type });
+  };
+
+  // Helper to get all image evidence
+  const imageEvidence = (incident?.evidence || []).filter((item: any) => item.type === 'image');
+
+  const openMediaModal = (media: any) => {
+    setSelectedMedia(media);
+    setShowMediaModal(true);
+    if (media.type === 'image') {
+      const idx = imageEvidence.findIndex((img: any) => img.url === media.url);
+      setCurrentImageIndex(idx >= 0 ? idx : 0);
+    }
+  };
+
+  // Add a helper for status update
+  const handleStatusChange = async (newStatus: string, message = '') => {
+    try {
+      await updateIncidentStatus(incident.id, { status: newStatus, message });
+      setLocalStatus(newStatus);
+      showNotification('Cập nhật trạng thái thành công!', 'success');
+    } catch (e) {
+      showNotification('Không thể cập nhật trạng thái. Vui lòng thử lại!', 'error');
+    }
+  };
+
+  const fetchDistricts = async () => {
+    setLoadingDistricts(true);
+    try {
+      const data = await getAllDistricts();
+      setDistricts(data);
+    } catch (e) {
+      showNotification('Không thể tải danh sách phường/xã.', 'error');
+    }
+    setLoadingDistricts(false);
+  };
+
+  // Fetch districts automatically when status is 'verified'
+  useEffect(() => {
+    if (localStatus === 'verified' && districts.length === 0) {
+      setLoadingDistricts(true);
+      getAllDistricts()
+        .then(data => setDistricts(data))
+        .catch(() => showNotification('Không thể tải danh sách phường/xã.', 'error'))
+        .finally(() => setLoadingDistricts(false));
+    }
+  }, [localStatus, districts.length]);
+
+  useEffect(() => {
+    if (showMapModal && mapContainerRef.current && incident.lat && incident.lng) {
+      goongjs.accessToken = 'VScS4DXaVgUaCjtOp6Vp2AAYlfcJVOIZ2JVjvAnL';
+      if (mapContainerRef.current.childNodes.length > 0) {
+        mapContainerRef.current.innerHTML = '';
+      }
+      const map = new goongjs.Map({
+        container: mapContainerRef.current,
+        style: 'https://tiles.goong.io/assets/goong_map_web.json',
+        center: [parseFloat(incident.lng), parseFloat(incident.lat)],
+        zoom: 16,
+      });
+      new goongjs.Marker()
+        .setLngLat([parseFloat(incident.lng), parseFloat(incident.lat)])
+        .addTo(map);
+      return () => map.remove();
+    }
+  }, [showMapModal, incident.lat, incident.lng]);
 
   if (loading) {
     return (
@@ -33,55 +142,72 @@ const IncidentDetail: React.FC<IncidentDetailProps> = ({ incident, loading, onCl
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'pending': return 'bg-gradient-to-r from-yellow-400 to-orange-400 text-white shadow-lg';
-      case 'investigating': return 'bg-gradient-to-r from-blue-500 to-indigo-500 text-white shadow-lg';
-      case 'resolved': return 'bg-gradient-to-r from-green-500 to-emerald-500 text-white shadow-lg';
+      case 'verified': return 'bg-gradient-to-r from-blue-500 to-indigo-500 text-white shadow-lg';
+      case 'solved': return 'bg-gradient-to-r from-green-500 to-emerald-500 text-white shadow-lg';
+      case 'cancelled': return 'bg-gradient-to-r from-gray-400 to-gray-600 text-white shadow-lg';
       case 'closed': return 'bg-gradient-to-r from-gray-500 to-slate-500 text-white shadow-lg';
-      case 'overdue': return 'bg-gradient-to-r from-red-500 to-pink-500 text-white shadow-lg';
-      case 'completed': return 'bg-gradient-to-r from-green-600 to-teal-600 text-white shadow-lg';
-      case 'public': return 'bg-gradient-to-r from-purple-500 to-violet-500 text-white shadow-lg';
+      case 'malicious': return 'bg-gradient-to-r from-red-500 to-pink-500 text-white shadow-lg';
       default: return 'bg-gradient-to-r from-gray-500 to-slate-500 text-white shadow-lg';
+    }
+  };
+
+  const getStatusText = (status: string) => {
+    switch (status) {
+      case 'pending': return 'Chờ xác nhận';
+      case 'verified': return 'Đã xác minh';
+      case 'solved': return 'Đã giải quyết';
+      case 'cancelled': return 'Đã hủy';
+      case 'closed': return 'Đã đóng';
+      case 'malicious': return 'Sai phạm';
+      default: return 'Chờ xác nhận';
     }
   };
 
   const getStatusIcon = (status: string) => {
     switch (status) {
       case 'pending': return <AlertTriangle className="w-4 h-4" />;
-      case 'investigating': return <Activity className="w-4 h-4" />;
-      case 'resolved': return <Shield className="w-4 h-4" />;
+      case 'verified': return <Shield className="w-4 h-4" />;
+      case 'solved': return <Activity className="w-4 h-4" />;
+      case 'cancelled': return <X className="w-4 h-4" />;
       case 'closed': return <X className="w-4 h-4" />;
-      case 'overdue': return <Clock className="w-4 h-4" />;
-      case 'completed': return <Shield className="w-4 h-4" />;
-      case 'public': return <Eye className="w-4 h-4" />;
+      case 'malicious': return <AlertTriangle className="w-4 h-4 text-red-600" />;
       default: return <AlertTriangle className="w-4 h-4" />;
     }
   };
 
-  const handleAddNote = () => {
-    if (newNote.trim() && officerName.trim()) {
+  const handleAddNote = async () => {
+    if (newNote.trim()) {
+      const officerName = getOfficerNameFromToken();
       const newUpdate = {
-        officer: officerName.trim(),
+        officer: officerName,
         date: new Date().toLocaleDateString('vi-VN'),
         action: newNote.trim()
       };
-      setLocalUpdates([newUpdate, ...localUpdates]);
-      setNewNote('');
-      setOfficerName('');
-      setShowNoteModal(false);
+      try {
+        await createIncidentNote(incident.id, { content: newNote.trim() });
+        setLocalUpdates([newUpdate, ...localUpdates]);
+        setNewNote('');
+        setShowNoteModal(false);
+        showNotification('Đã thêm ghi chú thành công!', 'success');
+      } catch (error) {
+        showNotification('Không thể thêm ghi chú. Vui lòng thử lại!', 'error');
+      }
     }
   };
 
-  const handleViewMedia = (media: any) => {
-    setSelectedMedia(media);
-    setShowMediaModal(true);
-  };
-
   const handleContactReporter = () => {
-    // Simulate calling the reporter
-    alert(`Đang gọi ${incident.reporter}...`);
+    showNotification(`Đang gọi ${incident.reporter}...`, 'info');
   };
 
   return (
     <>
+      {/* Notification Bar */}
+      <NotificationBar
+        message={notification.message}
+        type={notification.type}
+        show={notification.show}
+        onClose={() => setNotification({ ...notification, show: false })}
+      />
       <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
         <div className="bg-white rounded-3xl max-w-5xl w-full max-h-[95vh] overflow-hidden shadow-2xl">
           {/* Header */}
@@ -138,6 +264,28 @@ const IncidentDetail: React.FC<IncidentDetailProps> = ({ incident, loading, onCl
                         {incident.description}
                       </p>
                     </div>
+                    {/* Improved Lat/Lng display in Vietnamese */}
+                    {incident.lat && incident.lng && (
+                      <div className="mt-2">
+                        <label className="text-sm font-semibold text-gray-700 uppercase tracking-wide">Tọa độ</label>
+                        <button
+                          type="button"
+                          className="flex items-center gap-4 mt-1 bg-blue-50 p-3 rounded-xl border border-blue-200 hover:bg-blue-100 transition cursor-pointer"
+                          onClick={() => setShowMapModal(true)}
+                          title="Xem vị trí trên bản đồ"
+                        >
+                          <span className="flex items-center gap-1 text-blue-800 font-semibold">
+                            <MapPin className="w-4 h-4" />
+                            Vĩ độ: <span className="font-mono">{incident.lat}</span>
+                          </span>
+                          <span className="flex items-center gap-1 text-blue-800 font-semibold">
+                            <MapPin className="w-4 h-4" />
+                            Kinh độ: <span className="font-mono">{incident.lng}</span>
+                          </span>
+                          <span className="ml-2 text-blue-600 underline text-xs">Xem bản đồ</span>
+                        </button>
+                      </div>
+                    )}
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <div>
                         <label className="text-sm font-semibold text-gray-700 uppercase tracking-wide">Danh mục</label>
@@ -150,12 +298,16 @@ const IncidentDetail: React.FC<IncidentDetailProps> = ({ incident, loading, onCl
                 </div>
 
                 {/* Evidence */}
-                {incident.evidence && incident.evidence.length > 0 && (
-                  <div className="bg-white rounded-2xl p-6 shadow-lg border border-gray-200">
-                    <div className="flex items-center gap-3 mb-6">
-                      <Camera className="w-6 h-6 text-gray-600" />
-                      <h3 className="text-xl font-bold text-gray-900">Bằng chứng</h3>
+                <div className="bg-white rounded-2xl p-6 shadow-lg border border-gray-200">
+                  <div className="flex items-center gap-3 mb-6">
+                    <Camera className="w-6 h-6 text-gray-600" />
+                    <h3 className="text-xl font-bold text-gray-900">Bằng chứng</h3>
+                  </div>
+                  {(!incident.evidence || incident.evidence.length === 0) ? (
+                    <div className="text-gray-500 text-center py-8">
+                      Không có bằng chứng
                     </div>
+                  ) : (
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       {incident.evidence.map((item: any, index: number) => (
                         <div key={index} className="bg-gray-50 rounded-xl p-4 border border-gray-200 hover:shadow-md transition-shadow duration-200">
@@ -171,7 +323,7 @@ const IncidentDetail: React.FC<IncidentDetailProps> = ({ incident, loading, onCl
                               </span>
                             </div>
                             <button
-                              onClick={() => handleViewMedia(item)}
+                              onClick={() => openMediaModal(item)}
                               className="p-2 bg-blue-100 hover:bg-blue-200 rounded-lg transition-colors duration-200"
                             >
                               {item.type === 'image' ? (
@@ -185,8 +337,8 @@ const IncidentDetail: React.FC<IncidentDetailProps> = ({ incident, loading, onCl
                         </div>
                       ))}
                     </div>
-                  </div>
-                )}
+                  )}
+                </div>
               </div>
 
               {/* Sidebar */}
@@ -200,12 +352,7 @@ const IncidentDetail: React.FC<IncidentDetailProps> = ({ incident, loading, onCl
                   <div className="text-center">
                     <span className={`inline-flex items-center gap-2 px-4 py-3 rounded-full text-sm font-semibold ${getStatusColor(localStatus)}`}>
                       {getStatusIcon(localStatus)}
-                      {localStatus === 'pending' ? 'Chờ xác nhận' :
-                       localStatus === 'investigating' ? 'Đang điều tra' :
-                       localStatus === 'overdue' ? 'Quá hạn' :
-                       localStatus === 'closed' ? 'Đã đóng' :
-                       localStatus === 'completed' ? 'Hoàn thành' :
-                       localStatus === 'public' ? 'Đã công khai' : 'Chờ xác nhận'}
+                      {getStatusText(localStatus)}
                     </span>
                   </div>
                 </div>
@@ -214,6 +361,7 @@ const IncidentDetail: React.FC<IncidentDetailProps> = ({ incident, loading, onCl
                 <div className="bg-white rounded-2xl p-6 shadow-lg border border-gray-200">
                   <h4 className="font-bold text-gray-900 mb-4">Hành động nhanh</h4>
                   <div className="space-y-3">
+                    {/* Thêm ghi chú: always available */}
                     <button 
                       onClick={() => setShowNoteModal(true)}
                       className="w-full bg-blue-600 hover:bg-blue-700 text-white py-3 px-4 rounded-xl font-semibold transition-colors duration-200 flex items-center justify-center gap-2"
@@ -221,31 +369,74 @@ const IncidentDetail: React.FC<IncidentDetailProps> = ({ incident, loading, onCl
                       <MessageSquare className="w-4 h-4" />
                       Thêm ghi chú
                     </button>
-                    <button 
-                      onClick={handleContactReporter}
-                      className="w-full bg-green-600 hover:bg-green-700 text-white py-3 px-4 rounded-xl font-semibold transition-colors duration-200 flex items-center justify-center gap-2"
-                    >
-                      <Phone className="w-4 h-4" />
-                      Liên hệ báo cáo
-                    </button>
-                    <button
-                      onClick={() => setShowStatusModal(true)}
-                      className="w-full bg-yellow-500 hover:bg-yellow-600 text-white py-3 px-4 rounded-xl font-semibold transition-colors duration-200 flex items-center justify-center gap-2"
-                    >
-                      <Activity className="w-4 h-4" />
-                      Thay đổi trạng thái
-                    </button>
-                    <button
-                      onClick={() => {
-                        setLocalStatus('public');
-                        // Here you would typically call an API to update the incident status
-                        
-                      }}
-                      className="w-full bg-purple-600 hover:bg-purple-700 text-white py-3 px-4 rounded-xl font-semibold transition-colors duration-200 flex items-center justify-center gap-2"
-                    >
-                      <Eye className="w-4 h-4" />
-                      Công khai sự cố
-                    </button>
+
+                    {/* Liên hệ báo cáo: always available if not anonymous */}
+                    {incident.reporter?.toLowerCase() !== 'anonymous' && (
+                      <button 
+                        onClick={handleContactReporter}
+                        className="w-full bg-green-600 hover:bg-green-700 text-white py-3 px-4 rounded-xl font-semibold transition-colors duration-200 flex items-center justify-center gap-2"
+                      >
+                        <Phone className="w-4 h-4" />
+                        Liên hệ báo cáo
+                      </button>
+                    )}
+
+                    {/* Pending: Xác minh, Đóng, Đánh dấu sai phạm */}
+                    {localStatus === 'pending' && (
+                      <>
+                        <button
+                          onClick={() => handleStatusChange('verified')}
+                          className="w-full bg-indigo-600 hover:bg-indigo-700 text-white py-3 px-4 rounded-xl font-semibold transition-colors duration-200 flex items-center justify-center gap-2"
+                        >
+                          <Shield className="w-4 h-4" />
+                          Xác minh
+                        </button>
+                        <button
+                          onClick={() => handleStatusChange('closed')}
+                          className="w-full bg-slate-600 hover:bg-slate-700 text-white py-3 px-4 rounded-xl font-semibold transition-colors duration-200 flex items-center justify-center gap-2"
+                        >
+                          <X className="w-4 h-4" />
+                          Đóng
+                        </button>
+                        <button
+                          onClick={() => handleStatusChange('malicious')}
+                          className="w-full bg-red-600 hover:bg-red-700 text-white py-3 px-4 rounded-xl font-semibold transition-colors duration-200 flex items-center justify-center gap-2"
+                        >
+                          <AlertTriangle className="w-4 h-4" />
+                          Đánh dấu sai phạm
+                        </button>
+                      </>
+                    )}
+
+                    {/* Verified: Giải quyết */}
+                    {localStatus === 'verified' && (
+                      <>
+                        <button
+                          onClick={() => handleStatusChange('solved')}
+                          className="w-full bg-emerald-600 hover:bg-emerald-700 text-white py-3 px-4 rounded-xl font-semibold transition-colors duration-200 flex items-center justify-center gap-2"
+                        >
+                          <Activity className="w-4 h-4" />
+                          Giải quyết
+                        </button>
+                        <div className="mt-4">
+                          <label className="block text-sm font-semibold mb-2">Chuyển đến phường/xã khác</label>
+                          {loadingDistricts ? (
+                            <div className="text-gray-500">Đang tải danh sách phường/xã...</div>
+                          ) : (
+                            <select
+                              className="w-full mt-2 p-2 border rounded"
+                              value={selectedDistrict}
+                              onChange={e => setSelectedDistrict(e.target.value)}
+                            >
+                              <option value="">Chọn phường/xã</option>
+                              {districts.map((d: any) => (
+                                <option key={d.id} value={d.id}>{d.name}</option>
+                              ))}
+                            </select>
+                          )}
+                        </div>
+                      </>
+                    )}
                   </div>
                 </div>
               </div>
@@ -297,13 +488,6 @@ const IncidentDetail: React.FC<IncidentDetailProps> = ({ incident, loading, onCl
                 <X className="w-5 h-5 text-gray-500" />
               </button>
             </div>
-            <input
-              type="text"
-              value={officerName}
-              onChange={e => setOfficerName(e.target.value)}
-              placeholder="Tên sĩ quan..."
-              className="w-full mb-3 p-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-            />
             <textarea
               value={newNote}
               onChange={(e) => setNewNote(e.target.value)}
@@ -319,7 +503,7 @@ const IncidentDetail: React.FC<IncidentDetailProps> = ({ incident, loading, onCl
               </button>
               <button
                 onClick={handleAddNote}
-                disabled={!newNote.trim() || !officerName.trim()}
+                disabled={!newNote.trim()}
                 className="flex-1 py-2 px-4 bg-blue-600 text-white rounded-xl hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors duration-200 flex items-center justify-center gap-2"
               >
                 <Send className="w-4 h-4" />
@@ -353,21 +537,44 @@ const IncidentDetail: React.FC<IncidentDetailProps> = ({ incident, loading, onCl
                   {selectedMedia.type === 'image' ? 'Hình ảnh' : 'Video'} - {selectedMedia.description}
                 </h3>
               </div>
-              <div className="p-4 flex items-center justify-center min-h-[300px] bg-gray-100">
+              <div className="p-4 flex flex-col items-center justify-center min-h-[300px] bg-gray-100">
                 {selectedMedia.type === 'image' ? (
-                  // Replace with <img src={selectedMedia.url} ... /> if you have real images
-                  <div className="text-center">
-                    <Camera className="w-24 h-24 text-gray-300 mx-auto mb-4" />
-                    <p className="text-gray-600">Hình ảnh: {selectedMedia.description}</p>
-                  
-                  </div>
+                  <>
+                    <img
+                      src={imageEvidence[currentImageIndex]?.url}
+                      alt={imageEvidence[currentImageIndex]?.description}
+                      className="max-h-[400px] max-w-full mx-auto rounded-lg shadow"
+                    />
+                    <p className="text-gray-600 mt-4">{imageEvidence[currentImageIndex]?.description}</p>
+                    {imageEvidence.length > 1 && (
+                      <div className="flex gap-4 mt-4 items-center">
+                        <button
+                          onClick={() => setCurrentImageIndex((prev) => (prev - 1 + imageEvidence.length) % imageEvidence.length)}
+                          className="px-3 py-1 bg-gray-200 rounded hover:bg-gray-300"
+                        >
+                          Previous
+                        </button>
+                        <span className="text-sm text-gray-700">
+                          {currentImageIndex + 1} / {imageEvidence.length}
+                        </span>
+                        <button
+                          onClick={() => setCurrentImageIndex((prev) => (prev + 1) % imageEvidence.length)}
+                          className="px-3 py-1 bg-gray-200 rounded hover:bg-gray-300"
+                        >
+                          Next
+                        </button>
+                      </div>
+                    )}
+                  </>
                 ) : (
-                  // Replace with <video src={selectedMedia.url} controls ... /> if you have real videos
-                  <div className="text-center">
-                    <Video className="w-24 h-24 text-gray-300 mx-auto mb-4" />
-                    <p className="text-gray-600">Video: {selectedMedia.description}</p>
-                   
-                  </div>
+                  <video
+                    src={selectedMedia.url}
+                    controls
+                    className="max-h-[400px] max-w-full mx-auto rounded-lg shadow"
+                  />
+                )}
+                {selectedMedia.type !== 'image' && (
+                  <p className="text-gray-600 mt-4">{selectedMedia.description}</p>
                 )}
               </div>
               {/* Footer */}
@@ -378,14 +585,10 @@ const IncidentDetail: React.FC<IncidentDetailProps> = ({ incident, loading, onCl
                       <Shield className="w-4 h-4 text-green-600" />
                       Bằng chứng đã được xác minh
                     </span>
-                    <span className="flex items-center gap-2">
-                      <Clock className="w-4 h-4 text-blue-600" />
-                      Tải lên: {new Date().toLocaleDateString('vi-VN')}
-                    </span>
                   </div>
                   <div className="flex items-center gap-2">
                     <span className="px-3 py-1 bg-blue-100 text-blue-700 rounded-full text-xs font-semibold">
-                      ID: {Math.random().toString(36).substr(2, 8).toUpperCase()}
+                      ID: {selectedMedia.type === 'image' ? imageEvidence[currentImageIndex]?.url?.slice(-8) : Math.random().toString(36).substr(2, 8).toUpperCase()}
                     </span>
                   </div>
                 </div>
@@ -414,7 +617,8 @@ const IncidentDetail: React.FC<IncidentDetailProps> = ({ incident, loading, onCl
                 { value: 'overdue', label: 'Quá hạn' },
                 { value: 'closed', label: 'Đã đóng' },
                 { value: 'completed', label: 'Hoàn thành' },
-                { value: 'public', label: 'Đã công khai' }
+                { value: 'public', label: 'Đã công khai' },
+                { value: 'cancelled', label: 'Đã hủy' }
               ].map((status) => (
                 <button
                   key={status.value}
@@ -429,6 +633,24 @@ const IncidentDetail: React.FC<IncidentDetailProps> = ({ incident, loading, onCl
                 </button>
               ))}
             </div>
+          </div>
+        </div>
+      )}
+
+      {showMapModal && incident.lat && incident.lng && (
+        <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-[100]">
+          <div className="bg-white rounded-2xl shadow-2xl p-4 relative max-w-2xl w-full">
+            <button
+              onClick={() => setShowMapModal(false)}
+              className="absolute top-2 right-2 p-2 bg-gray-200 hover:bg-gray-300 rounded-full"
+            >
+              <X className="w-5 h-5" />
+            </button>
+            <h3 className="text-lg font-bold mb-2">Vị trí trên bản đồ</h3>
+            <div
+              ref={mapContainerRef}
+              style={{ height: 400, width: '100%', borderRadius: '12px', overflow: 'hidden' }}
+            />
           </div>
         </div>
       )}
