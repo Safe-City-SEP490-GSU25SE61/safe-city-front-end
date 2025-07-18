@@ -109,7 +109,7 @@ const IncidentDetail: React.FC<IncidentDetailProps> = ({ incident, loading, onCl
 
   useEffect(() => {
     if (showMapModal && mapContainerRef.current && incident.lat && incident.lng) {
-      goongjs.accessToken = 'VScS4DXaVgUaCjtOp6Vp2AAYlfcJVOIZ2JVjvAnL';
+      goongjs.accessToken = '123';
       if (mapContainerRef.current.childNodes.length > 0) {
         mapContainerRef.current.innerHTML = '';
       }

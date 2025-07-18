@@ -43,7 +43,7 @@ const LiveMap: React.FC = () => {
   useEffect(() => {
     if (!mapContainer.current) return;
 
-    goongjs.accessToken = 'VScS4DXaVgUaCjtOp6Vp2AAYlfcJVOIZ2JVjvAnL'; // <-- Replace with your key
+    goongjs.accessToken = '123'; // <-- Replace with your key
 
     const map = new goongjs.Map({
       container: mapContainer.current,
