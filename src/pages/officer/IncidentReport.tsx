@@ -13,13 +13,15 @@ import { getIncident, getIncidentById } from '../../services/api/incident';
 interface Incident {
   id: string;
   title: string;
-  reportedDate: string;
+  reportedDate: string; // keep for compatibility
+  createdAt: string;    // add this
+  occurredAt: string;   // add this
   location: string;
   reporter: string;
   status: 'pending' | 'verified' | 'solved' | 'cancelled' | 'closed' | 'malicious';
   category: string;
-  lat?: string; // Added for latitude
-  lng?: string; // Added for longitude
+  lat?: string;
+  lng?: string;
 }
 
 
@@ -58,13 +60,15 @@ const IncidentReport: React.FC = () => {
       const mappedIncidents = (res || []).map((incident: any) => ({
         id: incident.id,
         title: incident.description || incident.type || 'Không có tiêu đề',
-        reportedDate: incident.createdAt ? new Date(incident.createdAt).toLocaleDateString('vi-VN') : '',
+        reportedDate: incident.createdAt ? new Date(incident.createdAt).toLocaleString('vi-VN') : '',
+        createdAt: incident.createdAt ? new Date(incident.createdAt).toLocaleString('vi-VN') : '',
+        occurredAt: incident.occurredAt ? new Date(incident.occurredAt).toLocaleString('vi-VN') : '',
         location: incident.address || '',
         reporter: incident.isAnonymous ? 'Anonymous' : (incident.userName || ''),
         status: incident.status,
         category: incident.type || 'Khác',
-        lat: incident.lat, // Map latitude
-        lng: incident.lng, // Map longitude
+        lat: incident.lat,
+        lng: incident.lng,
       }));
       setIncidents(mappedIncidents);
     } catch (error) {
@@ -124,7 +128,12 @@ const IncidentReport: React.FC = () => {
       { label: 'Bạo lực', value: 'violence' },
       { label: 'Giao thông', value: 'traffic' },
       { label: 'Khác', value: 'other' }
-    ]
+      
+    ],
+    createdFrom: { label: 'Từ ngày tạo', type: 'datetime' },
+    createdTo: { label: 'Đến ngày tạo', type: 'datetime' },
+    occurredFrom: { label: 'Từ ngày xảy ra', type: 'datetime' },
+    occurredTo: { label: 'Đến ngày xảy ra', type: 'datetime' },
   };
 
   function enrichIncidentDetail(apiData: any) {
@@ -306,7 +315,8 @@ const IncidentReport: React.FC = () => {
                       <thead className="bg-gray-50 border-b border-gray-200">
                         <tr>
                           <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Tiêu đề</th>
-                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Ngày báo cáo</th>
+                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Thời gian báo cáo</th>
+                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Thời gian xảy ra</th>
                           <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Địa điểm</th>
                           <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Người báo cáo</th>
                           <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Danh mục</th>
@@ -319,6 +329,9 @@ const IncidentReport: React.FC = () => {
                           <tr key={incident.id} className="hover:bg-gray-50 transition-colors">
                             <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 font-medium">
                               {incident.title}
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                              {incident.reportedDate}
                             </td>
                             <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                               {incident.reportedDate}

@@ -3,7 +3,8 @@ import { User, MapPin, Plus, Users, Eye, Edit3, Trash2, Search, Filter, ChevronD
 import SideBar from '../../components/common/SideBar';
 import Header from '../../components/common/Header';
 import FilterBar from '../../components/common/FilterBar';
-import { getAllDistricts, assignToOfficer, unassignFromOfficer, getOfficerDistrictHistory } from '../../services/api/district';
+import { assignToOfficer, unassignFromOfficer, getOfficerDistrictHistory } from '../../services/api/district';
+import { getAllWards } from '../../services/api/ward';
 import { getOfficers } from '../../services/api/account';
 import NotificationBar from '../../components/common/NotificationBar';
 import OfficerAssignHistory from '../../components/admin/OfficerAssignHistory';
@@ -128,13 +129,14 @@ const AddOfficerDistrictPage = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [officerHistory, setOfficerHistory] = useState([]);
+  const [confirmRemove, setConfirmRemove] = useState<{ open: boolean; officer: Officer | null }>({ open: false, officer: null });
 
   // Fetch districts and officers from API
   useEffect(() => {
     const fetchData = async () => {
       try {
         setLoading(true);
-        const districtsData = await getAllDistricts();
+        const districtsData = await getAllWards();
         setDistricts(districtsData);
 
         const officerData = await getOfficers();
@@ -210,8 +212,6 @@ const AddOfficerDistrictPage = () => {
   // Handler to remove officer from district (local state only, update with API if needed)
   const handleRemoveFromDistrict = async (officer: Officer) => {
     if (!officer.currentDistrict) return;
-    if (!window.confirm('Bạn có chắc chắn muốn xóa sĩ quan này khỏi quận?')) return;
-
     try {
       await unassignFromOfficer(officer.id.toString());
       // Remove officer from district's officers list
@@ -337,7 +337,7 @@ const AddOfficerDistrictPage = () => {
                             </button>
                             {officer.currentDistrict && officer.currentDistrict !== 'N/A' && (
                               <button
-                                onClick={() => handleRemoveFromDistrict(officer)}
+                                onClick={() => setConfirmRemove({ open: true, officer })}
                                 className="inline-flex items-center px-3 py-1 bg-red-100 text-red-600 rounded-lg hover:bg-red-200 transition-colors"
                                 title="Xóa khỏi quận"
                               >
@@ -397,6 +397,34 @@ const AddOfficerDistrictPage = () => {
                   Hủy
                 </button>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {confirmRemove.open && confirmRemove.officer && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-xl p-6 w-full max-w-md">
+            <h2 className="text-lg font-bold mb-4">Xác nhận xóa sĩ quan khỏi quận</h2>
+            <p className="mb-6">
+              Bạn có chắc chắn muốn xóa sĩ quan <span className="font-semibold">{confirmRemove.officer.name}</span> khỏi quận <span className="font-semibold">{confirmRemove.officer.currentDistrict}</span>?
+            </p>
+            <div className="flex justify-end gap-2">
+              <button
+                className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700"
+                onClick={async () => {
+                  await handleRemoveFromDistrict(confirmRemove.officer!);
+                  setConfirmRemove({ open: false, officer: null });
+                }}
+              >
+                Xóa
+              </button>
+              <button
+                className="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300"
+                onClick={() => setConfirmRemove({ open: false, officer: null })}
+              >
+                Hủy
+              </button>
             </div>
           </div>
         </div>

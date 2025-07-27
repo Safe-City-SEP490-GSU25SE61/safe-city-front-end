@@ -1,18 +1,18 @@
 import React, { useState } from 'react';
 import { Search, Filter, X, Download } from 'lucide-react';
 
-interface FilterOption {
-  label: string;
-  value: string;
-}
+type FilterOption = { label: string; value: string };
+type DateTimeFilterOption = { label: string; type: 'datetime' };
+
+type FilterOptions = {
+  [key: string]: FilterOption[] | DateTimeFilterOption;
+};
 
 interface FilterBarProps {
   searchPlaceholder?: string;
   onSearch?: (value: string) => void;
   onFilterChange?: (filters: Record<string, string>) => void;
-  filterOptions?: {
-    [key: string]: FilterOption[];
-  };
+  filterOptions?: FilterOptions;
   showExport?: boolean;
   onExport?: () => void;
 }
@@ -111,25 +111,46 @@ const FilterBar: React.FC<FilterBarProps> = ({
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {Object.entries(filterOptions).map(([key, options]) => (
-              <div key={key} className="flex flex-col gap-2">
-                <label className="text-sm font-medium text-gray-700">
-                  {key.charAt(0).toUpperCase() + key.slice(1)}
-                </label>
-                <select
-                  value={activeFilters[key] || ''}
-                  onChange={(e) => handleFilterChange(key, e.target.value)}
-                  className="border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                >
-                  <option value="">Tất cả</option>
-                  {options.map((option) => (
-                    <option key={option.value} value={option.value}>
-                      {option.label}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            ))}
+            {Object.entries(filterOptions).map(([key, option]) => {
+              // Type guard for datetime filter
+              if (typeof option === 'object' && !Array.isArray(option) && option.type === 'datetime') {
+                return (
+                  <div key={key} className="flex flex-col mr-2">
+                    <label className="text-xs text-gray-600 mb-1">{option.label}</label>
+                    <input
+                      type="datetime-local"
+                      value={activeFilters[key] || ''}
+                      onChange={(e) => handleFilterChange(key, e.target.value)}
+                      className="border rounded px-2 py-1 text-sm"
+                    />
+                  </div>
+                );
+              }
+              // Type guard for select filter (array)
+              if (Array.isArray(option)) {
+                return (
+                  <div key={key} className="flex flex-col gap-2">
+                    <label className="text-sm font-medium text-gray-700">
+                      {key.charAt(0).toUpperCase() + key.slice(1)}
+                    </label>
+                    <select
+                      value={activeFilters[key] || ''}
+                      onChange={(e) => handleFilterChange(key, e.target.value)}
+                      className="border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    >
+                      <option value="">Tất cả</option>
+                      {option.map((opt) => (
+                        <option key={opt.value} value={opt.value}>
+                          {opt.label}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                );
+              }
+              // fallback
+              return null;
+            })}
           </div>
         </div>
       )}

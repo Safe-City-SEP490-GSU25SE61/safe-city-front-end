@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { X, MapPin, Calendar, User, AlertTriangle, FileText, Phone, Clock, Shield, Camera, Video, MessageSquare, Activity, Plus, Play, Eye, Send } from 'lucide-react';
 import { createIncidentNote, updateIncidentStatus } from '../../services/api/incident'; // 1. Import the API function
 import NotificationBar from '../common/NotificationBar'; // Add this import
-import { getAllDistricts } from '../../services/api/district'; // Import at the top
+import { getAllWards } from '../../services/api/ward'; // Import at the top
 import goongjs from '@goongmaps/goong-js';
 import '@goongmaps/goong-js/dist/goong-js.css';
 
@@ -56,6 +56,7 @@ const IncidentDetail: React.FC<IncidentDetailProps> = ({ incident, loading, onCl
   const [loadingDistricts, setLoadingDistricts] = useState(false);
   const [showMapModal, setShowMapModal] = useState(false);
   const mapContainerRef = useRef<HTMLDivElement>(null);
+  const inlineMapRef = useRef<HTMLDivElement>(null); // New ref for inline map
 
   // Helper to show notification
   const showNotification = (message: string, type: 'success' | 'error' | 'info' = 'info') => {
@@ -85,10 +86,10 @@ const IncidentDetail: React.FC<IncidentDetailProps> = ({ incident, loading, onCl
     }
   };
 
-  const fetchDistricts = async () => {
+  const fetchWards = async () => {
     setLoadingDistricts(true);
     try {
-      const data = await getAllDistricts();
+      const data = await getAllWards();
       setDistricts(data);
     } catch (e) {
       showNotification('Không thể tải danh sách phường/xã.', 'error');
@@ -100,7 +101,7 @@ const IncidentDetail: React.FC<IncidentDetailProps> = ({ incident, loading, onCl
   useEffect(() => {
     if (localStatus === 'verified' && districts.length === 0) {
       setLoadingDistricts(true);
-      getAllDistricts()
+      getAllWards()
         .then(data => setDistricts(data))
         .catch(() => showNotification('Không thể tải danh sách phường/xã.', 'error'))
         .finally(() => setLoadingDistricts(false));
@@ -108,8 +109,29 @@ const IncidentDetail: React.FC<IncidentDetailProps> = ({ incident, loading, onCl
   }, [localStatus, districts.length]);
 
   useEffect(() => {
+    if (inlineMapRef.current && incident.lat && incident.lng) {
+      goongjs.accessToken = 'VScS4DXaVgUaCjtOp6Vp2AAYlfcJVOIZ2JVjvAnL';
+      // Clean up previous map instance if any
+      if (inlineMapRef.current.childNodes.length > 0) {
+        inlineMapRef.current.innerHTML = '';
+      }
+      const map = new goongjs.Map({
+        container: inlineMapRef.current,
+        style: 'https://tiles.goong.io/assets/goong_map_web.json',
+        center: [parseFloat(incident.lng), parseFloat(incident.lat)],
+        zoom: 16,
+      });
+      new goongjs.Marker()
+        .setLngLat([parseFloat(incident.lng), parseFloat(incident.lat)])
+        .addTo(map);
+      return () => map.remove();
+    }
+  }, [incident.lat, incident.lng]);
+
+  useEffect(() => {
     if (showMapModal && mapContainerRef.current && incident.lat && incident.lng) {
-      goongjs.accessToken = '123';
+      goongjs.accessToken = 'VScS4DXaVgUaCjtOp6Vp2AAYlfcJVOIZ2JVjvAnL';
+      // Clean up previous map instance if any
       if (mapContainerRef.current.childNodes.length > 0) {
         mapContainerRef.current.innerHTML = '';
       }
@@ -268,12 +290,7 @@ const IncidentDetail: React.FC<IncidentDetailProps> = ({ incident, loading, onCl
                     {incident.lat && incident.lng && (
                       <div className="mt-2">
                         <label className="text-sm font-semibold text-gray-700 uppercase tracking-wide">Tọa độ</label>
-                        <button
-                          type="button"
-                          className="flex items-center gap-4 mt-1 bg-blue-50 p-3 rounded-xl border border-blue-200 hover:bg-blue-100 transition cursor-pointer"
-                          onClick={() => setShowMapModal(true)}
-                          title="Xem vị trí trên bản đồ"
-                        >
+                        <div className="flex items-center gap-4 mt-1 bg-blue-50 p-3 rounded-xl border border-blue-200">
                           <span className="flex items-center gap-1 text-blue-800 font-semibold">
                             <MapPin className="w-4 h-4" />
                             Vĩ độ: <span className="font-mono">{incident.lat}</span>
@@ -282,7 +299,19 @@ const IncidentDetail: React.FC<IncidentDetailProps> = ({ incident, loading, onCl
                             <MapPin className="w-4 h-4" />
                             Kinh độ: <span className="font-mono">{incident.lng}</span>
                           </span>
-                          <span className="ml-2 text-blue-600 underline text-xs">Xem bản đồ</span>
+                        </div>
+                        <div
+                          ref={inlineMapRef}
+                          style={{ height: 220, width: '100%', borderRadius: '12px', overflow: 'hidden', marginTop: 12 }}
+                          className="shadow border border-blue-200"
+                        />
+                        <button
+                          type="button"
+                          className="mt-2 text-blue-600 underline text-xs hover:text-blue-800"
+                          onClick={() => setShowMapModal(true)}
+                          title="Xem bản đồ lớn"
+                        >
+                          Xem bản đồ lớn
                         </button>
                       </div>
                     )}

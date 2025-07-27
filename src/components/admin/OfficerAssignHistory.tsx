@@ -10,8 +10,8 @@ interface OfficerAssignHistoryProps {
 }
 
 interface Change {
-  oldDistrictName: string;
-  newDistrictName: string;
+  oldCommuneName: string;
+  newCommuneName: string;
 }
 
 interface HistoryItem {
@@ -24,7 +24,7 @@ const OfficerAssignHistory: React.FC<OfficerAssignHistoryProps> = ({ accountId, 
 
   // Flatten all changes and filter out "Chưa được phân công"
   const validChanges = history.flatMap(item =>
-    item.changes.filter(change => change.newDistrictName !== "Chưa được phân công")
+    item.changes.filter(change => change.newCommuneName !== "Chưa được phân công")
   );
 
   if (!open) return null;
@@ -121,7 +121,7 @@ const OfficerAssignHistory: React.FC<OfficerAssignHistoryProps> = ({ accountId, 
                             <div className="flex items-center space-x-2">
                               <span className="text-sm font-medium text-gray-500">Từ:</span>
                               <span className="px-3 py-1 bg-red-50 text-red-700 rounded-full text-sm font-medium">
-                                {change.oldDistrictName}
+                                {change.oldCommuneName}
                               </span>
                             </div>
                             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -130,7 +130,7 @@ const OfficerAssignHistory: React.FC<OfficerAssignHistoryProps> = ({ accountId, 
                             <div className="flex items-center space-x-2">
                               <span className="text-sm font-medium text-gray-500">Sang:</span>
                               <span className="px-3 py-1 bg-green-50 text-green-700 rounded-full text-sm font-medium">
-                                {change.newDistrictName}
+                                {change.newCommuneName}
                               </span>
                             </div>
                           </div>

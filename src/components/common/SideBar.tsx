@@ -48,12 +48,12 @@ const Sidebar = () => {
     { icon: User, text: 'Quản lý tài khoản', to: '/user-management', roles: ['admin'] },
     { icon: Box, text: 'Quản lý gói đăng ký', to: '/package-management', roles: ['admin'] },
     { icon: Medal, text: 'Quản lý danh hiệu', to: '/achievement-management', roles: ['admin'] },
-    { icon: MapPinned, text: 'Quản lý quận huyện', to: '/district-management', roles: ['admin'] },
+    { icon: MapPinned, text: 'Quản lý phường xã', to: '/district-management', roles: ['admin'] },
     { icon: UserRoundPlus, text: 'Phân công sĩ quan', to: '/add-police-to-ward', roles: ['admin'] },
     // Officer only
-    { icon: ShieldAlert, text: 'Báo cáo', to: '/officer/incident-report', roles: ['officer'] },
-    { icon: FileText, text: 'Bài viết', to: '/officer/blog-view', roles: ['officer'] },
-    { icon: MapPinned, text: 'Bản đồ', to: '/officer/live-map', roles: ['officer'] },
+    { icon: ShieldAlert, text: 'Quản lý báo cáo', to: '/officer/incident-report', roles: ['officer'] },
+    { icon: FileText, text: 'Quản lý bài viết', to: '/officer/blog-view', roles: ['officer'] },
+    { icon: MapPinned, text: 'Bản đồ tại khu vực', to: '/officer/live-map', roles: ['officer'] },
     // Admin and Officer shared
    
 
