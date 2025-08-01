@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import Sidebar from '../../components/common/SideBar';
 import Header from '../../components/common/Header';
 import { useEditor, EditorContent } from '@tiptap/react';
@@ -8,6 +9,9 @@ import Heading from '@tiptap/extension-heading';
 import TextAlign from '@tiptap/extension-text-align';
 import { Bold, Italic, Underline as UnderlineIcon, Strikethrough, List, ListOrdered, Code2, AlignLeft, AlignCenter, AlignRight, Eraser, Heading1, Heading2, Heading3, Heading4, Heading5, Minus, Image as ImageIcon, Edit2, FileText, X } from 'lucide-react';
 import NotificationBar from '../../components/common/NotificationBar';
+import { createBlogOfficer } from '../../services/api/blog';
+import type { BlogCreateOfficerData } from '../../services/api/blog';
+import { getAllWards } from '../../services/api/ward';
 
 
 const MenuBar = ({ editor }: { editor: any }) => {
@@ -38,13 +42,18 @@ const MenuBar = ({ editor }: { editor: any }) => {
 };
 
 const CreateBlogPage: React.FC = () => {
+  const navigate = useNavigate();
   const [title, setTitle] = useState('');
-  const [author, setAuthor] = useState('Nguyen Van A');
   const [images, setImages] = useState<File[]>([]);
   const [imagePreviews, setImagePreviews] = useState<string[]>([]);
   const [imageName, setImageName] = useState('');
   const [blogBrief, setBlogBrief] = useState('');
+  const [blogType, setBlogType] = useState('');
+  const [selectedWard, setSelectedWard] = useState('');
+  const [wards, setWards] = useState<any[]>([]);
+  const [wardsLoading, setWardsLoading] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
 
   const editor = useEditor({
     extensions: [
@@ -62,6 +71,24 @@ const CreateBlogPage: React.FC = () => {
       },
     },
   });
+
+  // Fetch wards on component mount
+  useEffect(() => {
+    const fetchWards = async () => {
+      try {
+        setWardsLoading(true);
+        const wardsData = await getAllWards();
+        setWards(wardsData || []);
+      } catch (error) {
+        console.error('Error fetching wards:', error);
+        setWards([]);
+      } finally {
+        setWardsLoading(false);
+      }
+    };
+
+    fetchWards();
+  }, []);
 
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
@@ -88,12 +115,52 @@ const CreateBlogPage: React.FC = () => {
     setImagePreviews(prev => prev.filter((_, i) => i !== idx));
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    const content = editor?.getHTML() || '';
-    const blogData = { title, author, content, images, imageName, blogBrief };
-    console.log(blogData);
-    setShowSuccess(true);
+    
+    if (!title.trim() || !editor?.getHTML()?.trim()) {
+      alert('Vui lòng nhập tiêu đề và nội dung blog');
+      return;
+    }
+
+    if (!blogType) {
+      alert('Vui lòng chọn loại bài viết');
+      return;
+    }
+
+    if (!selectedWard) {
+      alert('Vui lòng chọn phường/xã');
+      return;
+    }
+
+    setIsLoading(true);
+    
+    try {
+      const content = editor.getHTML();
+      
+      const blogData: BlogCreateOfficerData = {
+        title: title.trim(),
+        content: content,
+        type: blogType,
+        communeId: parseInt(selectedWard),
+        mediaFiles: images.length > 0 ? images : undefined,
+      };
+      
+      await createBlogOfficer(blogData);
+      
+      setShowSuccess(true);
+      
+      // Reset form after successful creation
+      setTimeout(() => {
+        navigate('/officer/blog-view');
+      }, 2000);
+      
+    } catch (error) {
+      console.error('Error creating blog:', error);
+      alert('Có lỗi xảy ra khi tạo blog. Vui lòng thử lại.');
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -122,9 +189,14 @@ const CreateBlogPage: React.FC = () => {
                     <span className="text-gray-400 text-xs">0/2000</span>
                     <button
                       type="submit"
-                      className="bg-blue-600 text-white px-8 py-2 rounded-full hover:bg-blue-700 font-semibold shadow transition"
+                      disabled={isLoading}
+                      className={`px-8 py-2 rounded-full font-semibold shadow transition ${
+                        isLoading 
+                          ? 'bg-gray-400 text-gray-200 cursor-not-allowed' 
+                          : 'bg-blue-600 text-white hover:bg-blue-700'
+                      }`}
                     >
-                      Đăng
+                      {isLoading ? 'Đang đăng...' : 'Đăng'}
                     </button>
                   </div>
                 </form>
@@ -141,15 +213,39 @@ const CreateBlogPage: React.FC = () => {
                     className="w-full border border-gray-200 rounded-lg px-4 py-3 text-base focus:ring-2 focus:ring-blue-100 focus:border-blue-400 placeholder-gray-400 transition mb-2"
                     required
                   />
-                  <div className="relative">
-                    <textarea
-                      value={blogBrief}
-                      onChange={e => setBlogBrief(e.target.value)}
-                      placeholder="Nhập tóm tắt bài viết"
-                      className="w-full border border-gray-200 bg-gray-50 rounded-xl px-4 py-3 min-h-[80px] text-base focus:ring-2 focus:ring-blue-100 focus:border-blue-400 placeholder-gray-400 resize-none transition"
-                      maxLength={200}
-                    />
-                    <span className="absolute right-4 bottom-2 text-gray-400 text-xs bg-white bg-opacity-80 px-1 rounded">{blogBrief.length}/200</span>
+                  <div className="mb-4">
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Loại bài viết</label>
+                    <select
+                      value={blogType}
+                      onChange={e => setBlogType(e.target.value)}
+                      className="w-full border border-gray-200 bg-white rounded-xl px-4 py-3 text-base focus:ring-2 focus:ring-blue-100 focus:border-blue-400 transition"
+                    >
+                      <option value="">Chọn loại bài viết</option>
+                      <option value="Tip">Mẹo an toàn</option>
+                      <option value="News">Tin tức</option>
+                      <option value="Events">Sự kiện</option>
+                      <option value="Alert">Cảnh báo</option>
+                    </select>
+                  </div>
+                  
+                  <div className="mb-4">
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Phường/Xã</label>
+                    <select
+                      value={selectedWard}
+                      onChange={e => setSelectedWard(e.target.value)}
+                      className="w-full border border-gray-200 bg-white rounded-xl px-4 py-3 text-base focus:ring-2 focus:ring-blue-100 focus:border-blue-400 transition"
+                      disabled={wardsLoading}
+                    >
+                      <option value="">Chọn phường/xã</option>
+                      {wards.map((ward) => (
+                        <option key={ward.id} value={ward.id}>
+                          {ward.name}
+                        </option>
+                      ))}
+                    </select>
+                    {wardsLoading && (
+                      <p className="text-sm text-gray-500 mt-1">Đang tải danh sách phường/xã...</p>
+                    )}
                   </div>
                 </div>
                 {/* Image Card */}

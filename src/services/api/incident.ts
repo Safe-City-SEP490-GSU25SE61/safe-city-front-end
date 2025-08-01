@@ -32,3 +32,9 @@ export const createIncidentNote = async (id: string, data: any) => {
     }); 
     return response.data.data;
 };
+export const transferIncident = async (id: string, data: any) => {
+    const response = await axios.patch(API_ENDPOINTS.INCIDENT.TRANSFER(id), data, {
+        headers: getAuthHeaders(),
+    }); 
+    return response.data.data;
+};

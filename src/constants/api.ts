@@ -39,7 +39,23 @@ export const API_ENDPOINTS = {
     BY_ID: (id: string) => `${API_BASE_URL}/reports/${id}`,
     NOTE: (id: string) => `${API_BASE_URL}/reports/${id}/note`,
     STATUS: (id: string) => `${API_BASE_URL}/reports/${id}/status`,
+    TRANSFER: (id: string) => `${API_BASE_URL}/reports/${id}/transfer`,
   },
-  
-  // Add other groups (e.g., USERS, REPORTS) here as needed
+  BLOG: {
+    BASE: `${API_BASE_URL}/blogs`,
+    BY_ID: (id: string) => `${API_BASE_URL}/blogs/${id}`,
+    UPDATE: (id: string) => `${API_BASE_URL}/blogs/${id}`,
+    CREATE: `${API_BASE_URL}/blogs`,
+    CREATE_OFFICER: `${API_BASE_URL}/blogs`,
+    GET_OFFICER: `${API_BASE_URL}/blogs/officer`,
+    GET_OFFICER_BY_ID: (id: string) => `${API_BASE_URL}/blogs/officer/${id}`,
+    APPROVE: (id: string) => `${API_BASE_URL}/blogs/approve/${id}`,
+  },
+  COMMENT: {
+    BASE: `${API_BASE_URL}/comments`, 
+    CREATE: `${API_BASE_URL}/comments`,
+    BY_BLOG_ID: (id: string) => `${API_BASE_URL}/comments/${id}`,
+    BY_ID: (id: string) => `${API_BASE_URL}/comments/${id}`,
+  },
+  // Add other groups here as needed
 };
