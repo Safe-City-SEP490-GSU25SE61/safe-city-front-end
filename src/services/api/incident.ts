@@ -13,6 +13,18 @@ export const getIncident = async () => {
     });
     return response.data.data;
 };
+export const getIncidentAdmin = async (range?: 'day' | 'week' | 'year' | 'month', sort?: 'newest' | 'oldest') => {
+    const params: any = {};
+    if (range) params.range = range;
+    if (sort) params.sort = sort;
+    
+    const response = await axios.get(API_ENDPOINTS.INCIDENT.BASE_ADMIN, {
+        headers: getAuthHeaders(),
+        params,
+    });
+    return response.data.data;
+};
+
 
 export const getIncidentById = async (id: string) => {
     const response = await axios.get(API_ENDPOINTS.INCIDENT.BY_ID(id), {
@@ -38,3 +50,12 @@ export const transferIncident = async (id: string, data: any) => {
     }); 
     return response.data.data;
 };
+export const getIncidentStatisticsAdmin = async (range?: 'day' | 'week' | 'year') => {
+    const params = range ? { range } : {};
+    const response = await axios.get(API_ENDPOINTS.INCIDENT.INCIDENT_STATISTICS_ADMIN, {
+        headers: getAuthHeaders(),
+        params,
+    }); 
+    return response.data;
+};
+

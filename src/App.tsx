@@ -20,6 +20,8 @@ import BlogView from './pages/officer/BlogView';
 import BlogDetailPage from './pages/officer/BlogDetail';
 import CreateBlogPage from './pages/officer/CreateBlog';
 import LiveMap from './pages/officer/LiveMap';
+import AdminLiveMap from './pages/admin/AdminLiveMap';
+import IncidentReportAdmin from './pages/admin/IncidentReportAdmin';
 
 const App = () => {
   return (
@@ -58,6 +60,16 @@ const App = () => {
         <Route path="/achievement-management" element={
           <ProtectedRoute allowedRoles={[ROLES.ADMIN]}>
             <AchievementManagement />
+          </ProtectedRoute>
+        } />
+        <Route path="/admin/live-map" element={
+          <ProtectedRoute allowedRoles={[ROLES.ADMIN]}>
+            <AdminLiveMap />
+          </ProtectedRoute>
+        } />
+        <Route path="/admin/incident-report" element={
+          <ProtectedRoute allowedRoles={[ROLES.ADMIN]}>
+            <IncidentReportAdmin />
           </ProtectedRoute>
         } />
         <Route path="/unauthorized" element={<Unauthorized />} />

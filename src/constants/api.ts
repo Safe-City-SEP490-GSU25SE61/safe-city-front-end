@@ -36,10 +36,12 @@ export const API_ENDPOINTS = {
   },
   INCIDENT: {
     BASE: `${API_BASE_URL}/reports/officer`,
+    BASE_ADMIN: `${API_BASE_URL}/reports/admin/filter`,
     BY_ID: (id: string) => `${API_BASE_URL}/reports/${id}`,
     NOTE: (id: string) => `${API_BASE_URL}/reports/${id}/note`,
     STATUS: (id: string) => `${API_BASE_URL}/reports/${id}/status`,
     TRANSFER: (id: string) => `${API_BASE_URL}/reports/${id}/transfer`,
+    INCIDENT_STATISTICS_ADMIN: `${API_BASE_URL}/reports/statistics`,
   },
   BLOG: {
     BASE: `${API_BASE_URL}/blogs`,
@@ -57,5 +59,9 @@ export const API_ENDPOINTS = {
     BY_BLOG_ID: (id: string) => `${API_BASE_URL}/comments/${id}`,
     BY_ID: (id: string) => `${API_BASE_URL}/comments/${id}`,
   },
+  MAP: {
+    COMMUNE_DATA: `${API_BASE_URL}/map/communes`,
+  },
+
   // Add other groups here as needed
 };

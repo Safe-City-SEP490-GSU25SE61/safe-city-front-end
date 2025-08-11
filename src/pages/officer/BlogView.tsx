@@ -3,15 +3,16 @@ import Sidebar from '../../components/common/SideBar';
 import Header from '../../components/common/Header';
 import NotificationBar from '../../components/common/NotificationBar';
 import FilterBar from '../../components/common/FilterBar';
-import { CheckCircle2, Loader2, MessageSquare, ThumbsUp } from 'lucide-react';
+import { CheckCircle2, Loader2, XCircle } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-import { getBlogByOfficer } from '../../services/api/blog';
+import { getBlogByOfficer, approveBlog } from '../../services/api/blog';
 
 // BlogCard component to display individual blog post
-const BlogCard = ({ blog, onClick, onApprove }: { 
+const BlogCard = ({ blog, onClick, onApprove, isApproving }: { 
   blog: Blog; 
   onClick: () => void; 
   onApprove: (id: string | number) => void;
+  isApproving?: boolean;
 }) => (
   <div
     className="bg-white rounded-xl shadow border border-gray-200 flex flex-col h-full cursor-pointer hover:shadow-lg transition"
@@ -29,6 +30,16 @@ const BlogCard = ({ blog, onClick, onApprove }: {
         <span className={`px-2 py-1 rounded text-xs font-medium ${blog.categoryColor}`}>
           {blog.category}
         </span>
+        {blog.isApproved && (
+          <span className="px-2 py-1 rounded text-xs font-medium bg-green-100 text-green-800">
+            Đã duyệt
+          </span>
+        )}
+        {blog.isVisible && (
+          <span className="px-2 py-1 rounded text-xs font-medium bg-green-100 text-green-800">
+            Đã hiển thị
+          </span>
+        )}
         {blog.pinned && (
           <span className="px-2 py-1 rounded text-xs font-medium bg-yellow-100 text-yellow-800">
             Đã ghim
@@ -43,18 +54,32 @@ const BlogCard = ({ blog, onClick, onApprove }: {
         
         <div className="flex items-center justify-between pt-2 border-t border-gray-100">
           
-          {blog.status === 'Bản nháp' && (
-            <button
-              className="text-green-600 hover:text-green-800 flex items-center gap-1 text-xs"
-              onClick={(e) => {
-                e.stopPropagation();
-                onApprove(blog.id);
-              }}
-            >
+          <button
+            className={`flex items-center gap-1 text-xs disabled:opacity-50 disabled:cursor-not-allowed ${
+              blog.isApproved 
+                ? 'text-red-600 hover:text-red-800' 
+                : 'text-green-600 hover:text-green-800'
+            }`}
+            onClick={(e) => {
+              e.stopPropagation();
+              onApprove(blog.id);
+            }}
+            disabled={isApproving}
+          >
+            {isApproving ? (
+              <Loader2 className="w-3 h-3 animate-spin" />
+            ) : blog.isApproved ? (
+              <XCircle className="w-3 h-3" />
+            ) : (
               <CheckCircle2 className="w-3 h-3" />
-              <span>Duyệt</span>
-            </button>
-          )}
+            )}
+            <span>
+              {isApproving 
+                ? (blog.isApproved ? 'Đang bỏ duyệt...' : 'Đang duyệt...') 
+                : (blog.isApproved ? 'Bỏ duyệt' : 'Duyệt')
+              }
+            </span>
+          </button>
         </div>
       </div>
     </div>
@@ -70,6 +95,8 @@ interface Blog {
   authorName: string;
   createdAt: string;
   pinned: boolean;
+  isApproved: boolean;
+  isVisible: boolean;
   communeName: string;
   totalLike: number;
   totalComment: number;
@@ -89,6 +116,7 @@ const BlogView: React.FC = () => {
   const [blogs, setBlogs] = useState<Blog[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [approvingBlogs, setApprovingBlogs] = useState<Set<string | number>>(new Set());
 
   // Notification state
   const [notification, setNotification] = useState({
@@ -114,21 +142,52 @@ const BlogView: React.FC = () => {
   }, [navigate]);
   const officerDistrict = "Quận 1"; // This would come from user context in a real app
 
-  // Handle blog approval
-  const handleApprove = useCallback((id: string | number) => {
-    // In a real app, you would make an API call here to update the blog status
-    setBlogs(prevBlogs => 
-      prevBlogs.map(blog => 
-        blog.id === id ? { ...blog, status: 'Đã đăng', statusColor: 'bg-green-100 text-green-800' } : blog
-      )
-    );
-    
-    setNotification({
-      show: true,
-      message: 'Bài viết đã được duyệt thành công!',
-      type: 'success',
-    });
-  }, []);
+  // Handle blog approval/unapproval toggle
+  const handleApprove = useCallback(async (id: string | number) => {
+    try {
+      // Add to approving set
+      setApprovingBlogs(prev => new Set(prev).add(id));
+      
+      // Find the current blog to determine its approval status
+      const currentBlog = blogs.find(blog => blog.id === id);
+      if (!currentBlog) return;
+      
+      // Toggle the approval status
+      const newApprovalStatus = !currentBlog.isApproved;
+      
+      // Call API to update the blog approval status
+      await approveBlog(id.toString(), newApprovalStatus);
+      
+      // Update local state to reflect the change
+      setBlogs(prevBlogs => 
+        prevBlogs.map(blog => 
+          blog.id === id ? { ...blog, isApproved: newApprovalStatus } : blog
+        )
+      );
+      
+      setNotification({
+        show: true,
+        message: newApprovalStatus 
+          ? 'Bài viết đã được duyệt thành công!' 
+          : 'Bài viết đã được bỏ duyệt thành công!',
+        type: 'success',
+      });
+    } catch (error) {
+      console.error('Error updating blog approval status:', error);
+      setNotification({
+        show: true,
+        message: 'Có lỗi xảy ra khi thay đổi trạng thái duyệt bài viết. Vui lòng thử lại.',
+        type: 'error',
+      });
+    } finally {
+      // Remove from approving set
+      setApprovingBlogs(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(id);
+        return newSet;
+      });
+    }
+  }, [blogs]);
 
   // Fetch blogs when component mounts
   useEffect(() => {
@@ -155,11 +214,13 @@ const BlogView: React.FC = () => {
           const blogData = {
             id: blog.id || 'unknown-id',
             title: blog.title || 'Không có tiêu đề',
+            isApproved: blog.isApproved || false,
+            isVisible: blog.isVisible || false,
+            pinned: blog.pinned || false,
             content: blog.content || '',
             type: blog.type || 'news',
             authorName: blog.authorName || 'Người dùng ẩn danh',
             createdAt: blog.createdAt || new Date().toISOString(),
-            pinned: blog.pinned || false,
             communeName: blog.communeName || 'Chưa xác định',
             totalLike: blog.totalLike || 0,
             totalComment: blog.totalComment || 0,
@@ -172,8 +233,6 @@ const BlogView: React.FC = () => {
             category: blog.type === 'news' ? 'Tin tức' : 
                      blog.type === 'guide' ? 'Hướng dẫn' : 'Thông báo',
             categoryColor: 'bg-blue-100 text-blue-800',
-            status: 'Đã đăng',
-            statusColor: 'bg-green-100 text-green-800',
             views: Math.floor(Math.random() * 1000)
           };
           
@@ -234,7 +293,7 @@ const BlogView: React.FC = () => {
                 <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
                   <div className="flex items-center gap-2 text-blue-800">
                     <span className="text-sm font-medium">Khu vực quản lý:</span>
-                    <span className="text-sm">{officerDistrict}</span>
+                
                   </div>
                   <p className="text-xs text-blue-600 mt-1">
                     Tất cả bài viết hiển thị đều thuộc phạm vi quản lý của bạn
@@ -285,6 +344,7 @@ const BlogView: React.FC = () => {
                             blog={blog} 
                             onApprove={handleApprove}
                             onClick={() => handleBlogClick(blog.id)}
+                            isApproving={approvingBlogs.has(blog.id)}
                           />
                         ))}
                     </div>
@@ -305,6 +365,7 @@ const BlogView: React.FC = () => {
                           blog={blog} 
                           onApprove={handleApprove}
                           onClick={() => handleBlogClick(blog.id)}
+                          isApproving={approvingBlogs.has(blog.id)}
                         />
                       ))}
                   </div>

@@ -52,7 +52,7 @@ const IncidentDetail: React.FC<IncidentDetailProps> = ({ incident, loading, onCl
     type: 'info' as 'success' | 'error' | 'info'
   });
   const [districts, setDistricts] = useState<any[]>([]);
-  const [selectedDistrict, setSelectedDistrict] = useState<string>('');
+  const [selectedDistrict, setSelectedDistrict] = useState<number>();
   const [loadingDistricts, setLoadingDistricts] = useState(false);
   const [transferNote, setTransferNote] = useState<string>('');
   const [showTransferNote, setShowTransferNote] = useState(false);
@@ -233,14 +233,13 @@ const IncidentDetail: React.FC<IncidentDetailProps> = ({ incident, loading, onCl
     setLoadingTransfer(true);
     try {
       await transferIncident(incident.id, {
-        wardId: selectedDistrict,
+        newDistrictId: selectedDistrict,
         note: transferNote.trim()
       });
       showNotification('Đã chuyển báo cáo thành công!', 'success');
       setTransferNote('');
       setShowTransferNote(false);
-      setSelectedDistrict('');
-      // Optionally close the modal or refresh data
+      setSelectedDistrict(0);
       onClose();
     } catch (error: any) {
       showNotification(error.response.data.message, 'error');
@@ -350,7 +349,37 @@ const IncidentDetail: React.FC<IncidentDetailProps> = ({ incident, loading, onCl
                           {incident.category}
                         </p>
                       </div>
+                      {incident.subCategory && (
+                        <div>
+                          <label className="text-sm font-semibold text-gray-700 uppercase tracking-wide">Danh mục phụ</label>
+                          <p className="mt-2 text-gray-800 bg-gray-50 p-3 rounded-xl border border-gray-200">
+                            {incident.subCategory}
+                          </p>
+                        </div>
+                      )}
                     </div>
+                    {incident.priorityLevel && (
+                      <div className="mt-4">
+                        <label className="text-sm font-semibold text-gray-700 uppercase tracking-wide">Mức độ ưu tiên</label>
+                        <div className="mt-2">
+                          <span className={`inline-flex items-center gap-2 px-4 py-2 rounded-full text-sm font-semibold ${
+                            incident.priorityLevel === 'High' ? 'bg-red-100 text-red-800' :
+                            incident.priorityLevel === 'Medium' ? 'bg-yellow-100 text-yellow-800' :
+                            incident.priorityLevel === 'Critical' ? 'bg-red-100 text-red-800' :
+                            incident.priorityLevel === 'Low' ? 'bg-green-100 text-green-800' :
+                            'bg-gray-100 text-gray-800'
+                          }`}>
+                            <AlertTriangle className="w-4 h-4" />
+
+                            {incident.priorityLevel === 'High' ? 'Cao' :
+                            incident.priorityLevel === 'Critical' ? 'Khẩn cấp' :
+                            incident.priorityLevel === 'Medium' ? 'Trung bình' :
+                            incident.priorityLevel === 'Low' ? 'Thấp' :
+                            incident.priorityLevel}
+                          </span>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 </div>
 
@@ -411,6 +440,14 @@ const IncidentDetail: React.FC<IncidentDetailProps> = ({ incident, loading, onCl
                       {getStatusIcon(localStatus)}
                       {getStatusText(localStatus)}
                     </span>
+                    {incident.verifiedByName && (
+                      <div className="flex items-center gap-2 mt-2">
+                        <span>Đã xác minh bởi:</span>
+                        <span className="text-sm text-gray-600">
+                          {incident.verifiedByName}
+                        </span>
+                      </div>
+                    )}
                   </div>
                 </div>
 
@@ -484,7 +521,7 @@ const IncidentDetail: React.FC<IncidentDetailProps> = ({ incident, loading, onCl
                               <select
                                 className="w-full mt-2 p-2 border rounded"
                                 value={selectedDistrict}
-                                onChange={e => setSelectedDistrict(e.target.value)}
+                                onChange={e => setSelectedDistrict(Number(e.target.value))}
                               >
                                 <option value="">Chọn phường/xã</option>
                                 {districts.map((d: any) => (
@@ -776,6 +813,14 @@ const IncidentDetail: React.FC<IncidentDetailProps> = ({ incident, loading, onCl
           </div>
         </div>
       )}
+
+      {/* Notification Bar */}
+      <NotificationBar
+        show={notification.show}
+        message={notification.message}
+        type={notification.type}
+        onClose={() => setNotification({ show: false, message: '', type: 'info' })}
+      />
     </>
   )
 }

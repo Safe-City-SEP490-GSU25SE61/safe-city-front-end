@@ -3,7 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import Sidebar from '../../components/common/SideBar';
 import Header from '../../components/common/Header';
 import NotificationBar from '../../components/common/NotificationBar';
-import { Eye, ThumbsUp, MessageCircle, User, Calendar, Pencil, EyeOff, CheckCircle, Flag, Bold, Italic, UnderlineIcon, Strikethrough, Eraser, Heading1, Heading2, Heading3, Heading4, Heading5, List, ListOrdered, Minus, AlignLeft, AlignCenter, AlignRight, Loader2, ArrowLeft, ChevronLeft, ChevronRight, Play, Pause } from 'lucide-react';
+import { Eye, ThumbsUp, MessageCircle, User, Calendar, Pencil, EyeOff, CheckCircle, Flag, Bold, Italic, UnderlineIcon, Strikethrough, Eraser, Heading1, Heading2, Heading3, Heading4, Heading5, List, ListOrdered, Minus, AlignLeft, AlignCenter, AlignRight, Loader2, ArrowLeft, ChevronLeft, ChevronRight, Play, Pause, Bot, Shield, Heart, AlertTriangle, CheckCircle2, XCircle, Clock, Sparkles, Brain, Zap } from 'lucide-react';
 import { useEditor, EditorContent } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
 import Underline from '@tiptap/extension-underline';
@@ -23,6 +23,195 @@ interface Comment {
   accountId: string;
 }
 
+// Function to highlight violations in content
+const highlightViolations = (content: string, violations: string[]): string => {
+  if (!violations || violations.length === 0) {
+    return content;
+  }
+
+  let highlightedContent = content;
+  
+  violations.forEach(violation => {
+    if (violation && violation.trim()) {
+      // Create a case-insensitive regex to find the violation text
+      const regex = new RegExp(`(${violation.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, 'gi');
+      highlightedContent = highlightedContent.replace(regex, 
+        '<span class="violation-highlight" style="background-color: #fef2f2; color: #dc2626; padding: 2px 4px; border-radius: 4px; border: 1px solid #fecaca; font-weight: 600;">$1</span>'
+      );
+    }
+  });
+  
+  return highlightedContent;
+};
+
+// Enhanced utility function to parse Quill Delta JSON content and convert to HTML
+const parseJsonContent = (jsonContent: string, violations?: string[]): string => {
+  try {
+    // Check if content is already HTML
+    if (jsonContent && !jsonContent.trim().startsWith('[{') && !jsonContent.trim().startsWith('{')) {
+      return jsonContent;
+    }
+
+    // Try to parse as JSON
+    const parsed = JSON.parse(jsonContent);
+    
+    // Handle Quill Delta format with ops array
+    if (parsed && parsed.ops && Array.isArray(parsed.ops)) {
+      let html = '';
+      let currentParagraph = '';
+      
+      parsed.ops.forEach((op: any) => {
+        if (op.insert) {
+          let content = op.insert;
+          
+          // Handle string content
+          if (typeof content === 'string') {
+            // Apply formatting based on attributes
+            if (op.attributes) {
+              if (op.attributes.bold) {
+                content = `<strong>${content}</strong>`;
+              }
+              if (op.attributes.italic) {
+                content = `<em>${content}</em>`;
+              }
+              if (op.attributes.underline) {
+                content = `<u>${content}</u>`;
+              }
+              if (op.attributes.strike) {
+                content = `<s>${content}</s>`;
+              }
+              if (op.attributes.code) {
+                content = `<code>${content}</code>`;
+              }
+              if (op.attributes.link) {
+                content = `<a href="${op.attributes.link}" target="_blank">${content}</a>`;
+              }
+              // Handle headers
+              if (op.attributes.header) {
+                const level = op.attributes.header;
+                content = `<h${level}>${content}</h${level}>`;
+              }
+              // Handle text alignment
+              if (op.attributes.align) {
+                content = `<div style="text-align: ${op.attributes.align}">${content}</div>`;
+              }
+            }
+            
+            // Handle line breaks and paragraphs
+            if (content.includes('\n')) {
+              const lines = content.split('\n');
+              lines.forEach((line: string, index: number) => {
+                if (line.trim()) {
+                  currentParagraph += line;
+                }
+                if (index < lines.length - 1) {
+                  if (currentParagraph.trim()) {
+                    html += `<p>${currentParagraph}</p>`;
+                    currentParagraph = '';
+                  } else {
+                    html += '<br>';
+                  }
+                }
+              });
+              if (lines[lines.length - 1].trim()) {
+                currentParagraph += lines[lines.length - 1];
+              }
+            } else {
+              currentParagraph += content;
+            }
+          }
+          // Handle embeds (images, videos, etc.)
+          else if (typeof content === 'object') {
+            if (content.image) {
+              html += `<img src="${content.image}" alt="Image" style="max-width: 100%; height: auto;" />`;
+            }
+            if (content.video) {
+              html += `<video controls style="max-width: 100%; height: auto;"><source src="${content.video}" /></video>`;
+            }
+          }
+        }
+      });
+      
+      // Add any remaining content as a paragraph
+      if (currentParagraph.trim()) {
+        html += `<p>${currentParagraph}</p>`;
+      }
+      
+      const finalHtml = html || '<p>Không có nội dung</p>';
+      return violations && violations.length > 0 ? highlightViolations(finalHtml, violations) : finalHtml;
+    }
+    
+    // Handle legacy array format (old implementation)
+    if (Array.isArray(parsed)) {
+      const legacyHtml = parsed.map(block => {
+        if (block.insert && typeof block.insert === 'string') {
+          let content = block.insert;
+          
+          // Apply formatting based on attributes
+          if (block.attributes) {
+            if (block.attributes.bold) {
+              content = `<strong>${content}</strong>`;
+            }
+            if (block.attributes.italic) {
+              content = `<em>${content}</em>`;
+            }
+            if (block.attributes.underline) {
+              content = `<u>${content}</u>`;
+            }
+            if (block.attributes.font === 'serif') {
+              content = `<span style="font-family: serif;">${content}</span>`;
+            }
+          }
+          
+          // Handle line breaks
+          if (content === '\n') {
+            return '<br>';
+          }
+          
+          return content;
+        }
+        return '';
+      }).join('');
+      
+      return violations && violations.length > 0 ? highlightViolations(legacyHtml, violations) : legacyHtml;
+    }
+    
+    // If it's a single object, try to extract text
+    if (typeof parsed === 'object' && parsed.insert) {
+      const singleContent = parsed.insert;
+      return violations && violations.length > 0 ? highlightViolations(singleContent, violations) : singleContent;
+    }
+    
+    // Fallback: return original content
+    const fallbackContent = jsonContent;
+    return violations && violations.length > 0 ? highlightViolations(fallbackContent, violations) : fallbackContent;
+  } catch (error) {
+    
+    // If parsing fails, try to extract readable text from the JSON string
+    try {
+      // Extract text between quotes that looks like content
+      const textMatches = jsonContent.match(/"insert":"([^"]*)"/g);
+      if (textMatches) {
+        const extractedText = textMatches
+          .map(match => {
+            const text = match.replace('"insert":"', '').replace('"', '');
+            return text === '\\n' ? '<br>' : text;
+          })
+          .join('')
+          .replace(/\\n/g, '<br>');
+        
+        return violations && violations.length > 0 ? highlightViolations(extractedText, violations) : extractedText;
+      }
+    } catch (e) {
+      console.error('Error extracting text from JSON:', e);
+    }
+    
+    // Final fallback: return original content
+    const finalFallback = jsonContent || '<p>Không có nội dung</p>';
+    return violations && violations.length > 0 ? highlightViolations(finalFallback, violations) : finalFallback;
+  }
+};
+
 
 
 // Define the info table data dynamically
@@ -36,32 +225,32 @@ const getBlogInfo = (
   {
     label: 'Lượt xem',
     value: blog.viewCount || 0,
-    icon: <Eye className="w-5 h-5" />,
+    icon: <Eye className="w-4 h-4 text-gray-500" />,
   },
   {
     label: 'Lượt thích',
     value: blog.likeCount || 0,
-    icon: <ThumbsUp className="w-5 h-5" />,
+    icon: <ThumbsUp className="w-4 h-4 text-gray-500" />,
   },
   {
     label: 'Bình luận',
     value: blog.commentCount || 0,
-    icon: <MessageCircle className="w-5 h-5" />,
+    icon: <MessageCircle className="w-4 h-4 text-gray-500" />,
   },
   {
     label: 'Tác giả',
     value: blog.authorName || 'Chưa có tác giả',
-    icon: <User className="w-5 h-5" />,
+    icon: <User className="w-4 h-4 text-gray-500" />,
   },
   {
     label: 'Ngày đăng',
     value: blog.createdAt ? new Date(blog.createdAt).toLocaleDateString('vi-VN') : 'Chưa có ngày',
-    icon: <Calendar className="w-5 h-5" />,
+    icon: <Calendar className="w-4 h-4 text-gray-500" />,
   },
   {
     label: 'Chỉnh sửa lần cuối',
     value: blog.updatedAt ? new Date(blog.updatedAt).toLocaleDateString('vi-VN') : 'Chưa có ngày',
-    icon: <Pencil className="w-5 h-5" />,
+    icon: <Pencil className="w-4 h-4 text-gray-500" />,
   },
   {
     label: 'Báo cáo',
@@ -76,7 +265,7 @@ const getBlogInfo = (
         </button>
       </div>
     ),
-    icon: <Flag className="w-5 h-5" />,
+    icon: <Flag className="w-4 h-4 text-gray-500" />,
   },
   {
     label: '',
@@ -396,7 +585,7 @@ const BlogDetailPage: React.FC = () => {
       Underline,
       TextAlign.configure({ types: ['heading', 'paragraph'] }),
     ],
-    content: editableContent,
+    content: parseJsonContent(editableContent),
     editorProps: {
       attributes: {
         class: 'min-h-[350px] outline-none px-4 py-2 bg-gray-50 border border-gray-200 rounded-b-xl focus:border-blue-400 focus:ring-2 focus:ring-blue-100 transition placeholder-gray-400 shadow-sm',
@@ -408,7 +597,7 @@ const BlogDetailPage: React.FC = () => {
   // Update editor content when blog data changes
   useEffect(() => {
     if (editor && blog?.content) {
-      editor.commands.setContent(blog.content);
+      editor.commands.setContent(parseJsonContent(blog.content));
     }
   }, [editor, blog?.content]);
 
@@ -655,7 +844,36 @@ const BlogDetailPage: React.FC = () => {
                     <EditorContent editor={editor} className="editor-content w-full h-full min-h-[350px] outline-none mt-4" />
                   </>
                 ) : (
-                  <div dangerouslySetInnerHTML={{ __html: editableContent || blog?.content || '<p>Không có nội dung</p>' }} />
+                  <div dangerouslySetInnerHTML={{ 
+                    __html: (() => {
+                      // Extract violations from blog moderation data
+                      let violations: string[] = [];
+                      if (blog?.blogModeration?.violationsJson) {
+                        try {
+                          const violationsData = typeof blog.blogModeration.violationsJson === 'string' 
+                            ? JSON.parse(blog.blogModeration.violationsJson)
+                            : blog.blogModeration.violationsJson;
+                          
+                          if (Array.isArray(violationsData)) {
+                            violations = violationsData.filter(v => typeof v === 'string' && v.trim());
+                          } else if (typeof violationsData === 'object') {
+                            Object.values(violationsData).forEach((value: any) => {
+                              if (typeof value === 'string' && value.trim()) {
+                                violations.push(value);
+                              }
+                            });
+                          }
+                        } catch (error) {
+                          console.error('Error parsing violations for highlighting:', error);
+                        }
+                      }
+                      
+                      return parseJsonContent(
+                        editableContent || blog?.content || '<p>Không có nội dung</p>',
+                        violations
+                      );
+                    })()
+                  }} />
                 )}
               </div>
               {/* Action Buttons - only in edit mode */}
@@ -760,120 +978,206 @@ const BlogDetailPage: React.FC = () => {
                 <ul className="space-y-3">
                   {blogInfo.map((item, idx) => (
                     <li key={idx} className="flex items-center justify-between">
-                      <span className="flex items-center gap-2">
+                      <span className="flex items-center gap-2 text-sm">
                         {item.icon} {item.label}
                       </span>
-                      <span className="font-bold">{item.value}</span>
+                      <span className="text-sm font-bold">{item.value}</span>
                     </li>
                   ))}
                 </ul>
               </div>
 
-              {/* Blog Moderation Box */}
+              {/* AI Blog Moderation Box */}
               {blog.blogModeration && (
                 <div className="bg-white rounded-xl shadow p-6 mb-6">
                   <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
-                    Kiểm duyệt bài viết
+                    <Bot className="w-5 h-5 text-blue-600" />
+                    <span>AI Kiểm duyệt bài viết</span>
+                    <div className="ml-auto flex items-center gap-1 text-xs text-blue-600 bg-blue-50 px-2 py-1 rounded-full">
+                      <Brain className="w-3 h-3" />
+                      <span>Tự động</span>
+                    </div>
                   </h2>
                   
                   <div className="space-y-4">
-                    {/* Moderation Status */}
-                    <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                      <span className="text-sm font-medium text-gray-700">Trạng thái kiểm duyệt:</span>
-                      <span className={`px-2 py-1 rounded text-xs font-semibold ${
-                        blog.blogModeration.isApproved 
-                          ? 'bg-green-100 text-green-800' 
-                          : 'bg-yellow-100 text-yellow-800'
-                      }`}>
-                        {blog.blogModeration.isApproved ? 'Đã duyệt' : 'Chờ duyệt'}
-                      </span>
+                    {/* AI Analysis Results */}
+                    <div>
+                      <h3 className="text-sm font-medium text-gray-800 mb-3 flex items-center gap-2">
+                        <Zap className="w-4 h-4 text-blue-600" />
+                        Kết quả phân tích
+                      </h3>
+                      
+                      <ul className="space-y-3">
+                        <li className="flex items-center justify-between">
+                          <span className="flex items-center gap-2 text-sm">
+                            <Shield className="w-4 h-4 text-gray-500" />
+                            Trạng thái kiểm duyệt
+                          </span>
+                          <span className={`flex items-center gap-1 px-2 py-1 rounded-full text-xs font-semibold ${
+                            blog.blogModeration.isApproved 
+                              ? 'bg-green-100 text-green-800' 
+                              : 'bg-yellow-100 text-yellow-800'
+                          }`}>
+                            {blog.blogModeration.isApproved ? (
+                              <><CheckCircle2 className="w-3 h-3" /> Đã duyệt</>
+                            ) : (
+                              <><Clock className="w-3 h-3" /> Chờ duyệt</>
+                            )}
+                          </span>
+                        </li>
+
+                        <li className="flex items-center justify-between">
+                          <span className="flex items-center gap-2 text-sm">
+                            <Heart className="w-4 h-4 text-gray-500" />
+                            Tính lịch sự
+                          </span>
+                          <span className={`flex items-center gap-1 px-2 py-1 rounded-full text-xs font-semibold ${
+                            blog.blogModeration.politeness 
+                              ? 'bg-green-100 text-green-800' 
+                              : 'bg-red-100 text-red-800'
+                          }`}>
+                            {blog.blogModeration.politeness ? (
+                              <><CheckCircle2 className="w-3 h-3" /> Lịch sự</>
+                            ) : (
+                              <><XCircle className="w-3 h-3" /> Không lịch sự</>
+                            )}
+                          </span>
+                        </li>
+
+                        <li className="flex items-center justify-between">
+                          <span className="flex items-center gap-2 text-sm">
+                            <Shield className="w-4 h-4 text-gray-500" />
+                            Tính chống phá nhà nước
+                          </span>
+                          <span className={`flex items-center gap-1 px-2 py-1 rounded-full text-xs font-semibold ${
+                            blog.blogModeration.nonToxic 
+                              ? 'bg-red-100 text-red-800' 
+                              : 'bg-green-100 text-green-800'
+                          }`}>
+                            {blog.blogModeration.nonToxic ? (
+                              <><AlertTriangle className="w-3 h-3" /> Có thể độc hại</>
+                             
+                            ) : (
+                              <><CheckCircle2 className="w-3 h-3" /> An toàn</>
+                            )}
+                          </span>
+                        </li>
+
+                        <li className="flex items-center justify-between">
+                          <span className="flex items-center gap-2 text-sm">
+                            <Sparkles className="w-4 h-4 text-gray-500" />
+                            Ý nghĩa tích cực
+                          </span>
+                          <span className={`flex items-center gap-1 px-2 py-1 rounded-full text-xs font-semibold ${
+                            blog.blogModeration.positiveMeaning 
+                              ? 'bg-green-100 text-green-800' 
+                              : 'bg-red-100 text-red-800'
+                          }`}>
+                            {blog.blogModeration.positiveMeaning ? (
+                              <><CheckCircle2 className="w-3 h-3" /> Tích cực</>
+                            ) : (
+                              <><XCircle className="w-3 h-3" /> Tiêu cực</>
+                            )}
+                          </span>
+                        </li>
+
+                        <li className="flex items-center justify-between">
+                          <span className="flex items-center gap-2 text-sm">
+                            <AlertTriangle className="w-4 h-4 text-gray-500" />
+                            Đúng chủ đề
+                          </span>
+                          <span className={`flex items-center gap-1 px-2 py-1 rounded-full text-xs font-semibold ${
+                            !blog.blogModeration.typeRequirement 
+                              ? 'bg-yellow-100 text-yellow-800' 
+                              : 'bg-green-100 text-green-800'
+                          }`}>
+                            {!blog.blogModeration.typeRequirement ? (
+                              <><AlertTriangle className="w-3 h-3" /> Cần sửa lại theo chủ đề</>
+                            ) : (
+                              <><CheckCircle2 className="w-3 h-3" /> Đạt yêu cầu</>
+                            )}
+                          </span>
+                        </li>
+
+                        <li className="flex items-center justify-between">
+                          <span className="flex items-center gap-2 text-sm">
+                            <Clock className="w-4 h-4 text-gray-500" />
+                            Thời gian phân tích
+                          </span>
+                          <span className="text-sm font-bold">
+                            {new Date(blog.blogModeration.createdAt).toLocaleDateString('vi-VN')}
+                          </span>
+                        </li>
+                      </ul>
                     </div>
 
-                    {/* Moderation Details */}
-                    <div className="space-y-3">
-                      <div className="flex items-center justify-between">
-                        <span className="text-sm text-gray-600">Tính lịch sự:</span>
-                        <span className={`px-2 py-1 rounded text-xs font-semibold ${
-                          blog.blogModeration.politeness 
-                            ? 'bg-green-100 text-green-800' 
-                            : 'bg-red-100 text-red-800'
-                        }`}>
-                          {blog.blogModeration.politeness ? 'Lịch sự' : 'Không lịch sự'}
-                        </span>
-                      </div>
-
-                      <div className="flex items-center justify-between">
-                        <span className="text-sm text-gray-600">Tính độc hại:</span>
-                        <span className={`px-2 py-1 rounded text-xs font-semibold ${
-                          blog.blogModeration.nonToxic 
-                            ? 'bg-red-100 text-red-800' 
-                            : 'bg-green-100 text-green-800'
-                        }`}>
-                          {blog.blogModeration.nonToxic ? 'Có thể độc hạ' : 'An toàn'}
-                        </span>
-                      </div>
-
-                      <div className="flex items-center justify-between">
-                        <span className="text-sm text-gray-600">Ý nghĩa tích cực:</span>
-                        <span className={`px-2 py-1 rounded text-xs font-semibold ${
-                          blog.blogModeration.positiveMeaning 
-                            ? 'bg-green-100 text-green-800' 
-                            : 'bg-red-100 text-red-800'
-                        }`}>
-                          {blog.blogModeration.positiveMeaning ? 'Tích cực' : 'Tiêu cực'}
-                        </span>
-                      </div>
-
-                      <div className="flex items-center justify-between">
-                        <span className="text-sm text-gray-600">Yêu cầu cải thiện:</span>
-                        <span className={`px-2 py-1 rounded text-xs font-semibold ${
-                          blog.blogModeration.typeRequirement 
-                            ? 'bg-yellow-100 text-yellow-800' 
-                            : 'bg-green-100 text-green-800'
-                        }`}>
-                          {blog.blogModeration.typeRequirement ? 'Cần cải thiện' : 'Đạt yêu cầu'}
-                        </span>
-                      </div>
-                    </div>
-
-                    {/* Reasoning */}
+                    {/* AI Reasoning */}
                     {blog.blogModeration.reasoning && (
-                      <div className="mt-4 p-3 bg-blue-50 rounded-lg">
-                        <h4 className="text-sm font-semibold text-blue-800 mb-2">Lý do kiểm duyệt:</h4>
-                        <p className="text-sm text-blue-700">{blog.blogModeration.reasoning}</p>
+                      <div className="border-t pt-4">
+                        <h3 className="text-sm font-medium text-gray-800 mb-2 flex items-center gap-2">
+                          <Brain className="w-4 h-4 text-blue-600" />
+                          Lý do kiểm duyệt
+                        </h3>
+                        <div className="bg-gray-50 rounded-lg p-3">
+                          <p className="text-sm text-gray-700 italic">
+                            "{blog.blogModeration.reasoning}"
+                          </p>
+                        </div>
                       </div>
                     )}
 
-                    {/* Violations */}
-                    {blog.blogModeration.violationsJson && Array.isArray(blog.blogModeration.violationsJson) && blog.blogModeration.violationsJson.length > 0 && (
-                      <div className="mt-4 p-3 bg-red-50 rounded-lg">
-                        <h4 className="text-sm font-semibold text-red-800 mb-2">Vi phạm:</h4>
-                        <ul className="text-sm text-red-700 space-y-1">
-                          {blog.blogModeration.violationsJson.map((violation: string, index: number) => (
-                            <li key={index} className="flex items-center gap-2">
-                              <span className="w-1 h-1 bg-red-600 rounded-full"></span>
-                              {violation}
-                            </li>
-                          ))}
-                        </ul> 
+                    {/* AI Detected Violations */}
+                    {blog.blogModeration.violationsJson && (
+                      <div className="border-t pt-4">
+                        <h3 className="text-sm font-medium text-gray-800 mb-2 flex items-center gap-2">
+                          <AlertTriangle className="w-4 h-4 text-red-600" />
+                          Vi phạm được phát hiện
+                        </h3>
+                        <div className="space-y-2">
+                          {(() => {
+                            try {
+                              // Parse the JSON if it's a string, or use directly if it's already an object
+                              const violationsData = typeof blog.blogModeration.violationsJson === 'string' 
+                                ? JSON.parse(blog.blogModeration.violationsJson)
+                                : blog.blogModeration.violationsJson;
+                              
+                              // Extract violation phrases
+                              const violations = [];
+                              if (Array.isArray(violationsData)) {
+                                violations.push(...violationsData);
+                              } else if (typeof violationsData === 'object') {
+                                // Extract values from object that contain violation text
+                                Object.values(violationsData).forEach((value: any) => {
+                                  if (typeof value === 'string' && value.trim()) {
+                                    violations.push(value);
+                                  }
+                                });
+                              }
+                              
+                              return violations.length > 0 ? violations.map((violation: string, index: number) => (
+                                <div key={index} className="flex items-start gap-2 p-2 bg-red-50 rounded-lg">
+                                  <XCircle className="w-4 h-4 text-red-500 mt-0.5 flex-shrink-0" />
+                                  <span className="text-sm text-red-800">{violation}</span>
+                                </div>
+                              )) : (
+                                <div className="flex items-center gap-2 text-gray-500 p-2 bg-gray-50 rounded-lg">
+                                  <CheckCircle2 className="w-4 h-4 text-green-500" />
+                                  <span className="text-sm">Không có vi phạm cụ thể</span>
+                                </div>
+                              );
+                            } catch (error) {
+                              console.error('Error parsing violations JSON:', error);
+                              return (
+                                <div className="flex items-center gap-2 text-gray-500 p-2 bg-gray-50 rounded-lg">
+                                  <AlertTriangle className="w-4 h-4 text-orange-500" />
+                                  <span className="text-sm">Không thể hiển thị thông tin vi phạm</span>
+                                </div>
+                              );
+                            }
+                          })()} 
+                        </div>
                       </div>
                     )}
-
-                    {/* Created At */}
-                    <div className="mt-4 pt-3 border-t border-gray-200">
-                      <div className="flex items-center justify-between">
-                        <span className="text-sm text-gray-600">Ngày kiểm duyệt:</span>
-                        <span className="text-sm font-medium">
-                          {new Date(blog.blogModeration.createdAt).toLocaleDateString('vi-VN', {
-                            year: 'numeric',
-                            month: 'long',
-                            day: 'numeric',
-                            hour: '2-digit',
-                            minute: '2-digit'
-                          })}
-                        </span>
-                      </div>
-                    </div>
                   </div>
                 </div>
               )}

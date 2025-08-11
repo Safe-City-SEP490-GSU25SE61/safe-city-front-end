@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Search, Filter, X, Download } from 'lucide-react';
+import SearchableSelect from './SearchableSelect';
 
 type FilterOption = { label: string; value: string };
 type DateTimeFilterOption = { label: string; type: 'datetime' };
@@ -128,6 +129,23 @@ const FilterBar: React.FC<FilterBarProps> = ({
               }
               // Type guard for select filter (array)
               if (Array.isArray(option)) {
+                // Use SearchableSelect for district filter
+                if (key === 'district') {
+                  return (
+                    <div key={key} className="flex flex-col gap-2">
+                      <SearchableSelect
+                        options={option}
+                        value={activeFilters[key] || ''}
+                        onChange={(value) => handleFilterChange(key, value)}
+                        label="Phường/Xã"
+                        placeholder="Chọn phường/xã"
+                        searchPlaceholder="Tìm kiếm phường/xã..."
+                      />
+                    </div>
+                  );
+                }
+                
+                // Use regular select for other filters
                 return (
                   <div key={key} className="flex flex-col gap-2">
                     <label className="text-sm font-medium text-gray-700">

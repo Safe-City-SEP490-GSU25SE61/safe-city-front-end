@@ -8,6 +8,7 @@ import goongjs from '@goongmaps/goong-js';
 import '@goongmaps/goong-js/dist/goong-js.css';
 import FilterBar from '../../components/common/FilterBar';
 import { getIncident, getIncidentById } from '../../services/api/incident';
+import { getCommunePolygonsByOfficer, type CommunePolygon } from '../../services/api/commune';
 import IncidentDetail from '../../components/officer/IncidentDetail';
 import { 
   Flame, Car, Ambulance, Shield, Waves, Zap, AlertTriangle,
@@ -21,6 +22,8 @@ interface Incident {
   id: string;
   username?: string;
   type: string;
+  subCategory: string;
+  priorityLevel: string;
   description?: string;
   lng?: number;
   lat?: number;
@@ -51,10 +54,13 @@ const LiveMap: React.FC = () => {
   const [selectedIncident, setSelectedIncident] = useState<any | null>(null);
   const [showIncidentDetail, setShowIncidentDetail] = useState(false);
   const [loadingIncidentDetail, setLoadingIncidentDetail] = useState(false);
+  const [communePolygons, setCommunePolygons] = useState<CommunePolygon[]>([]);
+  const [showCommuneBoundaries, setShowCommuneBoundaries] = useState(true);
 
   const mapContainer = useRef<HTMLDivElement>(null);
   const mapRef = useRef<any | null>(null);
   const markersRef = useRef<any[]>([]);
+  const polygonLayersRef = useRef<string[]>([]);
 
   // Helper function to show incident detail
   const showIncidentDetailModal = async (incident: Incident) => {
@@ -135,6 +141,133 @@ const LiveMap: React.FC = () => {
     setShowIncidentDetail(false);
     setSelectedIncident(null);
     setSelectedIncidentId(null);
+  };
+
+
+
+
+
+  // Update markers when incidents change
+  useEffect(() => {
+    if (mapRef.current && incidents.length > 0) {
+      addIncidentMarkers(mapRef.current);
+    }
+  }, [incidents]);
+
+  // Update commune polygons when data changes
+  useEffect(() => {
+    if (mapRef.current && communePolygons.length > 0) {
+      addCommunePolygons(mapRef.current);
+    }
+  }, [communePolygons, showCommuneBoundaries]);
+
+  // Fetch commune polygons
+  const fetchCommunePolygons = async () => {
+    try {
+      // For demo, get polygons for current officer (officer1)
+      const polygons = await getCommunePolygonsByOfficer('officer1');
+      setCommunePolygons(polygons);
+      setNotification({
+        show: true,
+        message: `Đã tải ${polygons.length} ranh giới phường/xã`,
+        type: "success"
+      });
+    } catch (error) {
+      console.error('❌ Error fetching commune polygons:', error);
+      setNotification({
+        show: true,
+        message: "Lỗi khi tải ranh giới phường/xã",
+        type: "error"
+      });
+    }
+  };
+
+  // Add commune polygons to map
+  const addCommunePolygons = (map: any) => {
+    if (!showCommuneBoundaries) {
+      // Remove existing polygon layers
+      polygonLayersRef.current.forEach(layerId => {
+        if (map.getLayer(layerId)) {
+          map.removeLayer(layerId);
+        }
+        if (map.getSource(layerId)) {
+          map.removeSource(layerId);
+        }
+      });
+      polygonLayersRef.current = [];
+      return;
+    }
+
+    communePolygons.forEach((commune) => {
+      const sourceId = `commune-${commune.id}`;
+      const layerId = `commune-layer-${commune.id}`;
+
+      // Remove existing layers if they exist
+      if (map.getLayer(layerId)) map.removeLayer(layerId);
+      if (map.getLayer(`${layerId}-border`)) map.removeLayer(`${layerId}-border`);
+      if (map.getSource(sourceId)) map.removeSource(sourceId);
+
+      // Add source with MultiPolygon geometry
+      map.addSource(sourceId, {
+        type: 'geojson',
+        data: {
+          type: 'Feature',
+          properties: {
+            name: commune.name,
+            officerName: commune.officerName
+          },
+          geometry: {
+            type: 'MultiPolygon',
+            coordinates: commune.coordinates
+          }
+        }
+      });
+
+      // Add polygon layer
+      map.addLayer({
+        id: layerId,
+        type: 'fill',
+        source: sourceId,
+        paint: {
+          'fill-color': '#3b82f6',
+          'fill-opacity': 0.2,
+          'fill-outline-color': '#1d4ed8'
+        }
+      });
+
+      // Add border layer
+      map.addLayer({
+        id: `${layerId}-border`,
+        type: 'line',
+        source: sourceId,
+        paint: {
+          'line-color': '#1d4ed8',
+          'line-width': 2
+        }
+      });
+
+      // Skip text labels to avoid font issues - commune names will show on click
+
+      // Add click event for polygon
+      map.on('click', layerId, (e: any) => {
+        setNotification({
+          show: true,
+          message: `Phường/Xã: ${commune.name} - Sĩ quan: ${commune.officerName}`,
+          type: "info"
+        });
+      });
+
+      // Change cursor on hover
+      map.on('mouseenter', layerId, () => {
+        map.getCanvas().style.cursor = 'pointer';
+      });
+
+      map.on('mouseleave', layerId, () => {
+        map.getCanvas().style.cursor = '';
+      });
+
+      polygonLayersRef.current.push(layerId, `${layerId}-border`);
+    });
   };
 
   // Example filter options (customize as needed)
@@ -427,6 +560,12 @@ const LiveMap: React.FC = () => {
 
     mapRef.current = map;
 
+    // Load initial data when map is ready
+    map.on('load', () => {
+      fetchIncidents();
+      fetchCommunePolygons();
+    });
+
     // Add click event listener for commune names
     map.on('click', (e: any) => {
       // Query rendered features at the click point
@@ -549,16 +688,45 @@ const LiveMap: React.FC = () => {
                   <div className="flex-1 space-y-3 overflow-y-auto">
                     {incidents.length > 0 ? (
                       incidents.slice(0, 10).map((incident) => (
-                        <div key={incident.id} className="border-b pb-2 p-2 rounded hover:bg-gray-50">
-                          <div className="font-bold text-red-600">{incident.description || 'Sự cố không mô tả'}</div>
-                          <div className="text-sm flex items-center gap-1">
+                        <div key={incident.id} className="bg-white border border-gray-200 rounded-lg p-3 shadow-sm hover:shadow-md transition-shadow">
+                          {/* Header with title and time */}
+                          <div className="flex items-start justify-between mb-2">
+                            <h4 className="font-semibold text-gray-800 text-sm leading-tight flex-1 mr-2">
+                              {incident.description || 'Sự cố không mô tả'}
+                            </h4>
+                            <span className="text-xs text-gray-400 whitespace-nowrap">
+                              {incident.createdAt ? new Date(incident.createdAt).toLocaleString('vi-VN', {
+                                day: '2-digit',
+                                month: '2-digit', 
+                                hour: '2-digit',
+                                minute: '2-digit'
+                              }) : 'N/A'}
+                            </span>
+                          </div>
+                          
+                          {/* Type with icon */}
+                          <div className="flex items-center gap-2 mb-3">
                             <span dangerouslySetInnerHTML={{ __html: getMarkerConfig(incident.type).icon }}></span>
-                            <span>{incident.type}</span>
+                            <span className="text-sm font-medium text-gray-700">{incident.type}</span>
                           </div>
-                          <div className="text-xs text-gray-400 mb-2">
-                            {incident.createdAt ? new Date(incident.createdAt).toLocaleString('vi-VN') : 'Không rõ thời gian'}
+                          
+                          {/* Tags row */}
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <span className="inline-flex items-center px-2.5 py-1 rounded-md text-xs font-medium bg-blue-50 text-blue-700 border border-blue-200">
+                              {incident.subCategory}
+                            </span>
+                            <span className={`inline-flex items-center px-2.5 py-1 rounded-md text-xs font-medium border ${
+                              incident.priorityLevel === 'HIGH' ? 'bg-red-50 text-red-700 border-red-200' :
+                              incident.priorityLevel === 'MEDIUM' ? 'bg-yellow-50 text-yellow-700 border-yellow-200' :
+                              'bg-green-50 text-green-700 border-green-200'
+                            }`}>
+                              {incident.priorityLevel === 'HIGH' ? 'Mức độ cao' :
+                               incident.priorityLevel === 'MEDIUM' ? 'Mức độ trung bình' :
+                               'Mức độ thấp'}
+                            </span>
                           </div>
-                          <div className="flex gap-2">
+                          
+                          <div className="flex gap-2 mt-2">
                             <button 
                               onClick={(e) => {
                                 e.stopPropagation();
@@ -594,9 +762,21 @@ const LiveMap: React.FC = () => {
                   </div>
                 )}
                 
-                <div className="flex gap-2 mt-4">
-                  <button className="flex-1 bg-green-500 text-white rounded px-3 py-2 text-sm">Xuất PDF</button>
-                  <button className="flex-1 bg-blue-500 text-white rounded px-3 py-2 text-sm">Xuất Excel</button>
+                <div className="flex flex-col gap-2 mt-4">
+                  <button 
+                    onClick={() => setShowCommuneBoundaries(!showCommuneBoundaries)}
+                    className={`w-full px-3 py-2 text-sm rounded transition-colors ${
+                      showCommuneBoundaries 
+                        ? 'bg-blue-500 text-white hover:bg-blue-600' 
+                        : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                    }`}
+                  >
+                    {showCommuneBoundaries ? 'Ẩn ranh giới' : 'Hiện ranh giới'}
+                  </button>
+                  <div className="flex gap-2">
+                    <button className="flex-1 bg-green-500 text-white rounded px-3 py-2 text-sm">Xuất PDF</button>
+                    <button className="flex-1 bg-blue-500 text-white rounded px-3 py-2 text-sm">Xuất Excel</button>
+                  </div>
                 </div>
               </div>
             </div>

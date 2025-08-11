@@ -23,7 +23,7 @@ import {
 import logo from '../../../public/assets/logo.png';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { jwtDecode } from "jwt-decode";
-import { ROLES } from "../../utils/roleHelpers"; // adjust path if needed
+import { ROLES } from "../../utils/roleHelpers"; // adjust path if needed 
 
 const Sidebar = () => {
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -50,6 +50,8 @@ const Sidebar = () => {
     { icon: Medal, text: 'Quản lý danh hiệu', to: '/achievement-management', roles: ['admin'] },
     { icon: MapPinned, text: 'Quản lý phường xã', to: '/district-management', roles: ['admin'] },
     { icon: UserRoundPlus, text: 'Phân công sĩ quan', to: '/add-police-to-ward', roles: ['admin'] },
+    { icon: MapPinned, text: 'Bản đồ sự cố', to: '/admin/live-map', roles: ['admin'] },
+    { icon: ShieldAlert, text: 'Báo cáo sự cố', to: '/admin/incident-report', roles: ['admin'] },
     // Officer only
     { icon: ShieldAlert, text: 'Quản lý báo cáo', to: '/officer/incident-report', roles: ['officer'] },
     { icon: FileText, text: 'Quản lý bài viết', to: '/officer/blog-view', roles: ['officer'] },
