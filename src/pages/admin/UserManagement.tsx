@@ -2,10 +2,10 @@ import React, { useState, useEffect } from 'react';
 import Sidebar from '../../components/common/SideBar';
 import Header from '../../components/common/Header';
 import FilterBar from '../../components/common/FilterBar';
-import { Eye, Package, UserRound, Plus } from 'lucide-react';
+import { Eye, UserRound, Plus } from 'lucide-react';
 import { PaginationComponent } from '../../components/common/Pagination';
 import UserDetail from '../../components/admin/UserDetail';
-import { getUsers, getUserById, createUser } from '../../services/api/account';
+import { getUsers, getUserById } from '../../services/api/account';
 import CreateAccountForm from '../../components/admin/CreateAccountForm';
 import NotificationBar from '../../components/common/NotificationBar';
 
@@ -109,7 +109,7 @@ const UserManagement: React.FC = () => {
     ]
   };
   function enrichUserDetail(apiData: any) {
-    // These are the fields your API returns
+    // Assuming apiData is the response from getUserById
     const {
       id,
       fullName,
@@ -120,7 +120,7 @@ const UserManagement: React.FC = () => {
       status,
     } = apiData;
   
-    // Add any mock/fake data you want for the modal
+   
     return {
       id,
       name: fullName,
@@ -129,7 +129,7 @@ const UserManagement: React.FC = () => {
       phone,
       role: roleName,
       status,
-      // --- FAKE DATA BELOW ---
+      // --- FAKE DATA  ---
       avatar: 'https://randomuser.me/api/portraits/men/32.jpg',
       location: 'Hà Nội, Việt Nam',
       joinDate: '2023-03-15',

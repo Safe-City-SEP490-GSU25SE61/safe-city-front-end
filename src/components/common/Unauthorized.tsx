@@ -1,6 +1,6 @@
 import React from "react";
 import { useNavigate } from "react-router-dom";
-import { ROLES, getDashboardUrl, type UserRole } from "../../utils/roleHelpers";
+import { ROLES, getDashboardUrl } from "../../utils/roleHelpers";
 import { jwtDecode } from "jwt-decode";
 
 const Unauthorized: React.FC = () => {

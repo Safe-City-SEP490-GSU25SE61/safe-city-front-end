@@ -1,8 +1,7 @@
-import React, { useEffect, useState } from 'react';
-import { getOfficerDistrictHistory } from '../../services/api/district';
+import React from 'react';
+
 
 interface OfficerAssignHistoryProps {
-  accountId: number | string;
   open: boolean;
   onClose: () => void;
   history: HistoryItem[];
@@ -19,13 +18,9 @@ interface HistoryItem {
   changes: Change[];
 }
 
-const OfficerAssignHistory: React.FC<OfficerAssignHistoryProps> = ({ accountId, open, onClose, history, loading }) => {
-  const [error, setError] = useState<string | null>(null);
+const OfficerAssignHistory: React.FC<OfficerAssignHistoryProps> = ({ open, onClose, history, loading }) => {
 
-  // Flatten all changes and filter out "Chưa được phân công"
-  const validChanges = history.flatMap(item =>
-    item.changes.filter(change => change.newCommuneName !== "Chưa được phân công")
-  );
+
 
   if (!open) return null;
 
@@ -64,19 +59,7 @@ const OfficerAssignHistory: React.FC<OfficerAssignHistoryProps> = ({ accountId, 
                 <span className="text-gray-600 font-medium">Đang tải lịch sử...</span>
               </div>
             </div>
-          ) : error ? (
-            <div className="flex items-center justify-center py-12">
-              <div className="text-center">
-                <div className="p-3 rounded-full w-fit mx-auto mb-4">
-                  <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                  </svg>
-                </div>
-                <h3 className="text-lg font-semibold text-gray-900 mb-2">Lỗi tải dữ liệu</h3>
-                <p className="text-red-600">{error}</p>
-              </div>
-            </div>
-          ) : validChanges.length === 0 ? (
+          ) : history.length === 0 ? ( 
             <div className="flex items-center justify-center py-12">
               <div className="text-center">
                 <div className="p-3 rounded-full w-fit mx-auto mb-4">

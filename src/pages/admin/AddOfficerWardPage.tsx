@@ -1,8 +1,8 @@
-import React, { useState, useMemo, useEffect } from 'react';
-import { User, MapPin, Plus, Users, Eye, Edit3, Trash2, Search, Filter, UserRoundPlus } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { Plus, Users, Eye, Trash2, UserRoundPlus } from 'lucide-react';
 import SideBar from '../../components/common/SideBar';
 import Header from '../../components/common/Header';
-import FilterBar from '../../components/common/FilterBar';
+
 import SearchableSelect from '../../components/common/SearchableSelect';
 import { assignToOfficer, unassignFromOfficer, getOfficerDistrictHistory } from '../../services/api/district';
 import { getAllWards } from '../../services/api/ward';

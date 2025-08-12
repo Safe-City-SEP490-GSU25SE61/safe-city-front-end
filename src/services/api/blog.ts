@@ -67,7 +67,13 @@ export interface BlogCreateOfficerData {
   title: string;
   content: string;
   type: string;
-  communeId: number;
+  description?: string;
+  status?: 'DRAFT' | 'PUBLISHED' | 'ARCHIVED';
+  isPinned?: boolean;
+  categoryId?: string;
+  tags?: string[];
+  mediaUrls?: string[];
+  communeId?: number;
   mediaFiles?: File[];
 }
 
@@ -128,7 +134,29 @@ export const createBlogOfficer = async (data: BlogCreateOfficerData) => {
     formData.append('title', data.title);
     formData.append('content', data.content);
     formData.append('type', data.type);
-    formData.append('communeId', data.communeId.toString());
+    
+    // Append optional fields
+    if (data.communeId !== undefined) {
+        formData.append('communeId', data.communeId.toString());
+    }
+    if (data.description) {
+        formData.append('description', data.description);
+    }
+    if (data.status) {
+        formData.append('status', data.status);
+    }
+    if (data.isPinned !== undefined) {
+        formData.append('isPinned', data.isPinned.toString());
+    }
+    if (data.categoryId) {
+        formData.append('categoryId', data.categoryId);
+    }
+    if (data.tags && data.tags.length > 0) {
+        data.tags.forEach(tag => formData.append('tags', tag));
+    }
+    if (data.mediaUrls && data.mediaUrls.length > 0) {
+        data.mediaUrls.forEach(url => formData.append('mediaUrls', url));
+    }
     
     // Append media files if they exist
     if (data.mediaFiles && data.mediaFiles.length > 0) {

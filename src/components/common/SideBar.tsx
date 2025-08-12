@@ -2,8 +2,6 @@ import { useState } from 'react';
 import { 
   FileText, 
   User, 
-  Pencil,
-  ListCheck,
   Menu,
   Box,
   MapPinned,
@@ -57,12 +55,6 @@ const Sidebar = () => {
 
   // Filter items by role
   const filteredMenuItems = menuItems.filter(item => item.roles.includes(userRole));
-
-  const settingsItems = [
-    { icon: Pencil, text: 'Tạo Blog', active: false },
-    { icon: ListCheck, text: 'Quản lý Blog', active: false },
-  ];
-
   return (
     <>
       {/* Hamburger for mobile */}

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Search, Filter, Plus, Edit2, Trash2, Eye, Trophy, Calendar, Star, Users, X, Package, Medal } from 'lucide-react';
+import { Plus, Edit2, Trash2, Eye, Trophy, X, Medal } from 'lucide-react';
 import SideBar from '../../components/common/SideBar';
 import Header from '../../components/common/Header';
 import FilterBar from '../../components/common/FilterBar';

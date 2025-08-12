@@ -499,7 +499,6 @@ const BlogDetailPage: React.FC = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [comments, setComments] = useState<Comment[]>([]);
-  const [commentsLoading, setCommentsLoading] = useState(false);
   const [blogStatus, setBlogStatus] = useState('');
   const [isEditing, setIsEditing] = useState(false);
   const [editableContent, setEditableContent] = useState('');
@@ -555,7 +554,7 @@ const BlogDetailPage: React.FC = () => {
       if (!id) return;
       
       try {
-        setCommentsLoading(true);
+       
         console.log('Fetching comments with blog ID:', id);
         
         const response = await getCommentByBlogId(id);
@@ -571,7 +570,7 @@ const BlogDetailPage: React.FC = () => {
        
         setComments([]);
       } finally {
-        setCommentsLoading(false);
+        
       }
     };
 
