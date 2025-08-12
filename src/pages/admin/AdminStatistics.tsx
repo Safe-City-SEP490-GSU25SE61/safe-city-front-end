@@ -11,7 +11,6 @@ import {
   TrendingUp, 
   Shield,
   RefreshCw,
-  Download,
   Filter,
   Clock,
   AlertCircle,
@@ -249,13 +248,7 @@ const AdminStatistics: React.FC = () => {
     fetchStatistics();
   };
 
-  const handleExport = (format: 'pdf' | 'excel') => {
-    setNotification({
-      show: true,
-      message: `Tính năng xuất ${format.toUpperCase()} đang được phát triển`,
-      type: "info"
-    });
-  };
+
 
   const getStatusColor = (status: string) => {
     const colors: Record<string, string> = {

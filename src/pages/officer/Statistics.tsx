@@ -3,7 +3,6 @@ import Sidebar from '../../components/common/SideBar';
 import Header from '../../components/common/Header';
 import NotificationBar from '../../components/common/NotificationBar';
 import { 
-  BarChart3, 
   AlertTriangle, 
   FileText, 
   TrendingUp, 

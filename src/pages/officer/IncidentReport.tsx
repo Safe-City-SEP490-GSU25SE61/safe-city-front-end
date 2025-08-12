@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import Sidebar from '../../components/common/SideBar';
 import Header from '../../components/common/Header';
 import FilterBar from '../../components/common/FilterBar';
-import { Eye, AlertTriangle, Plus, FileText, MapPin } from 'lucide-react';
+import { Eye, AlertTriangle, FileText } from 'lucide-react';
 import { PaginationComponent } from '../../components/common/Pagination';
 import NotificationBar from '../../components/common/NotificationBar';
 import IncidentDetail from '../../components/officer/IncidentDetail';
@@ -51,7 +51,6 @@ const IncidentReport: React.FC = () => {
   const [incidentDetail, setIncidentDetail] = useState<any>(null);
   const [loadingDetail, setLoadingDetail] = useState(false);
   const [incidents, setIncidents] = useState<Incident[]>([]);
-  const [showCreateModal, setShowCreateModal] = useState(false);
   const [loading, setLoading] = useState(true);
   const [notification, setNotification] = useState({
     show: false,

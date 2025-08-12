@@ -4,7 +4,7 @@ import Sidebar from '../../components/common/SideBar';
 import Header from '../../components/common/Header';
 import Quill from 'quill';
 import 'quill/dist/quill.snow.css';
-import { Image as ImageIcon, Edit2, FileText, X } from 'lucide-react';
+import { Image as ImageIcon, FileText, X, Video, AlertCircle } from 'lucide-react';
 
 // Custom styles for mobile-friendly Quill editor with 15px default font size
 const quillStyles = `
@@ -56,6 +56,7 @@ const quillStyles = `
   }
 `;
 import NotificationBar from '../../components/common/NotificationBar';
+import SearchableSelect from '../../components/common/SearchableSelect';
 import { createBlogOfficer } from '../../services/api/blog';
 import type { BlogCreateOfficerData } from '../../services/api/blog';
 import { getAllWards } from '../../services/api/ward';
@@ -102,15 +103,23 @@ const CreateBlogPage: React.FC = () => {
   const [title, setTitle] = useState('');
   const [images, setImages] = useState<File[]>([]);
   const [imagePreviews, setImagePreviews] = useState<string[]>([]);
+  const [video, setVideo] = useState<File | null>(null);
+  const [videoPreview, setVideoPreview] = useState<string>('');
   const [imageName, setImageName] = useState('');
-  const [blogBrief, setBlogBrief] = useState('');
+  const [videoName, setVideoName] = useState('');
+  const [uploadError, setUploadError] = useState<string>('');
   const [blogType, setBlogType] = useState('');
   const [selectedWard, setSelectedWard] = useState('');
-  const [wards, setWards] = useState<any[]>([]);
+  const [wards, setWards] = useState<{label: string, value: string}[]>([]);
   const [wardsLoading, setWardsLoading] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [characterCount, setCharacterCount] = useState(0);
+  const [notification, setNotification] = useState<{
+    show: boolean;
+    message: string;
+    type: 'success' | 'error' | 'info';
+  }>({ show: false, message: '', type: 'info' });
   
   // Quill editor setup
   const quillRef = useRef<HTMLDivElement>(null);
@@ -188,13 +197,27 @@ const CreateBlogPage: React.FC = () => {
     };
   }, []);
 
+  // Cleanup video preview URL on component unmount
+  useEffect(() => {
+    return () => {
+      if (videoPreview) {
+        URL.revokeObjectURL(videoPreview);
+      }
+    };
+  }, [videoPreview]);
+
   // Fetch wards on component mount
   useEffect(() => {
     const fetchWards = async () => {
       try {
         setWardsLoading(true);
         const wardsData = await getAllWards();
-        setWards(wardsData || []);
+        // Map wards to SearchableSelect format
+        const mappedWards = (wardsData || []).map((ward: any) => ({
+          label: ward.name,
+          value: ward.id.toString()
+        }));
+        setWards(mappedWards);
       } catch (error) {
         console.error('Error fetching wards:', error);
         setWards([]);
@@ -206,14 +229,57 @@ const CreateBlogPage: React.FC = () => {
     fetchWards();
   }, []);
 
+  // File size validation helper
+  const validateFileSize = (file: File, maxSizeMB: number = 50): boolean => {
+    const maxSizeBytes = maxSizeMB * 1024 * 1024;
+    return file.size <= maxSizeBytes;
+  };
+
+  // Format file size for display
+  const formatFileSize = (bytes: number): string => {
+    if (bytes === 0) return '0 Bytes';
+    const k = 1024;
+    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+  };
+
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
     if (!files) return;
+    
+    setUploadError('');
     const newFiles: File[] = [];
-    const newPreviews: string[] = [];
-    for (let i = 0; i < files.length && images.length + newFiles.length < 3; i++) {
-      newFiles.push(files[i]);
+    const maxImages = 10;
+    
+    // Check how many more images we can add
+    const remainingSlots = maxImages - images.length;
+    
+    for (let i = 0; i < files.length && newFiles.length < remainingSlots; i++) {
+      const file = files[i];
+      
+      // Validate file type
+      if (!file.type.startsWith('image/')) {
+        setUploadError(`File "${file.name}" không phải là ảnh hợp lệ.`);
+        continue;
+      }
+      
+      // Validate file size (50MB limit)
+      if (!validateFileSize(file)) {
+        setUploadError(`Ảnh "${file.name}" vượt quá giới hạn 50MB (${formatFileSize(file.size)}).`);
+        continue;
+      }
+      
+      newFiles.push(file);
     }
+    
+    if (newFiles.length === 0) return;
+    
+    // Show warning if hitting limit
+    if (images.length + newFiles.length >= maxImages) {
+      setUploadError(`Chỉ có thể tải lên tối đa ${maxImages} ảnh.`);
+    }
+    
     Promise.all(newFiles.map(file => {
       return new Promise<string>((resolve) => {
         const reader = new FileReader();
@@ -226,91 +292,161 @@ const CreateBlogPage: React.FC = () => {
     });
   };
 
+  const handleVideoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    
+    setUploadError('');
+    
+    // Validate file type
+    if (!file.type.startsWith('video/')) {
+      setUploadError(`File "${file.name}" không phải là video hợp lệ.`);
+      return;
+    }
+    
+    // Validate file size (50MB limit)
+    if (!validateFileSize(file)) {
+      setUploadError(`Video "${file.name}" vượt quá giới hạn 50MB (${formatFileSize(file.size)}).`);
+      return;
+    }
+    
+    // Create preview URL
+    const previewUrl = URL.createObjectURL(file);
+    setVideo(file);
+    setVideoPreview(previewUrl);
+    setVideoName(file.name);
+  };
+
+  const handleRemoveVideo = () => {
+    if (videoPreview) {
+      URL.revokeObjectURL(videoPreview);
+    }
+    setVideo(null);
+    setVideoPreview('');
+    setVideoName('');
+  };
+
   const handleRemoveImage = (idx: number) => {
     setImages(prev => prev.filter((_, i) => i !== idx));
     setImagePreviews(prev => prev.filter((_, i) => i !== idx));
+    setUploadError(''); // Clear any upload errors when removing images
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    // Get content from Quill editor
-    const quillContent = quillInstance.current?.getContents();
-    const quillText = quillInstance.current?.getText();
-    
-    // Title validation
     if (!title.trim()) {
-      alert('Tiêu đề là bắt buộc.');
+      setNotification({
+        show: true,
+        message: 'Vui lòng nhập tiêu đề',
+        type: 'error'
+      });
       return;
     }
-    if (title.trim().length < 5) {
-      alert('Tiêu đề phải có ít nhất 5 ký tự.');
+    
+    if (!quillInstance.current) {
+      setNotification({
+        show: true,
+        message: 'Trình soạn thảo chưa sẵn sàng',
+        type: 'error'
+      });
       return;
     }
-    if (title.trim().length > 100) {
-      alert('Tiêu đề không được dài quá 100 ký tự.');
+    
+    const content = quillInstance.current.getContents();
+    if (!content || content.ops?.length === 0 || !quillInstance.current.getText().trim()) {
+      setNotification({
+        show: true,
+        message: 'Vui lòng nhập nội dung bài viết',
+        type: 'error'
+      });
       return;
     }
-
-    // Content validation
-    if (!quillText?.trim()) {
-      alert('Nội dung là bắt buộc.');
-      return;
-    }
-    if (quillText.trim().length < 5) {
-      alert('Nội dung phải có ít nhất 5 ký tự.');
-      return;
-    }
-    if (quillText.trim().length > 8000) {
-      alert('Nội dung không được dài quá 8000 ký tự.');
-      return;
-    }
-
-    if (!blogType) {
-      alert('Vui lòng chọn loại bài viết');
-      return;
-    }
-
-    if (!selectedWard) {
-      alert('Vui lòng chọn phường/xã');
-      return;
-    }
-
+    
+    // Clear any upload errors
+    setUploadError('');
     setIsLoading(true);
     
     try {
-      // Get content from Quill
-      let deltaContent;
-      if (quillInstance.current) {
-        deltaContent = quillInstance.current.getContents();
-      } else {
-        deltaContent = quillContent;
+      // Apply 15px font size to all content before saving
+      const currentLength = quillInstance.current.getLength();
+      quillInstance.current.formatText(0, currentLength, { 'size': '15px' });
+      
+      // Get the updated content after formatting
+      const formattedContent = quillInstance.current.getContents();
+      
+      // Sanitize the content to remove unwanted styling
+      const sanitizedOps = sanitizeDeltaContent(formattedContent);
+      
+      // Prepare media URLs array
+      const mediaUrls: string[] = [];
+      
+      // Add image placeholders (in real implementation, these would be uploaded to a server)
+      if (images.length > 0) {
+        images.forEach((_, index) => {
+          mediaUrls.push(`placeholder-image-${index + 1}-url`);
+        });
       }
-
-      // Sanitize content by removing unwanted styling attributes
-      const sanitizedContent = sanitizeDeltaContent(deltaContent);
-      var content = JSON.stringify(sanitizedContent);
+      
+      // Add video placeholder if video exists
+      if (video) {
+        mediaUrls.push('placeholder-video-url');
+      }
+      
+      // Prepare media files array for actual upload
+      const mediaFiles: File[] = [];
+      
+      // Add images to media files
+      if (images.length > 0) {
+        mediaFiles.push(...images);
+      }
+      
+      // Add video to media files
+      if (video) {
+        mediaFiles.push(video);
+      }
       
       const blogData: BlogCreateOfficerData = {
         title: title.trim(),
-        content: content,
-        type: blogType,
-        communeId: parseInt(selectedWard),
-        mediaFiles: images.length > 0 ? images : undefined,
+        content: JSON.stringify({ ops: sanitizedOps }),
+        type: 'ANNOUNCEMENT', // Default type for officers
+        description: title.trim(),
+        status: 'DRAFT',
+        isPinned: false,
+        categoryId: blogType || undefined,
+        tags: selectedWard ? [selectedWard] : undefined,
+        mediaFiles: mediaFiles.length > 0 ? mediaFiles : undefined,
+        communeId: selectedWard ? parseInt(selectedWard) : undefined
       };
       
-      await createBlogOfficer(blogData);
+      console.log('Submitting blog data:', {
+        title: blogData.title,
+        type: blogData.type,
+        imageCount: images.length,
+        hasVideo: !!video,
+        videoSize: video ? formatFileSize(video.size) : 'N/A',
+        totalMediaFiles: mediaFiles.length,
+        mediaFileSizes: mediaFiles.map(f => `${f.name}: ${formatFileSize(f.size)}`)
+      });
       
+      const response = await createBlogOfficer(blogData);
+      console.log('Blog created successfully:', response);
+      
+      // Show success notification
       setShowSuccess(true);
       
-      // Reset form after successful creation
+      // Navigate to blog view after a short delay
       setTimeout(() => {
         navigate('/officer/blog-view');
       }, 2000);
       
     } catch (error) {
       console.error('Error creating blog:', error);
-      alert('Có lỗi xảy ra khi tạo blog. Vui lòng thử lại.');
+      setNotification({
+        show: true,
+        message: 'Có lỗi xảy ra khi tạo bài viết. Vui lòng thử lại.',
+        type: 'error'
+      });
     } finally {
       setIsLoading(false);
     }
@@ -323,6 +459,12 @@ const CreateBlogPage: React.FC = () => {
         type="success"
         show={showSuccess}
         onClose={() => setShowSuccess(false)}
+      />
+      <NotificationBar
+        message={notification.message}
+        type={notification.type}
+        show={notification.show}
+        onClose={() => setNotification({ show: false, message: '', type: 'info' })}
       />
       <div className="flex min-h-screen bg-gray-50">
         <Sidebar />
@@ -386,20 +528,15 @@ const CreateBlogPage: React.FC = () => {
                   </div>
                   
                   <div className="mb-4">
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Phường/Xã</label>
-                    <select
+                    <SearchableSelect
+                      label="Phường/Xã"
+                      options={wards}
                       value={selectedWard}
-                      onChange={e => setSelectedWard(e.target.value)}
-                      className="w-full border border-gray-200 bg-white rounded-xl px-4 py-3 text-base focus:ring-2 focus:ring-blue-100 focus:border-blue-400 transition"
-                      disabled={wardsLoading}
-                    >
-                      <option value="">Chọn phường/xã</option>
-                      {wards.map((ward) => (
-                        <option key={ward.id} value={ward.id}>
-                          {ward.name}
-                        </option>
-                      ))}
-                    </select>
+                      onChange={setSelectedWard}
+                      placeholder="Chọn phường/xã"
+                      searchPlaceholder="Tìm kiếm phường/xã..."
+                      className="mb-2"
+                    />
                     {wardsLoading && (
                       <p className="text-sm text-gray-500 mt-1">Đang tải danh sách phường/xã...</p>
                     )}
@@ -428,7 +565,7 @@ const CreateBlogPage: React.FC = () => {
                           <span className="text-xs text-gray-400 mt-1">Nhấn để tải lên (tối đa 10 ảnh)</span>
                         </span>
                       )}
-                      <input type="file" accept="image/*" multiple onChange={handleImageChange} className="hidden" id="blog-image-upload" disabled={images.length >= 3} />
+                      <input type="file" accept="image/*" multiple onChange={handleImageChange} className="hidden" id="blog-image-upload" disabled={images.length >= 10} />
                     </label>
                   </div>
                   <div className="relative">
@@ -443,6 +580,54 @@ const CreateBlogPage: React.FC = () => {
                     />
                   </div>
                 </div>
+                
+                {/* Video Upload Card */}
+                <div className="bg-white rounded-2xl shadow-lg p-6 flex flex-col gap-5 border border-gray-100">
+                  <div className="font-semibold text-lg mb-2 flex items-center gap-2">
+                    <Video className="h-5 w-5" />
+                    Video (tùy chọn)
+                  </div>
+                  <div className="relative w-full">
+                    <label htmlFor="blog-video-upload" className="block w-full min-h-[120px] h-36 bg-gray-50 border-2 border-dashed border-gray-300 rounded-2xl flex items-center justify-center mb-4 shadow-sm cursor-pointer transition hover:border-blue-400">
+                      {videoPreview ? (
+                        <div className="relative group w-full h-full">
+                          <video src={videoPreview} className="h-full w-full object-cover rounded-xl border border-gray-200" controls />
+                          <button type="button" onClick={e => { e.stopPropagation(); handleRemoveVideo(); }} className="absolute -top-2 -right-2 bg-white border border-gray-300 rounded-full p-1 shadow hover:bg-red-100 hover:text-red-600 transition opacity-80 group-hover:opacity-100">
+                            <X className="h-4 w-4" />
+                          </button>
+                        </div>
+                      ) : (
+                        <span className="text-gray-300 flex flex-col items-center">
+                          <Video className="h-12 w-12 mb-2" />
+                          <span className="text-base text-gray-400">Chưa có video</span>
+                          <span className="text-xs text-gray-400 mt-1">Nhấn để tải lên (tối đa 50MB)</span>
+                        </span>
+                      )}
+                      <input type="file" accept="video/*" onChange={handleVideoChange} className="hidden" id="blog-video-upload" disabled={!!video} />
+                    </label>
+                  </div>
+                  {video && (
+                    <div className="relative">
+                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">
+                        <Video className="h-5 w-5" />
+                      </span>
+                      <input
+                        value={videoName}
+                        onChange={e => setVideoName(e.target.value)}
+                        placeholder="Tên video"
+                        className="w-full border border-gray-200 bg-gray-50 rounded-full pl-10 pr-3 py-3 text-base focus:ring-2 focus:ring-blue-100 focus:border-blue-400 placeholder-gray-400 transition"
+                      />
+                    </div>
+                  )}
+                </div>
+                
+                {/* Upload Error Display */}
+                {uploadError && (
+                  <div className="bg-red-50 border border-red-200 rounded-2xl p-4 flex items-start gap-3">
+                    <AlertCircle className="h-5 w-5 text-red-500 flex-shrink-0 mt-0.5" />
+                    <div className="text-red-700 text-sm">{uploadError}</div>
+                  </div>
+                )}
               </div>
             </div>
           </main>

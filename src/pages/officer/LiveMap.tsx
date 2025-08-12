@@ -7,7 +7,7 @@ import NotificationBar from '../../components/common/NotificationBar';
 import goongjs from '@goongmaps/goong-js';
 import '@goongmaps/goong-js/dist/goong-js.css';
 import FilterBar from '../../components/common/FilterBar';
-import { getIncident, getIncidentById } from '../../services/api/incident';
+import {getIncidentById } from '../../services/api/incident';
 import { getCommunePolygonsByOfficer, type CommunePolygon } from '../../services/api/commune';
 import IncidentDetail from '../../components/officer/IncidentDetail';
 import { 
@@ -51,7 +51,6 @@ const LiveMap: React.FC = () => {
   });
   const [incidents, setIncidents] = useState<Incident[]>([]);
   const [loading, setLoading] = useState(true);
-  const [selectedIncidentId, setSelectedIncidentId] = useState<string | null>(null);
   const [selectedIncident, setSelectedIncident] = useState<any | null>(null);
   const [showIncidentDetail, setShowIncidentDetail] = useState(false);
   const [loadingIncidentDetail, setLoadingIncidentDetail] = useState(false);
@@ -67,8 +66,6 @@ const LiveMap: React.FC = () => {
   const showIncidentDetailModal = async (incident: Incident) => {
     console.log('🔴 showIncidentDetailModal called with incident:', incident);
     try {
-      console.log('📋 Fetching incident detail for ID:', incident.id);
-      setSelectedIncidentId(incident.id);
       console.log('🔧 Setting loadingIncidentDetail to true');
       setLoadingIncidentDetail(true);
       console.log('🔧 Setting showIncidentDetail to true');
@@ -76,7 +73,6 @@ const LiveMap: React.FC = () => {
       
       // Fetch complete incident details from API
       const apiData = await getIncidentById(incident.id);
-      console.log('📋 Raw API data received:', apiData);
       
       // Transform API data to format expected by IncidentDetail component
       const transformedData = {
@@ -141,7 +137,6 @@ const LiveMap: React.FC = () => {
   const closeIncidentDetail = () => {
     setShowIncidentDetail(false);
     setSelectedIncident(null);
-    setSelectedIncidentId(null);
   };
 
 
@@ -250,7 +245,7 @@ const LiveMap: React.FC = () => {
       // Skip text labels to avoid font issues - commune names will show on click
 
       // Add click event for polygon
-      map.on('click', layerId, (e: any) => {
+      map.on('click', layerId, () => {
         setNotification({
           show: true,
           message: `Phường/Xã: ${commune.name} - Sĩ quan: ${commune.officerName}`,
@@ -522,9 +517,8 @@ const LiveMap: React.FC = () => {
   const updateMarkerVisibility = () => {
     if (!mapRef.current) return;
     
-    const zoom = mapRef.current.getZoom();
     
-    markersRef.current.forEach((marker, index) => {
+    markersRef.current.forEach((marker) => {
       const element = marker.getElement();
       if (element) {
         // Show markers at all zoom levels for debugging

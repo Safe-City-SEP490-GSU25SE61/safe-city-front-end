@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { X, User, Mail, Phone, MapPin, Calendar, Shield, Activity, Edit, Ban, Key, AlertTriangle, FileText, Users, Flag, MessageSquare, Star, Clock, Trophy } from 'lucide-react';
+import { useState } from 'react';
+import { X, User, Mail, Phone, MapPin, Calendar, Activity, Ban, FileText, Users, Flag, Clock, Trophy } from 'lucide-react';
 import { deleteUser } from '../../services/api/account';
 
 const UserDetailModal = ({

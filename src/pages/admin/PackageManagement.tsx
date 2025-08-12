@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Search, Filter, Plus, Edit2, Trash2, Eye, Package, Calendar, DollarSign, Users, X } from 'lucide-react';
+import { Plus, Edit2, Trash2, Eye, Package,X } from 'lucide-react';
 import SideBar from '../../components/common/SideBar';
 import Header from '../../components/common/Header';
 import FilterBar from '../../components/common/FilterBar';
@@ -21,7 +21,6 @@ const ChangeDetailModal = ({
   onClose,
   fieldLabels,
   formatPrice,
-  formatDuration,
   formatDisplayDate,
 }: {
   entry: any;
@@ -121,7 +120,6 @@ const ChangeDetailModal = ({
 const PackageDetailModal = ({ details, onClose, onSave }: { details: { data: any, mode: 'view' | 'edit' | 'add' }, onClose: () => void, onSave: (data: any) => Promise<void> }) => {
   const [isEditing, setIsEditing] = useState(details.mode === 'edit' || details.mode === 'add');
   const [formData, setFormData] = useState(details.data);
-  const [selectedHistory, setSelectedHistory] = useState<any | null>(null);
   const [history, setHistory] = useState<any[]>([]);
   const [loadingHistory, setLoadingHistory] = useState(false);
   const [selectedChangeEntry, setSelectedChangeEntry] = useState<any | null>(null);
@@ -180,9 +178,7 @@ const PackageDetailModal = ({ details, onClose, onSave }: { details: { data: any
     return dateObj.toLocaleString('vi-VN');
   };
 
-  const onViewHistoryDetail = (entry: any) => {
-    setSelectedHistory(entry);
-  };
+
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50 transition-opacity duration-300 p-4">
@@ -530,7 +526,6 @@ const ConfirmationModal = ({
 
 const PackageManagement = () => {
   const [searchTerm, setSearchTerm] = useState('');
-  const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedPackage, setSelectedPackage] = useState<{ data: any, mode: 'view' | 'edit' | 'add' } | null>(null);
   const [packages, setPackages] = useState<any[]>([]);
   const [notification, setNotification] = useState<{ message: string; type: "success" | "error" | "info"; show: boolean; }>({ message: "", type: "info", show: false });
@@ -542,7 +537,6 @@ const PackageManagement = () => {
     packageId: null
   });
   const [loading, setLoading] = useState(true);
-  const [selectedHistory, setSelectedHistory] = useState<any | null>(null);
 
   useEffect(() => {
     const fetchPackages = async () => {
@@ -608,6 +602,8 @@ const PackageManagement = () => {
 
   const handleFilterChange = (filters: Record<string, string>) => {
     //setSelectedCategory(filters.category || 'all');
+    // Implement any additional filtering logic here if needed
+    setSearchTerm(filters.search || '');
   };
 
   const emptyPackage = {
@@ -708,9 +704,7 @@ const PackageManagement = () => {
     }
   };
 
-  const onViewHistoryDetail = (entry: any) => {
-    setSelectedHistory(entry);
-  };
+
 
   return (
     <div className="min-h-screen flex bg-gradient-to-br from-blue-50 via-white to-purple-50">

@@ -140,7 +140,7 @@ const BlogView: React.FC = () => {
   const handleBlogClick = useCallback((blogId: string | number) => {
     navigate(`/officer/blog-detail/${blogId}`);
   }, [navigate]);
-  const officerDistrict = "Quận 1"; // This would come from user context in a real app
+
 
   // Handle blog approval/unapproval toggle
   const handleApprove = useCallback(async (id: string | number) => {

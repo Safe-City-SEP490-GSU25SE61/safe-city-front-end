@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import { User, MapPin, Plus, Users, Eye, Edit3, Trash2, Search, Filter } from 'lucide-react';
+import { MapPin, Plus, Eye} from 'lucide-react';
 import SideBar from '../../components/common/SideBar';
 import Header from '../../components/common/Header';
 import FilterBar from '../../components/common/FilterBar';
@@ -48,8 +48,6 @@ const DistrictManagement = () => {
   const [isDetailLoading, setIsDetailLoading] = useState(false);
   const [showAddWardModal, setShowAddWardModal] = useState(false);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-
   // Pagination
   const [currentWardPage, setCurrentWardPage] = useState(1);
   const itemsPerPage = 10;
@@ -115,7 +113,11 @@ const DistrictManagement = () => {
       }
     } catch (err) {
       console.error("Failed to fetch ward details:", err);
-      setError('Lỗi khi tải chi tiết phường.');
+      setNotification({
+        message: "Lỗi khi tải chi tiết phường. Vui lòng thử lại.",
+        type: "error",
+        show: true,
+      });
     } finally {
       setIsDetailLoading(false);
     }
@@ -283,11 +285,19 @@ const DistrictManagement = () => {
           setWards(formattedWards);
         } else {
           console.error("Fetched ward data is not in the expected format:", apiData);
-          setError('Dữ liệu phường nhận được không đúng định dạng.');
+          setNotification({
+            message: "Không tìm thấy dữ liệu phường.",
+            type: "info",
+            show: true,
+          });
         }
       } catch (err) {
         console.error('Error fetching wards:', err);
-        setError('Đã xảy ra lỗi khi tải danh sách phường.');
+        setNotification({
+          message: "Lỗi khi tải danh sách phường. Vui lòng thử lại.",
+          type: "error",
+          show: true,
+        });
       } finally {
         setLoading(false);
       }
