@@ -41,15 +41,6 @@ interface AdminStatistics {
     };
   };
 }
-
-// Commune data with coordinates for visualization
-interface CommuneData {
-  name: string;
-  coordinates: [number, number]; // [lng, lat]
-  reportCount: number;
-  density: 'high' | 'medium' | 'low';
-}
-
 // Commune polygon data from API
 interface CommunePolygon {
   id: number;
@@ -69,21 +60,13 @@ const AdminLiveMap: React.FC = () => {
   
   const [statistics, setStatistics] = useState<AdminStatistics | null>(null);
   const [loading, setLoading] = useState(true);
-  const [showHeatmap, setShowHeatmap] = useState(true);
   const [communePolygons, setCommunePolygons] = useState<CommunePolygon[]>([]);
   const [showCommuneBoundaries, setShowCommuneBoundaries] = useState(true);
   const [selectedView, setSelectedView] = useState<'overview' | 'status' | 'type' | 'commune'>('overview');
   const [timePeriod, setTimePeriod] = useState<'day' | 'week' | 'year'>('day');
-
   const mapContainer = useRef<HTMLDivElement>(null);
   const mapRef = useRef<any | null>(null);
   const heatmapLayersRef = useRef<string[]>([]);
-
-
-
-  // Get commune data with density classification from API polygons
-
-  // Fetch statistics from API only
   const fetchStatistics = async () => {
     try {
       setLoading(true);
