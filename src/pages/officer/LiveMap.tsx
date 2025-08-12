@@ -7,6 +7,41 @@ import NotificationBar from '../../components/common/NotificationBar';
 import goongjs from '@goongmaps/goong-js';
 import '@goongmaps/goong-js/dist/goong-js.css';
 import FilterBar from '../../components/common/FilterBar';
+import { getIncident, getIncidentById } from '../../services/api/incident';
+import { getCommunePolygonsByOfficer, type CommunePolygon } from '../../services/api/commune';
+import IncidentDetail from '../../components/officer/IncidentDetail';
+import { 
+  Flame, Car, Ambulance, Shield, Waves, Zap, AlertTriangle,
+  Trash2, CarFront, Swords, Pickaxe, Eye, HelpCircle
+} from 'lucide-react';
+import { createElement } from 'react';
+import { renderToStaticMarkup } from 'react-dom/server';
+import { getOfficerReports } from '../../services/api/map';
+
+// Define incident interface based on actual API response
+interface Incident {
+  id: string;
+  username?: string;
+  type: string;
+  subCategory: string;
+  priorityLevel: string;
+  description?: string;
+  lng?: number;
+  lat?: number;
+  address?: string;
+  status?: string;
+  isAnonymous?: boolean;
+  occurredAt?: string;
+  createdAt?: string;
+  verifiedByUserId?: string;
+  communeName?: string;
+  notes?: any[];
+  imageUrls?: any[];
+  // Legacy support for existing code
+  name?: string;
+  latitude?: number;
+  longitude?: number;
+}
 
 const LiveMap: React.FC = () => {
   const [notification, setNotification] = useState({
@@ -14,8 +49,227 @@ const LiveMap: React.FC = () => {
     message: "",
     type: "success" as "success" | "error" | "info",
   });
+  const [incidents, setIncidents] = useState<Incident[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [selectedIncidentId, setSelectedIncidentId] = useState<string | null>(null);
+  const [selectedIncident, setSelectedIncident] = useState<any | null>(null);
+  const [showIncidentDetail, setShowIncidentDetail] = useState(false);
+  const [loadingIncidentDetail, setLoadingIncidentDetail] = useState(false);
+  const [communePolygons, setCommunePolygons] = useState<CommunePolygon[]>([]);
+  const [showCommuneBoundaries, setShowCommuneBoundaries] = useState(true);
 
   const mapContainer = useRef<HTMLDivElement>(null);
+  const mapRef = useRef<any | null>(null);
+  const markersRef = useRef<any[]>([]);
+  const polygonLayersRef = useRef<string[]>([]);
+
+  // Helper function to show incident detail
+  const showIncidentDetailModal = async (incident: Incident) => {
+    console.log('🔴 showIncidentDetailModal called with incident:', incident);
+    try {
+      console.log('📋 Fetching incident detail for ID:', incident.id);
+      setSelectedIncidentId(incident.id);
+      console.log('🔧 Setting loadingIncidentDetail to true');
+      setLoadingIncidentDetail(true);
+      console.log('🔧 Setting showIncidentDetail to true');
+      setShowIncidentDetail(true);
+      
+      // Fetch complete incident details from API
+      const apiData = await getIncidentById(incident.id);
+      console.log('📋 Raw API data received:', apiData);
+      
+      // Transform API data to format expected by IncidentDetail component
+      const transformedData = {
+        id: apiData.id,
+        title: apiData.description || apiData.type || 'Không có tiêu đề',
+        description: apiData.description || '',
+        location: apiData.address || '',
+        reportedDate: apiData.createdAt ? new Date(apiData.createdAt).toLocaleDateString('vi-VN') : '',
+        reporter: apiData.isAnonymous ? 'Anonymous' : (apiData.userName || ''),
+        status: apiData.status,
+        lat: apiData.lat,
+        lng: apiData.lng,
+        category: apiData.type || 'Khác',
+        evidence: [
+          ...(apiData.imageUrls || []).map((url: string) => ({
+            type: 'image',
+            url,
+            description: 'Hình ảnh hiện trường'
+          })),
+          ...(apiData.videoUrl ? [{
+            type: 'video',
+            url: apiData.videoUrl,
+            description: 'Video hiện trường'
+          }] : [])
+        ],
+        updates: (apiData.notes || []).map((note: any) => {
+          if (typeof note === 'string') {
+            return { date: '', officer: '', action: note };
+          }
+          return {
+            date: note.createdAt ? new Date(note.createdAt).toLocaleDateString('vi-VN') : '',
+            officer: note.officerName || 'Sĩ quan',
+            action: note.content || note.message || ''
+          };
+        }),
+        assignedOfficer: apiData.assignedOfficer || '',
+        estimatedResolution: apiData.estimatedResolution || '',
+        relatedIncidents: apiData.relatedIncidents || [],
+        attachments: [],
+        communeName: apiData.communeName || '',
+        occurredAt: apiData.occurredAt ? new Date(apiData.occurredAt).toLocaleDateString('vi-VN') : ''
+      };
+      
+      console.log('🔧 Transformed data for IncidentDetail:', transformedData);
+      setSelectedIncident(transformedData);
+    } catch (error) {
+      console.error('❌ Error fetching incident details:', error);
+      setNotification({
+        show: true,
+        message: "Lỗi khi tải chi tiết sự cố",
+        type: "error"
+      });
+      console.log('🔧 Setting showIncidentDetail to false due to error');
+      setShowIncidentDetail(false);
+    } finally {
+      console.log('🔧 Setting loadingIncidentDetail to false');
+      setLoadingIncidentDetail(false);
+    }
+  };
+
+  // Helper function to close incident detail
+  const closeIncidentDetail = () => {
+    setShowIncidentDetail(false);
+    setSelectedIncident(null);
+    setSelectedIncidentId(null);
+  };
+
+
+
+
+
+  // Update markers when incidents change
+  useEffect(() => {
+    if (mapRef.current && incidents.length > 0) {
+      addIncidentMarkers(mapRef.current);
+    }
+  }, [incidents]);
+
+  // Update commune polygons when data changes
+  useEffect(() => {
+    if (mapRef.current && communePolygons.length > 0) {
+      addCommunePolygons(mapRef.current);
+    }
+  }, [communePolygons, showCommuneBoundaries]);
+
+  // Fetch commune polygons
+  const fetchCommunePolygons = async () => {
+    try {
+      // For demo, get polygons for current officer (officer1)
+      const polygons = await getCommunePolygonsByOfficer('officer1');
+      setCommunePolygons(polygons);
+      setNotification({
+        show: true,
+        message: `Đã tải ${polygons.length} ranh giới phường/xã`,
+        type: "success"
+      });
+    } catch (error) {
+      console.error('❌ Error fetching commune polygons:', error);
+      setNotification({
+        show: true,
+        message: "Lỗi khi tải ranh giới phường/xã",
+        type: "error"
+      });
+    }
+  };
+
+  // Add commune polygons to map
+  const addCommunePolygons = (map: any) => {
+    if (!showCommuneBoundaries) {
+      // Remove existing polygon layers
+      polygonLayersRef.current.forEach(layerId => {
+        if (map.getLayer(layerId)) {
+          map.removeLayer(layerId);
+        }
+        if (map.getSource(layerId)) {
+          map.removeSource(layerId);
+        }
+      });
+      polygonLayersRef.current = [];
+      return;
+    }
+
+    communePolygons.forEach((commune) => {
+      const sourceId = `commune-${commune.id}`;
+      const layerId = `commune-layer-${commune.id}`;
+
+      // Remove existing layers if they exist
+      if (map.getLayer(layerId)) map.removeLayer(layerId);
+      if (map.getLayer(`${layerId}-border`)) map.removeLayer(`${layerId}-border`);
+      if (map.getSource(sourceId)) map.removeSource(sourceId);
+
+      // Add source with MultiPolygon geometry
+      map.addSource(sourceId, {
+        type: 'geojson',
+        data: {
+          type: 'Feature',
+          properties: {
+            name: commune.name,
+            officerName: commune.officerName
+          },
+          geometry: {
+            type: 'MultiPolygon',
+            coordinates: commune.coordinates
+          }
+        }
+      });
+
+      // Add polygon layer
+      map.addLayer({
+        id: layerId,
+        type: 'fill',
+        source: sourceId,
+        paint: {
+          'fill-color': '#3b82f6',
+          'fill-opacity': 0.2,
+          'fill-outline-color': '#1d4ed8'
+        }
+      });
+
+      // Add border layer
+      map.addLayer({
+        id: `${layerId}-border`,
+        type: 'line',
+        source: sourceId,
+        paint: {
+          'line-color': '#1d4ed8',
+          'line-width': 2
+        }
+      });
+
+      // Skip text labels to avoid font issues - commune names will show on click
+
+      // Add click event for polygon
+      map.on('click', layerId, (e: any) => {
+        setNotification({
+          show: true,
+          message: `Phường/Xã: ${commune.name} - Sĩ quan: ${commune.officerName}`,
+          type: "info"
+        });
+      });
+
+      // Change cursor on hover
+      map.on('mouseenter', layerId, () => {
+        map.getCanvas().style.cursor = 'pointer';
+      });
+
+      map.on('mouseleave', layerId, () => {
+        map.getCanvas().style.cursor = '';
+      });
+
+      polygonLayersRef.current.push(layerId, `${layerId}-border`);
+    });
+  };
 
   // Example filter options (customize as needed)
   const filterOptions = {
@@ -27,34 +281,354 @@ const LiveMap: React.FC = () => {
   };
 
   // Example summary data (replace with real data)
-  const summary = [
-    { label: "Sự cố diễn ra trong ngày", value: 75 },
-    { label: "Khu vực nguy hiểm", value: 5 },
-    { label: "Lực lượng đã triển khai", value: 65 },
-    { label: "Tin nhắn chưa đọc", value: 7265 },
-  ];
 
-  // Example recent incidents (replace with real data)
-  const recentIncidents = [
-    { id: "INC-123-2025", type: "Cháy nổ", location: "Phường 23/Quận Tân Bình", time: "2 tiếng trước" },
-    // ... more incidents ...
-  ];
 
+  // Fetch incidents data
+  const fetchIncidents = async () => {
+    try {
+      setLoading(true);
+      const data = await getOfficerReports();
+      
+      if (data && Array.isArray(data)) {
+        // Process incidents data
+      } else {
+        // Handle invalid data
+      }
+      
+      setIncidents(data || []);
+      setNotification({
+        show: true,
+        message: `Đã tải ${data?.length || 0} sự cố`,
+        type: "success"
+      });
+    } catch (error) {
+      console.error('❌ Error fetching incidents:', error);
+      setNotification({
+        show: true,
+        message: "Lỗi khi tải dữ liệu sự cố",
+        type: "error"
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Helper function to render Lucide icons as SVG strings
+  const renderIconToSvg = (IconComponent: React.ComponentType<any>) => {
+    return renderToStaticMarkup(
+      createElement(IconComponent, { 
+        size: 20, 
+        color: '#374151', // Simple gray color
+        strokeWidth: 1.5
+      })
+    );
+  };
+
+  // Get marker icon and color based on incident type
+  const getMarkerConfig = (type: string) => {
+    const iconComponents: { [key: string]: { IconComponent: React.ComponentType<any>; color: string; bgColor: string } } = {
+      // Fire incidents
+      'fire': { IconComponent: Flame, color: '#374151', bgColor: '#f9fafb' },
+      
+      // Traffic and vehicle incidents
+      'accident': { IconComponent: Car, color: '#374151', bgColor: '#f9fafb' },
+      'tai nạn giao thông': { IconComponent: CarFront, color: '#374151', bgColor: '#f9fafb' },
+      'ket xe': { IconComponent: Car, color: '#374151', bgColor: '#f9fafb' },
+      
+      // Medical emergencies
+      'medical': { IconComponent: Ambulance, color: '#374151', bgColor: '#f9fafb' },
+      
+      // Crime and security
+      'crime': { IconComponent: Shield, color: '#374151', bgColor: '#f9fafb' },
+      'đánh nhau': { IconComponent: Swords, color: '#374151', bgColor: '#f9fafb' },
+      'trộm cắp': { IconComponent: Eye, color: '#374151', bgColor: '#f9fafb' },
+      'phá hoại công trình': { IconComponent: Pickaxe, color: '#374151', bgColor: '#f9fafb' },
+      
+      // Environmental and public order
+      'flood': { IconComponent: Waves, color: '#374151', bgColor: '#f9fafb' },
+      'xả rác': { IconComponent: Trash2, color: '#374151', bgColor: '#f9fafb' },
+      'gây rối trật tự': { IconComponent: AlertTriangle, color: '#374151', bgColor: '#f9fafb' },
+      
+      // Emergency
+      'emergency': { IconComponent: Zap, color: '#374151', bgColor: '#f9fafb' },
+      
+      // Other/Unknown
+      'khác': { IconComponent: HelpCircle, color: '#374151', bgColor: '#f9fafb' },
+      'other': { IconComponent: HelpCircle, color: '#374151', bgColor: '#f9fafb' },
+      'default': { IconComponent: AlertTriangle, color: '#374151', bgColor: '#f9fafb' }
+    };
+    
+    const config = iconComponents[type.toLowerCase()] || iconComponents.default;
+    return {
+      icon: renderIconToSvg(config.IconComponent),
+      color: config.color,
+      bgColor: config.bgColor
+    };
+  };
+
+  // Create marker for incident
+  const createIncidentMarker = (incident: Incident, map: any) => {
+    const config = getMarkerConfig(incident.type);
+    
+    // Create a simple, visible marker element
+    const el = document.createElement('div');
+    el.className = 'incident-marker';
+    el.innerHTML = config.icon;
+    el.style.fontSize = '24px';
+    el.style.width = '50px';
+    el.style.height = '50px';
+    el.style.display = 'flex';
+    el.style.alignItems = 'center';
+    el.style.justifyContent = 'center';
+    el.style.backgroundColor = config.bgColor;
+    el.style.borderRadius = '50%';
+    el.style.border = `4px solid ${config.color}`;
+    el.style.boxShadow = '0 4px 12px rgba(0,0,0,0.3)';
+    el.style.cursor = 'pointer';
+    el.style.zIndex = '1000';
+    // Remove position relative to prevent positioning issues
+    el.style.transform = 'translate(-50%, -50%)';
+    el.style.pointerEvents = 'auto';
+    
+    
+    
+    // Add click event for popup
+    el.addEventListener('click', () => {
+      showIncidentDetailModal(incident);
+      
+      
+      // Add event listener to the detail button after popup is added
+      setTimeout(() => {
+        const detailBtn = document.getElementById(`incident-detail-btn-${incident.id}`);
+        if (detailBtn) {
+          detailBtn.addEventListener('click', () => {
+            showIncidentDetailModal(incident);
+          });
+        }
+      }, 100);
+    });
+    
+    // Use lat/lng from API or fallback to latitude/longitude
+    const latValue = incident.lat || incident.latitude;
+    const lngValue = incident.lng || incident.longitude;
+    
+
+    
+    // Create marker with proper options to prevent movement during zoom
+    const marker = new goongjs.Marker({
+      element: el,
+      anchor: 'center',
+      offset: [0, 0]
+    })
+      .setLngLat([lngValue, latValue])
+      .addTo(map);
+    
+    // Ensure marker stays fixed during zoom
+    marker.getElement().style.position = 'absolute';
+    
+    return marker;
+  };
+
+  // Clear all markers
+  const clearMarkers = () => {
+    markersRef.current.forEach(marker => marker.remove());
+    markersRef.current = [];
+  };
+
+  // Add markers for all incidents
+  const addIncidentMarkers = (map: any) => {
+    clearMarkers();
+    
+    if (!map) {
+      console.error('❌ Map is not available');
+      return;
+    }
+    
+    let markersCreated = 0;
+    const coordinateMap = new Map();
+    
+    incidents.forEach((incident, index) => {  
+      console.log(`Processing incident ${index + 1}/${incidents.length}:`, {
+        id: incident.id,
+        description: incident.description,
+        lat: incident.lat,
+        latitude: incident.latitude,
+        lng: incident.lng,
+        longitude: incident.longitude
+      });
+      
+      // Use lat/lng from API or fallback to latitude/longitude
+      const latValue = incident.lat || incident.latitude;
+      const lngValue = incident.lng || incident.longitude;
+      
+      if (latValue && lngValue) {
+        // Validate coordinates
+        const lat = parseFloat(latValue.toString());
+        const lng = parseFloat(lngValue.toString());
+        
+        if (isNaN(lat) || isNaN(lng)) {
+          console.warn(`⚠️ Invalid coordinates for incident ${incident.id}:`, { lat, lng });
+          return;
+        }
+        
+        if (lat < -90 || lat > 90 || lng < -180 || lng > 180) {
+          console.warn(`⚠️ Coordinates out of range for incident ${incident.id}:`, { lat, lng });
+          return;
+        }
+        
+        // Check if coordinates are outside Vietnam (rough bounds: lat 8-24, lng 102-110)
+        if (lat < 8 || lat > 24 || lng < 102 || lng > 110) {
+          console.warn(`⚠️ Coordinates outside Vietnam for incident ${incident.id}:`, { lat, lng, description: incident.description });
+          console.warn(`This marker will be created but may not be visible in current map view`);
+        }
+        
+        // Check for duplicate coordinates
+        const coordKey = `${lat.toFixed(6)},${lng.toFixed(6)}`;
+        if (coordinateMap.has(coordKey)) {
+          console.warn(`⚠️ Duplicate coordinates found for incident ${incident.id} at [${lng}, ${lat}]. Previous incident: ${coordinateMap.get(coordKey)}`);
+        } else {
+          coordinateMap.set(coordKey, incident.id);
+        }
+        
+        try {
+          const marker = createIncidentMarker(incident, map);
+          markersRef.current.push(marker);
+          markersCreated++;
+          console.log(`✅ Marker ${markersCreated} created for incident ${incident.id} at [${lng}, ${lat}]`);
+        } catch (error) {
+          console.error(`❌ Error creating marker for incident ${incident.id}:`, error);
+        }
+      } else {
+        console.warn(`⚠️ Missing coordinates for incident ${incident.id}:`, {
+          description: incident.description,
+          lat: incident.lat,
+          latitude: incident.latitude,
+          lng: incident.lng,
+          longitude: incident.longitude
+        });
+      }
+    });
+    
+    console.log(`📊 Summary: ${markersCreated} markers created out of ${incidents.length} incidents`);
+    console.log(`🗺️ Total markers on map: ${markersRef.current.length}`);
+    
+    // Force update marker visibility after adding markers
+    setTimeout(() => {
+      updateMarkerVisibility();
+    }, 100);
+  };
+
+  // Update marker visibility based on zoom
+  const updateMarkerVisibility = () => {
+    if (!mapRef.current) return;
+    
+    const zoom = mapRef.current.getZoom();
+    
+    markersRef.current.forEach((marker, index) => {
+      const element = marker.getElement();
+      if (element) {
+        // Show markers at all zoom levels for debugging
+        element.style.display = 'flex';
+      } 
+    });
+    
+  };
+
+  // Fetch incidents when component mounts
+  useEffect(() => {
+    fetchIncidents();
+  }, []);
+
+  // Add markers when incidents data changes
+  useEffect(() => {
+    if (mapRef.current && incidents.length > 0) {
+      addIncidentMarkers(mapRef.current);
+    }
+  }, [incidents]);
+
+  // Initialize map
   useEffect(() => {
     if (!mapContainer.current) return;
 
-    goongjs.accessToken = '123'; // <-- Replace with your key
+    goongjs.accessToken = 'VScS4DXaVgUaCjtOp6Vp2AAYlfcJVOIZ2JVjvAnL';
 
     const map = new goongjs.Map({
       container: mapContainer.current,
       style: 'https://tiles.goong.io/assets/goong_light_v2.json',
       center: [106.7009, 10.7769], // [lng, lat] for Ho Chi Minh City
-      zoom: 11, // You can adjust the zoom level as needed
+      zoom: 12, 
+    });
+
+    mapRef.current = map;
+
+    // Load initial data when map is ready
+    map.on('load', () => {
+      fetchIncidents();
+      fetchCommunePolygons();
+    });
+
+    // Add click event listener for commune names
+    map.on('click', (e: any) => {
+      // Query rendered features at the click point
+      const features = map.queryRenderedFeatures(e.point, {
+        layers: ['place-label'] // This layer typically contains place names
+      });
+      
+      if (features.length > 0) {
+        const feature = features[0];
+        const properties = feature.properties;
+        
+        // Check if it's a commune/ward (place names starting with 'P.' or containing commune info)
+        if (properties && (properties.name || properties.name_en)) {
+          const placeName = properties.name || properties.name_en;
+          console.log('Clicked on:', placeName);
+          
+          // Show alert with commune information
+          window.alert(`Bạn đã click vào: ${placeName}`);
+          
+          // You can add more functionality here, like:
+          // - Show detailed information about the commune
+          // - Navigate to a specific page
+          // - Update state with selected commune
+        }
+      }
+    });
+    
+    // Change cursor to pointer when hovering over clickable areas
+    map.on('mouseenter', 'place-label', () => {
+      map.getCanvas().style.cursor = 'pointer';
+    });
+    
+    map.on('mouseleave', 'place-label', () => {
+      map.getCanvas().style.cursor = '';
     });
 
     // Clean up on unmount
-    return () => map.remove();
+    return () => {
+      clearMarkers();
+      map.remove();
+    };
   }, []);
+
+  // Fetch incidents on component mount
+  useEffect(() => {
+    fetchIncidents();
+  }, []);
+
+  // Add markers when incidents data changes
+  useEffect(() => {
+    if (mapRef.current && incidents.length > 0) {
+      // Ensure map is fully loaded before adding markers
+      if (mapRef.current.isStyleLoaded()) {
+        addIncidentMarkers(mapRef.current);
+      } else {
+        mapRef.current.on('styledata', () => {
+          addIncidentMarkers(mapRef.current);
+        });
+      }
+    }
+  }, [incidents]);
+    
 
   return (
     <>
@@ -75,16 +649,6 @@ const LiveMap: React.FC = () => {
 
           {/* Page Content */}
           <div className="flex-1 flex flex-col">
-            {/* Summary Cards */}
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 p-6">
-              {summary.map((item, idx) => (
-                <div key={idx} className="bg-white rounded-lg shadow p-4 flex flex-col items-center">
-                  <div className="text-2xl font-bold">{item.value}</div>
-                  <div className="text-gray-500 text-sm text-center">{item.label}</div>
-                </div>
-              ))}
-            </div>
-
             {/* Filter Bar */}
             <div className="px-6">
               <FilterBar
@@ -99,32 +663,164 @@ const LiveMap: React.FC = () => {
               <div className="flex-1 bg-white rounded-lg shadow overflow-hidden" style={{ minHeight: '70vh' }}>
                 <div
                   ref={mapContainer}
-                  style={{ width: '100%', height: '70vh', borderRadius: '16px', overflow: 'hidden' }}
+                  style={{ width: '100%', height: '85vh', borderRadius: '16px', overflow: 'hidden' }}
                   id="map"
                 />
               </div>
 
               {/* Recent Incidents */}
               <div className="w-full max-w-xs bg-white rounded-lg shadow p-4 flex flex-col">
-                <h3 className="font-semibold mb-4">Sự cố gần đây</h3>
-                <div className="flex-1 space-y-3 overflow-y-auto">
-                  {recentIncidents.map((inc, idx) => (
-                    <div key={idx} className="border-b pb-2">
-                      <div className="font-bold text-red-600">{inc.id}</div>
-                      <div className="text-sm">{inc.type} – {inc.location}</div>
-                      <div className="text-xs text-gray-400">{inc.time}</div>
-                    </div>
-                  ))}
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="font-semibold">Sự cố gần đây</h3>
+                  <button 
+                    onClick={fetchIncidents}
+                    className="text-blue-500 hover:text-blue-700 text-sm"
+                    disabled={loading}
+                  >
+                    {loading ? '⟳' : '↻'} Làm mới
+                  </button>
                 </div>
-                <div className="flex gap-2 mt-4">
-                  <button className="flex-1 bg-green-500 text-white rounded px-3 py-2">Xuất PDF</button>
-                  <button className="flex-1 bg-blue-500 text-white rounded px-3 py-2">Xuất excel</button>
+                
+                {loading ? (
+                  <div className="flex-1 flex items-center justify-center">
+                    <div className="text-gray-500">Đang tải...</div>
+                  </div>
+                ) : (
+                  <div className="flex-1 space-y-3 overflow-y-auto">
+                    {incidents.length > 0 ? (
+                      incidents.slice(0, 10).map((incident) => (
+                        <div key={incident.id} className="bg-white border border-gray-200 rounded-lg p-3 shadow-sm hover:shadow-md transition-shadow">
+                          {/* Header with title and time */}
+                          <div className="flex items-start justify-between mb-2">
+                            <h4 className="font-semibold text-gray-800 text-sm leading-tight flex-1 mr-2">
+                              {incident.description || 'Sự cố không mô tả'}
+                            </h4>
+                            <span className="text-xs text-gray-400 whitespace-nowrap">
+                              {incident.createdAt ? new Date(incident.createdAt).toLocaleString('vi-VN', {
+                                day: '2-digit',
+                                month: '2-digit', 
+                                hour: '2-digit',
+                                minute: '2-digit'
+                              }) : 'N/A'}
+                            </span>
+                          </div>
+                          
+                          {/* Type with icon */}
+                          <div className="flex items-center gap-2 mb-3">
+                            <span dangerouslySetInnerHTML={{ __html: getMarkerConfig(incident.type).icon }}></span>
+                            <span className="text-sm font-medium text-gray-700">{incident.type}</span>
+                          </div>
+                          
+                          {/* Tags row */}
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <span className="inline-flex items-center px-2.5 py-1 rounded-md text-xs font-medium bg-blue-50 text-blue-700 border border-blue-200">
+                              {incident.subCategory}
+                            </span>
+                            <span className={`inline-flex items-center px-2.5 py-1 rounded-md text-xs font-medium border ${
+                              incident.priorityLevel === 'HIGH' ? 'bg-red-50 text-red-700 border-red-200' :
+                              incident.priorityLevel === 'MEDIUM' ? 'bg-yellow-50 text-yellow-700 border-yellow-200' :
+                              'bg-green-50 text-green-700 border-green-200'
+                            }`}>
+                              {incident.priorityLevel === 'HIGH' ? 'Mức độ cao' :
+                               incident.priorityLevel === 'MEDIUM' ? 'Mức độ trung bình' :
+                               'Mức độ thấp'}
+                            </span>
+                          </div>
+                          
+                          <div className="flex gap-2 mt-2">
+                            <button 
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                if (mapRef.current) {
+                                  const latValue = incident.lat || incident.latitude;
+                                  const lngValue = incident.lng || incident.longitude;
+                                  mapRef.current.flyTo({
+                                    center: [lngValue, latValue],
+                                    zoom: 15
+                                  });
+                                }
+                              }}
+                              className="text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded hover:bg-blue-200"
+                            >
+                              Xem trên bản đồ
+                            </button>
+                            <button 
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                console.log('🔵 Chi tiết button clicked for incident:', incident.id);
+                                showIncidentDetailModal(incident);
+                              }}
+                              className="text-xs bg-green-100 text-green-700 px-2 py-1 rounded hover:bg-green-200"
+                            >
+                              Chi tiết
+                            </button>
+                          </div>
+                        </div>
+                      ))
+                    ) : (
+                      <div className="text-gray-500 text-center py-4">Không có sự cố nào</div>
+                    )}
+                  </div>
+                )}
+                
+                <div className="flex flex-col gap-2 mt-4">
+                  <button 
+                    onClick={() => setShowCommuneBoundaries(!showCommuneBoundaries)}
+                    className={`w-full px-3 py-2 text-sm rounded transition-colors ${
+                      showCommuneBoundaries 
+                        ? 'bg-blue-500 text-white hover:bg-blue-600' 
+                        : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                    }`}
+                  >
+                    {showCommuneBoundaries ? 'Ẩn ranh giới' : 'Hiện ranh giới'}
+                  </button>
+                  <div className="flex gap-2">
+                    <button className="flex-1 bg-green-500 text-white rounded px-3 py-2 text-sm">Xuất PDF</button>
+                    <button className="flex-1 bg-blue-500 text-white rounded px-3 py-2 text-sm">Xuất Excel</button>
+                  </div>
                 </div>
               </div>
             </div>
           </div>
         </div>
       </div>
+      
+      {/* Incident Detail Modal */}
+      {console.log('🔍 Modal render check:', { showIncidentDetail, loadingIncidentDetail, selectedIncident: !!selectedIncident })}
+      {showIncidentDetail && (
+        <div className="fixed inset-0 z-[9999]" style={{ zIndex: 9999 }}>
+          {loadingIncidentDetail ? (
+            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center">
+              <div className="bg-white rounded-lg p-8 flex items-center justify-center">
+                <div className="text-center">
+                  <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mx-auto mb-4"></div>
+                  <p className="text-gray-600">Đang tải chi tiết sự cố...</p>
+                </div>
+              </div>
+            </div>
+          ) : selectedIncident ? (
+            <IncidentDetail
+              incident={selectedIncident}
+              loading={false}
+              onClose={closeIncidentDetail}
+            />
+          ) : (
+            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center">
+              <div className="bg-white rounded-lg p-8 flex items-center justify-center">
+                <div className="text-center">
+                  <p className="text-red-600">Không thể tải chi tiết sự cố</p>
+                  <button 
+                    onClick={closeIncidentDetail}
+                    className="mt-4 px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
+                  >
+                    Đóng
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
     </>
   );
 };

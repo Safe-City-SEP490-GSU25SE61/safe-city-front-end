@@ -1,8 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { X, MapPin, Calendar, User, AlertTriangle, FileText, Phone, Clock, Shield, Camera, Video, MessageSquare, Activity, Plus, Play, Eye, Send } from 'lucide-react';
-import { createIncidentNote, updateIncidentStatus } from '../../services/api/incident'; // 1. Import the API function
+import { createIncidentNote, updateIncidentStatus, transferIncident } from '../../services/api/incident'; // 1. Import the API function
 import NotificationBar from '../common/NotificationBar'; // Add this import
-import { getAllDistricts } from '../../services/api/district'; // Import at the top
+import { getAllWards } from '../../services/api/ward'; // Import at the top
 import goongjs from '@goongmaps/goong-js';
 import '@goongmaps/goong-js/dist/goong-js.css';
 
@@ -52,10 +52,14 @@ const IncidentDetail: React.FC<IncidentDetailProps> = ({ incident, loading, onCl
     type: 'info' as 'success' | 'error' | 'info'
   });
   const [districts, setDistricts] = useState<any[]>([]);
-  const [selectedDistrict, setSelectedDistrict] = useState<string>('');
+  const [selectedDistrict, setSelectedDistrict] = useState<number>();
   const [loadingDistricts, setLoadingDistricts] = useState(false);
+  const [transferNote, setTransferNote] = useState<string>('');
+  const [showTransferNote, setShowTransferNote] = useState(false);
+  const [loadingTransfer, setLoadingTransfer] = useState(false);
   const [showMapModal, setShowMapModal] = useState(false);
   const mapContainerRef = useRef<HTMLDivElement>(null);
+  const inlineMapRef = useRef<HTMLDivElement>(null); // New ref for inline map
 
   // Helper to show notification
   const showNotification = (message: string, type: 'success' | 'error' | 'info' = 'info') => {
@@ -85,10 +89,10 @@ const IncidentDetail: React.FC<IncidentDetailProps> = ({ incident, loading, onCl
     }
   };
 
-  const fetchDistricts = async () => {
+  const fetchWards = async () => {
     setLoadingDistricts(true);
     try {
-      const data = await getAllDistricts();
+      const data = await getAllWards();
       setDistricts(data);
     } catch (e) {
       showNotification('Không thể tải danh sách phường/xã.', 'error');
@@ -100,7 +104,7 @@ const IncidentDetail: React.FC<IncidentDetailProps> = ({ incident, loading, onCl
   useEffect(() => {
     if (localStatus === 'verified' && districts.length === 0) {
       setLoadingDistricts(true);
-      getAllDistricts()
+      getAllWards()
         .then(data => setDistricts(data))
         .catch(() => showNotification('Không thể tải danh sách phường/xã.', 'error'))
         .finally(() => setLoadingDistricts(false));
@@ -108,8 +112,29 @@ const IncidentDetail: React.FC<IncidentDetailProps> = ({ incident, loading, onCl
   }, [localStatus, districts.length]);
 
   useEffect(() => {
+    if (inlineMapRef.current && incident.lat && incident.lng) {
+      goongjs.accessToken = 'VScS4DXaVgUaCjtOp6Vp2AAYlfcJVOIZ2JVjvAnL';
+      // Clean up previous map instance if any
+      if (inlineMapRef.current.childNodes.length > 0) {
+        inlineMapRef.current.innerHTML = '';
+      }
+      const map = new goongjs.Map({
+        container: inlineMapRef.current,
+        style: 'https://tiles.goong.io/assets/goong_map_web.json',
+        center: [parseFloat(incident.lng), parseFloat(incident.lat)],
+        zoom: 16,
+      });
+      new goongjs.Marker()
+        .setLngLat([parseFloat(incident.lng), parseFloat(incident.lat)])
+        .addTo(map);
+      return () => map.remove();
+    }
+  }, [incident.lat, incident.lng]);
+
+  useEffect(() => {
     if (showMapModal && mapContainerRef.current && incident.lat && incident.lng) {
-      goongjs.accessToken = '123';
+      goongjs.accessToken = 'VScS4DXaVgUaCjtOp6Vp2AAYlfcJVOIZ2JVjvAnL';
+      // Clean up previous map instance if any
       if (mapContainerRef.current.childNodes.length > 0) {
         mapContainerRef.current.innerHTML = '';
       }
@@ -199,6 +224,30 @@ const IncidentDetail: React.FC<IncidentDetailProps> = ({ incident, loading, onCl
     showNotification(`Đang gọi ${incident.reporter}...`, 'info');
   };
 
+  const handleTransferIncident = async () => {
+    if (!transferNote.trim()) {
+      showNotification('Vui lòng nhập lý do chuyển phường/xã!', 'error');
+      return;
+    }
+
+    setLoadingTransfer(true);
+    try {
+      await transferIncident(incident.id, {
+        newDistrictId: selectedDistrict,
+        note: transferNote.trim()
+      });
+      showNotification('Đã chuyển báo cáo thành công!', 'success');
+      setTransferNote('');
+      setShowTransferNote(false);
+      setSelectedDistrict(0);
+      onClose();
+    } catch (error: any) {
+      showNotification(error.response.data.message, 'error');
+    } finally {
+      setLoadingTransfer(false);
+    }
+  };
+
   return (
     <>
       {/* Notification Bar */}
@@ -268,12 +317,7 @@ const IncidentDetail: React.FC<IncidentDetailProps> = ({ incident, loading, onCl
                     {incident.lat && incident.lng && (
                       <div className="mt-2">
                         <label className="text-sm font-semibold text-gray-700 uppercase tracking-wide">Tọa độ</label>
-                        <button
-                          type="button"
-                          className="flex items-center gap-4 mt-1 bg-blue-50 p-3 rounded-xl border border-blue-200 hover:bg-blue-100 transition cursor-pointer"
-                          onClick={() => setShowMapModal(true)}
-                          title="Xem vị trí trên bản đồ"
-                        >
+                        <div className="flex items-center gap-4 mt-1 bg-blue-50 p-3 rounded-xl border border-blue-200">
                           <span className="flex items-center gap-1 text-blue-800 font-semibold">
                             <MapPin className="w-4 h-4" />
                             Vĩ độ: <span className="font-mono">{incident.lat}</span>
@@ -282,7 +326,19 @@ const IncidentDetail: React.FC<IncidentDetailProps> = ({ incident, loading, onCl
                             <MapPin className="w-4 h-4" />
                             Kinh độ: <span className="font-mono">{incident.lng}</span>
                           </span>
-                          <span className="ml-2 text-blue-600 underline text-xs">Xem bản đồ</span>
+                        </div>
+                        <div
+                          ref={inlineMapRef}
+                          style={{ height: 220, width: '100%', borderRadius: '12px', overflow: 'hidden', marginTop: 12 }}
+                          className="shadow border border-blue-200"
+                        />
+                        <button
+                          type="button"
+                          className="mt-2 text-blue-600 underline text-xs hover:text-blue-800"
+                          onClick={() => setShowMapModal(true)}
+                          title="Xem bản đồ lớn"
+                        >
+                          Xem bản đồ lớn
                         </button>
                       </div>
                     )}
@@ -293,7 +349,37 @@ const IncidentDetail: React.FC<IncidentDetailProps> = ({ incident, loading, onCl
                           {incident.category}
                         </p>
                       </div>
+                      {incident.subCategory && (
+                        <div>
+                          <label className="text-sm font-semibold text-gray-700 uppercase tracking-wide">Danh mục phụ</label>
+                          <p className="mt-2 text-gray-800 bg-gray-50 p-3 rounded-xl border border-gray-200">
+                            {incident.subCategory}
+                          </p>
+                        </div>
+                      )}
                     </div>
+                    {incident.priorityLevel && (
+                      <div className="mt-4">
+                        <label className="text-sm font-semibold text-gray-700 uppercase tracking-wide">Mức độ ưu tiên</label>
+                        <div className="mt-2">
+                          <span className={`inline-flex items-center gap-2 px-4 py-2 rounded-full text-sm font-semibold ${
+                            incident.priorityLevel === 'High' ? 'bg-red-100 text-red-800' :
+                            incident.priorityLevel === 'Medium' ? 'bg-yellow-100 text-yellow-800' :
+                            incident.priorityLevel === 'Critical' ? 'bg-red-100 text-red-800' :
+                            incident.priorityLevel === 'Low' ? 'bg-green-100 text-green-800' :
+                            'bg-gray-100 text-gray-800'
+                          }`}>
+                            <AlertTriangle className="w-4 h-4" />
+
+                            {incident.priorityLevel === 'High' ? 'Cao' :
+                            incident.priorityLevel === 'Critical' ? 'Khẩn cấp' :
+                            incident.priorityLevel === 'Medium' ? 'Trung bình' :
+                            incident.priorityLevel === 'Low' ? 'Thấp' :
+                            incident.priorityLevel}
+                          </span>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 </div>
 
@@ -354,6 +440,14 @@ const IncidentDetail: React.FC<IncidentDetailProps> = ({ incident, loading, onCl
                       {getStatusIcon(localStatus)}
                       {getStatusText(localStatus)}
                     </span>
+                    {incident.verifiedByName && (
+                      <div className="flex items-center gap-2 mt-2">
+                        <span>Đã xác minh bởi:</span>
+                        <span className="text-sm text-gray-600">
+                          {incident.verifiedByName}
+                        </span>
+                      </div>
+                    )}
                   </div>
                 </div>
 
@@ -423,16 +517,81 @@ const IncidentDetail: React.FC<IncidentDetailProps> = ({ incident, loading, onCl
                           {loadingDistricts ? (
                             <div className="text-gray-500">Đang tải danh sách phường/xã...</div>
                           ) : (
-                            <select
-                              className="w-full mt-2 p-2 border rounded"
-                              value={selectedDistrict}
-                              onChange={e => setSelectedDistrict(e.target.value)}
-                            >
-                              <option value="">Chọn phường/xã</option>
-                              {districts.map((d: any) => (
-                                <option key={d.id} value={d.id}>{d.name}</option>
-                              ))}
-                            </select>
+                            <>
+                              <select
+                                className="w-full mt-2 p-2 border rounded"
+                                value={selectedDistrict}
+                                onChange={e => setSelectedDistrict(Number(e.target.value))}
+                              >
+                                <option value="">Chọn phường/xã</option>
+                                {districts.map((d: any) => (
+                                  <option key={d.id} value={d.id}>{d.name}</option>
+                                ))}
+                              </select>
+                              {selectedDistrict && (
+                                <div className="mt-3">
+                                  {!showTransferNote ? (
+                                    <button
+                                      onClick={() => setShowTransferNote(true)}
+                                      className="w-full bg-blue-600 hover:bg-blue-700 text-white py-2 px-4 rounded-lg font-medium transition-colors duration-200 flex items-center justify-center gap-2"
+                                    >
+                                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
+                                      </svg>
+                                      Chuyển phường/xã
+                                    </button>
+                                  ) : (
+                                    <div className="space-y-3">
+                                      <div>
+                                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                                          Lý do chuyển phường/xã *
+                                        </label>
+                                        <textarea
+                                          value={transferNote}
+                                          onChange={(e) => setTransferNote(e.target.value)}
+                                          placeholder="Nhập lý do chuyển báo cáo đến phường/xã khác..."
+                                          className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
+                                          rows={3}
+                                        />
+                                      </div>
+                                      <div className="flex gap-2">
+                                        <button
+                                          onClick={handleTransferIncident}
+                                          disabled={loadingTransfer || !transferNote.trim()}
+                                          className="flex-1 bg-green-600 hover:bg-green-700 disabled:bg-gray-400 text-white py-2 px-4 rounded-lg font-medium transition-colors duration-200 flex items-center justify-center gap-2"
+                                        >
+                                          {loadingTransfer ? (
+                                            <>
+                                              <svg className="animate-spin w-4 h-4" fill="none" viewBox="0 0 24 24">
+                                                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                                                <path className="opacity-75" fill="currentColor" d="m4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                              </svg>
+                                              Đang chuyển...
+                                            </>
+                                          ) : (
+                                            <>
+                                              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                                              </svg>
+                                              Xác nhận chuyển
+                                            </>
+                                          )}
+                                        </button>
+                                        <button
+                                          onClick={() => {
+                                            setShowTransferNote(false);
+                                            setTransferNote('');
+                                          }}
+                                          className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors duration-200"
+                                        >
+                                          Hủy
+                                        </button>
+                                      </div>
+                                    </div>
+                                  )}
+                                </div>
+                              )}
+                            </>
                           )}
                         </div>
                       </>
@@ -654,6 +813,14 @@ const IncidentDetail: React.FC<IncidentDetailProps> = ({ incident, loading, onCl
           </div>
         </div>
       )}
+
+      {/* Notification Bar */}
+      <NotificationBar
+        show={notification.show}
+        message={notification.message}
+        type={notification.type}
+        onClose={() => setNotification({ show: false, message: '', type: 'info' })}
+      />
     </>
   )
 }

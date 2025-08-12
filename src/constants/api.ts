@@ -10,20 +10,13 @@ export const API_ENDPOINTS = {
     LOGOUT: `${API_BASE_URL}/auth/logout`,
     GET_USER_INFO: `${API_BASE_URL}/auth/get-user-info`,
   },
-  DISTRICTS: {
-    BASE: `${API_BASE_URL}/districts`,
-    BY_ID: (id: string) => `${API_BASE_URL}/districts/${id}`,
-    ASSIGN_TO_OFFICER: `${API_BASE_URL}/districts/assign-to-officer`,
-    VIEW_OFFICER_DISTRICT_CHANGE: (accountId: string) => `${API_BASE_URL}/districts/officer/${accountId}/history`,
-    SEARCH: `${API_BASE_URL}/districts/search`,
-    UNASSIGN_FROM_OFFICER: (accountId: string) => `${API_BASE_URL}/districts/unassign-from-officer/${accountId}`,
-    
-  },
   WARD: {
-    BASE: `${API_BASE_URL}/wards`,
-    BY_ID: (id: string) => `${API_BASE_URL}/wards/${id}`,
-    ASSIGN_TO_OFFICER: `${API_BASE_URL}/wards/assign-to-officer`,
-    SEARCH: `${API_BASE_URL}/wards/search`,
+    BASE: `${API_BASE_URL}/communes`,
+    BY_ID: (id: string) => `${API_BASE_URL}/communes/${id}`,
+    ASSIGN_TO_OFFICER: `${API_BASE_URL}/communes/assign-to-officer`,
+    UNASSIGN_FROM_OFFICER: (accountId: string) => `${API_BASE_URL}/communes/unassign-from-officer/${accountId}`,
+    VIEW_OFFICER_DISTRICT_CHANGE: (accountId: string) => `${API_BASE_URL}/communes/officer/${accountId}/history`,
+    SEARCH: `${API_BASE_URL}/communes/search`,
   },
   PACKAGES: {
     BASE: `${API_BASE_URL}/packages`,
@@ -42,10 +35,34 @@ export const API_ENDPOINTS = {
     GET_OFFICER: `${API_BASE_URL}/accounts/officer`,
   },
   INCIDENT: {
-    BASE: `${API_BASE_URL}/reports/officer`,
+    BASE: `${API_BASE_URL}/reports/officer/filter`,
+    BASE_ADMIN: `${API_BASE_URL}/reports/admin/filter`,
     BY_ID: (id: string) => `${API_BASE_URL}/reports/${id}`,
     NOTE: (id: string) => `${API_BASE_URL}/reports/${id}/note`,
     STATUS: (id: string) => `${API_BASE_URL}/reports/${id}/status`,
+    TRANSFER: (id: string) => `${API_BASE_URL}/reports/${id}/transfer`,
+    INCIDENT_STATISTICS_ADMIN: `${API_BASE_URL}/reports/statistics`,
   },
-  // Add other groups (e.g., USERS, REPORTS) here as needed
+  BLOG: {
+    BASE: `${API_BASE_URL}/blogs`,
+    BY_ID: (id: string) => `${API_BASE_URL}/blogs/${id}`,
+    UPDATE: (id: string) => `${API_BASE_URL}/blogs/${id}`,
+    CREATE: `${API_BASE_URL}/blogs`,
+    CREATE_OFFICER: `${API_BASE_URL}/blogs`,
+    GET_OFFICER: `${API_BASE_URL}/blogs/officer`,
+    GET_OFFICER_BY_ID: (id: string) => `${API_BASE_URL}/blogs/officer/${id}`,
+    APPROVE: (id: string) => `${API_BASE_URL}/blogs/approve/${id}`,
+  },
+  COMMENT: {
+    BASE: `${API_BASE_URL}/comments`, 
+    CREATE: `${API_BASE_URL}/comments`,
+    BY_BLOG_ID: (id: string) => `${API_BASE_URL}/comments/${id}`,
+    BY_ID: (id: string) => `${API_BASE_URL}/comments/${id}`,
+  },
+  MAP: {
+    COMMUNE_DATA: `${API_BASE_URL}/map/communes`,
+    OFFICER_REPORTS:`${API_BASE_URL}/map/officer/reports`,
+  },
+
+  // Add other groups here as needed
 };

@@ -20,6 +20,10 @@ import BlogView from './pages/officer/BlogView';
 import BlogDetailPage from './pages/officer/BlogDetail';
 import CreateBlogPage from './pages/officer/CreateBlog';
 import LiveMap from './pages/officer/LiveMap';
+import AdminLiveMap from './pages/admin/AdminLiveMap';
+import IncidentReportAdmin from './pages/admin/IncidentReportAdmin';
+import AdminStatistics from './pages/admin/AdminStatistics';
+import OfficerStatistics from './pages/officer/Statistics';
 
 const App = () => {
   return (
@@ -60,6 +64,21 @@ const App = () => {
             <AchievementManagement />
           </ProtectedRoute>
         } />
+        <Route path="/admin/live-map" element={
+          <ProtectedRoute allowedRoles={[ROLES.ADMIN]}>
+            <AdminLiveMap />
+          </ProtectedRoute>
+        } />
+        <Route path="/admin/incident-report" element={
+          <ProtectedRoute allowedRoles={[ROLES.ADMIN]}>
+            <IncidentReportAdmin />
+          </ProtectedRoute>
+        } />
+        <Route path="/admin/statistics" element={
+          <ProtectedRoute allowedRoles={[ROLES.ADMIN]}>
+            <AdminStatistics />
+          </ProtectedRoute>
+        } />
         <Route path="/unauthorized" element={<Unauthorized />} />
         {/* officer */}
         <Route path="/officer/incident-report" element={
@@ -85,6 +104,11 @@ const App = () => {
         <Route path="/officer/live-map" element={
           <ProtectedRoute allowedRoles={[ROLES.OFFICER]}>
             <LiveMap />
+          </ProtectedRoute>
+        } />
+        <Route path="/officer/statistics" element={
+          <ProtectedRoute allowedRoles={[ROLES.OFFICER]}>
+            <OfficerStatistics />
           </ProtectedRoute>
         } />
       </Routes>

@@ -1,3 +1,4 @@
+import { MapPin } from 'lucide-react';
 import React, { useState, useEffect } from 'react';
 
 // This is a mock interface based on the image.
@@ -26,9 +27,10 @@ interface WardDetailProps {
   districts: District[];
   onClose: () => void;
   onSave: (data: any) => void;
+  loading?: boolean;
 }
 
-const WardDetail: React.FC<WardDetailProps> = ({ ward, districts, onClose, onSave }) => {
+const WardDetail: React.FC<WardDetailProps> = ({ ward, districts, onClose, onSave, loading }) => {
   const [isEditing, setIsEditing] = useState(false);
   const [editedWard, setEditedWard] = useState<Ward | null>(null);
 
@@ -38,8 +40,15 @@ const WardDetail: React.FC<WardDetailProps> = ({ ward, districts, onClose, onSav
     }
   }, [ward]);
 
-  if (!ward || !editedWard) {
-    return null;
+  if (loading || !ward || !editedWard) {
+    return (
+      <div className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-50">
+        <div className="bg-white rounded-lg shadow-xl w-full max-w-lg flex flex-col items-center justify-center p-10">
+        <MapPin className="w-16 h-16 text-gray-400 mx-auto mb-4" />
+          <p className="text-gray-700">Đang tải dữ liệu phường...</p>
+        </div>
+      </div>
+    );
   }
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {

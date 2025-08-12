@@ -1,18 +1,19 @@
 import React, { useState } from 'react';
 import { Search, Filter, X, Download } from 'lucide-react';
+import SearchableSelect from './SearchableSelect';
 
-interface FilterOption {
-  label: string;
-  value: string;
-}
+type FilterOption = { label: string; value: string };
+type DateTimeFilterOption = { label: string; type: 'datetime' };
+
+type FilterOptions = {
+  [key: string]: FilterOption[] | DateTimeFilterOption;
+};
 
 interface FilterBarProps {
   searchPlaceholder?: string;
   onSearch?: (value: string) => void;
   onFilterChange?: (filters: Record<string, string>) => void;
-  filterOptions?: {
-    [key: string]: FilterOption[];
-  };
+  filterOptions?: FilterOptions;
   showExport?: boolean;
   onExport?: () => void;
 }
@@ -111,25 +112,79 @@ const FilterBar: React.FC<FilterBarProps> = ({
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {Object.entries(filterOptions).map(([key, options]) => (
-              <div key={key} className="flex flex-col gap-2">
-                <label className="text-sm font-medium text-gray-700">
-                  {key.charAt(0).toUpperCase() + key.slice(1)}
-                </label>
-                <select
-                  value={activeFilters[key] || ''}
-                  onChange={(e) => handleFilterChange(key, e.target.value)}
-                  className="border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                >
-                  <option value="">Tất cả</option>
-                  {options.map((option) => (
-                    <option key={option.value} value={option.value}>
-                      {option.label}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            ))}
+            {Object.entries(filterOptions).map(([key, option]) => {
+              // Type guard for date filter
+              if (typeof option === 'object' && !Array.isArray(option) && option.type === 'datetime') {
+                return (
+                  <div key={key} className="flex flex-col gap-2">
+                    <label className="text-sm font-medium text-gray-700">{option.label}</label>
+                    <input
+                      type="date"
+                      value={activeFilters[key] || ''}
+                      onChange={(e) => handleFilterChange(key, e.target.value)}
+                      className="border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
+                      lang="vi-VN"
+                      placeholder="dd/mm/yyyy"
+                    />
+                  </div>
+                );
+              }
+              // Type guard for select filter (array)
+              if (Array.isArray(option)) {
+                // Use SearchableSelect for district filter
+                if (key === 'district') {
+                  return (
+                    <div key={key} className="flex flex-col gap-2">
+                      <SearchableSelect
+                        options={option}
+                        value={activeFilters[key] || ''}
+                        onChange={(value) => handleFilterChange(key, value)}
+                        label="Phường/Xã"
+                        placeholder="Chọn phường/xã"
+                        searchPlaceholder="Tìm kiếm phường/xã..."
+                      />
+                    </div>
+                  );
+                }
+                
+                // Vietnamese labels for filter categories
+                const getVietnameseLabel = (key: string) => {
+                  const labelMap: Record<string, string> = {
+                    'status': 'Trạng thái',
+                    'category': 'Danh mục',
+                    'district': 'Quận/Huyện', 
+                    'range': 'Khoảng thời gian',
+                    'sort': 'Sắp xếp',
+                    'includeRelated': 'Bao gồm liên quan',
+                    'priorityFilter': 'Mức độ ưu tiên'
+                  };
+                  return labelMap[key] || key.charAt(0).toUpperCase() + key.slice(1);
+                };
+                
+                // Use regular select for other filters
+                return (
+                  <div key={key} className="flex flex-col gap-2">
+                    <label className="text-sm font-medium text-gray-700">
+                      {getVietnameseLabel(key)}
+                    </label>
+                    <select
+                      value={activeFilters[key] || ''}
+                      onChange={(e) => handleFilterChange(key, e.target.value)}
+                      className="border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    >
+                      <option value="">Tất cả</option>
+                      {option.map((opt) => (
+                        <option key={opt.value} value={opt.value}>
+                          {opt.label}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                );
+              }
+              // fallback
+              return null;
+            })}
           </div>
         </div>
       )}

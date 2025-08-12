@@ -1,9 +1,11 @@
-import React, { useState, useMemo, useRef, useEffect } from 'react';
-import { User, MapPin, Plus, Users, Eye, Edit3, Trash2, Search, Filter, ChevronDown, UserRoundPlus } from 'lucide-react';
+import React, { useState, useMemo, useEffect } from 'react';
+import { User, MapPin, Plus, Users, Eye, Edit3, Trash2, Search, Filter, UserRoundPlus } from 'lucide-react';
 import SideBar from '../../components/common/SideBar';
 import Header from '../../components/common/Header';
 import FilterBar from '../../components/common/FilterBar';
-import { getAllDistricts, assignToOfficer, unassignFromOfficer, getOfficerDistrictHistory } from '../../services/api/district';
+import SearchableSelect from '../../components/common/SearchableSelect';
+import { assignToOfficer, unassignFromOfficer, getOfficerDistrictHistory } from '../../services/api/district';
+import { getAllWards } from '../../services/api/ward';
 import { getOfficers } from '../../services/api/account';
 import NotificationBar from '../../components/common/NotificationBar';
 import OfficerAssignHistory from '../../components/admin/OfficerAssignHistory';
@@ -31,86 +33,7 @@ interface DistrictFormData {
   districtId: string;
 }
 
-// SearchableDropdown component (for districts)
-const SearchableDropdown: React.FC<{
-  options: { id: number; name: string; code: string }[];
-  value: string;
-  onChange: (value: string) => void;
-  placeholder: string;
-}> = ({ options, value, onChange, placeholder }) => {
-  const [isOpen, setIsOpen] = useState(false);
-  const [searchTerm, setSearchTerm] = useState('');
-  const dropdownRef = useRef<HTMLDivElement>(null);
 
-  const filteredOptions = options.filter(option =>
-    option.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    option.code.toLowerCase().includes(searchTerm.toLowerCase())
-  );
-
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
-        setIsOpen(false);
-      }
-    };
-
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, []);
-
-  const selectedOption = options.find(o => o.id.toString() === value);
-
-  return (
-    <div className="relative" ref={dropdownRef}>
-      <button
-        type="button"
-        onClick={() => setIsOpen(!isOpen)}
-        className="w-full flex items-center justify-between px-4 py-2 border border-gray-300 rounded-lg bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500"
-      >
-        <span className="block truncate">
-          {selectedOption ? `${selectedOption.name} - ${selectedOption.code}` : placeholder}
-        </span>
-        <ChevronDown className={`w-5 h-5 text-gray-400 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
-      </button>
-
-      {isOpen && (
-        <div className="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg max-h-60 overflow-hidden">
-          <div className="p-2 border-b border-gray-200">
-            <input
-              type="text"
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              placeholder="Tìm kiếm quận..."
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-            />
-          </div>
-          <div className="overflow-y-auto max-h-48">
-            {filteredOptions.length > 0 ? (
-              filteredOptions.map((option) => (
-                <button
-                  key={option.id}
-                  onClick={() => {
-                    onChange(option.id.toString());
-                    setIsOpen(false);
-                    setSearchTerm('');
-                  }}
-                  className={`w-full px-4 py-2 text-left hover:bg-gray-100 ${
-                    value === option.id.toString() ? 'bg-blue-50' : ''
-                  }`}
-                >
-                  <div className="font-medium">{option.name}</div>
-                  <div className="text-sm text-gray-500">{option.code}</div>
-                </button>
-              ))
-            ) : (
-              <div className="px-4 py-2 text-gray-500">Không tìm thấy quận</div>
-            )}
-          </div>
-        </div>
-      )}
-    </div>
-  );
-};
 
 const AddOfficerDistrictPage = () => {
   const [districts, setDistricts] = useState<District[]>([]);
@@ -128,13 +51,14 @@ const AddOfficerDistrictPage = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [officerHistory, setOfficerHistory] = useState([]);
+  const [confirmRemove, setConfirmRemove] = useState<{ open: boolean; officer: Officer | null }>({ open: false, officer: null });
 
   // Fetch districts and officers from API
   useEffect(() => {
     const fetchData = async () => {
       try {
         setLoading(true);
-        const districtsData = await getAllDistricts();
+        const districtsData = await getAllWards();
         setDistricts(districtsData);
 
         const officerData = await getOfficers();
@@ -210,8 +134,6 @@ const AddOfficerDistrictPage = () => {
   // Handler to remove officer from district (local state only, update with API if needed)
   const handleRemoveFromDistrict = async (officer: Officer) => {
     if (!officer.currentDistrict) return;
-    if (!window.confirm('Bạn có chắc chắn muốn xóa sĩ quan này khỏi quận?')) return;
-
     try {
       await unassignFromOfficer(officer.id.toString());
       // Remove officer from district's officers list
@@ -337,7 +259,7 @@ const AddOfficerDistrictPage = () => {
                             </button>
                             {officer.currentDistrict && officer.currentDistrict !== 'N/A' && (
                               <button
-                                onClick={() => handleRemoveFromDistrict(officer)}
+                                onClick={() => setConfirmRemove({ open: true, officer })}
                                 className="inline-flex items-center px-3 py-1 bg-red-100 text-red-600 rounded-lg hover:bg-red-200 transition-colors"
                                 title="Xóa khỏi quận"
                               >
@@ -372,15 +294,15 @@ const AddOfficerDistrictPage = () => {
             <div className="space-y-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Chọn quận</label>
-                <SearchableDropdown
+                <SearchableSelect
                   options={districts.map(d => ({
-                    id: d.id,
-                    name: d.name,
-                    code: d.code
+                    label: `${d.name}`,
+                    value: d.id.toString()
                   }))}
                   value={districtFormData.districtId}
-                  onChange={(value) => setDistrictFormData({ districtId: value })}
+                  onChange={(value: string) => setDistrictFormData({ districtId: value })}
                   placeholder="Chọn quận"
+                  searchPlaceholder="Tìm kiếm quận..."
                 />
               </div>
               <div className="flex gap-2 justify-end">
@@ -397,6 +319,34 @@ const AddOfficerDistrictPage = () => {
                   Hủy
                 </button>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {confirmRemove.open && confirmRemove.officer && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-xl p-6 w-full max-w-md">
+            <h2 className="text-lg font-bold mb-4">Xác nhận xóa sĩ quan khỏi quận</h2>
+            <p className="mb-6">
+              Bạn có chắc chắn muốn xóa sĩ quan <span className="font-semibold">{confirmRemove.officer.name}</span> khỏi quận <span className="font-semibold">{confirmRemove.officer.currentDistrict}</span>?
+            </p>
+            <div className="flex justify-end gap-2">
+              <button
+                className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700"
+                onClick={async () => {
+                  await handleRemoveFromDistrict(confirmRemove.officer!);
+                  setConfirmRemove({ open: false, officer: null });
+                }}
+              >
+                Xóa
+              </button>
+              <button
+                className="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300"
+                onClick={() => setConfirmRemove({ open: false, officer: null })}
+              >
+                Hủy
+              </button>
             </div>
           </div>
         </div>

@@ -1,12 +1,14 @@
 import React, { useState, useEffect } from 'react';
+import { useLocation } from 'react-router-dom';
 import Sidebar from '../../components/common/SideBar';
 import Header from '../../components/common/Header';
 import FilterBar from '../../components/common/FilterBar';
-import { Eye, AlertTriangle, Plus, FileText, MapPin } from 'lucide-react';
+import { Eye, AlertTriangle, FileText, MapPin, Users, Shield } from 'lucide-react';
 import { PaginationComponent } from '../../components/common/Pagination';
 import NotificationBar from '../../components/common/NotificationBar';
 import IncidentDetail from '../../components/officer/IncidentDetail';
-import { getIncident, getIncidentById } from '../../services/api/incident';
+import { getIncident, getIncidentAdmin, getIncidentById } from '../../services/api/incident';
+import { getAllWards } from '../../services/api/ward';
 
 // Define a type for the incident object for better type safety
 interface Incident {
@@ -22,22 +24,19 @@ interface Incident {
   reporter: string;
   status: 'pending' | 'verified' | 'solved' | 'cancelled' | 'closed' | 'malicious';
   category: string;
+  district: string;
+  assignedOfficer?: string;
   lat?: string;
   lng?: string;
 }
 
-
-
-// Remove the mock getIncidents function
-
-const IncidentReport: React.FC = () => {
-  // Mock officer district - in real app this would come from user context/auth
-  const officerDistrict = "Quận 1";
-  
+const IncidentReportAdmin: React.FC = () => {
+  const location = useLocation();
   const [searchTerm, setSearchTerm] = useState('');
   const [filters, setFilters] = useState({
     status: '',
     category: '',
+    district: '',
     range: 'year' as 'day' | 'week' | 'year' | 'month',
     sort: 'newest' as 'newest' | 'oldest',
     includeRelated: false,
@@ -51,27 +50,20 @@ const IncidentReport: React.FC = () => {
   const [incidentDetail, setIncidentDetail] = useState<any>(null);
   const [loadingDetail, setLoadingDetail] = useState(false);
   const [incidents, setIncidents] = useState<Incident[]>([]);
-  const [showCreateModal, setShowCreateModal] = useState(false);
   const [loading, setLoading] = useState(true);
   const [notification, setNotification] = useState({
     show: false,
     message: "",
     type: "success" as "success" | "error" | "info",
   });
+  const [wards, setWards] = useState<Array<{label: string, value: string}>>([]);
 
   const fetchIncidents = async () => {
     try {
       setLoading(true);
-      const res = await getIncident(
-        filters.range,
-        filters.sort,
-        filters.includeRelated,
-        filters.priorityFilter,
-        filters.fromDate,
-        filters.toDate
-      );
+      const res = await getIncidentAdmin(filters.range, filters.sort, filters.includeRelated, filters.priorityFilter, filters.fromDate, filters.toDate);
       const mappedIncidents = (res || []).map((item: any) => {
-        const incident = item.mainReport || item;
+        const incident = item.mainReport || item; // Handle nested structure
         
         // Custom date formatting function: HH:mm:ss d/m/yyyy (24-hour format)
         const formatCustomDate = (dateString: string) => {
@@ -103,12 +95,13 @@ const IncidentReport: React.FC = () => {
           reporter: incident.isAnonymous ? 'Ẩn danh' : (incident.userName || ''),
           status: incident.status,
           category: incident.type || 'Khác',
+          district: incident.communeName || 'Chưa xác định',
+          assignedOfficer: incident.verifiedByName || 'Chưa phân công',
           lat: incident.lat,
           lng: incident.lng,
         };
       });
       setIncidents(mappedIncidents);
-      console.log(mappedIncidents)
     } catch (error) {
       setIncidents([]);
       setNotification({
@@ -121,19 +114,54 @@ const IncidentReport: React.FC = () => {
     }
   };
 
+  const fetchWards = async () => {
+    try {
+      const wardsData = await getAllWards();
+      const formattedWards = wardsData.map((ward: any) => ({
+        label: ward.name,
+        value: ward.name
+      }));
+      setWards(formattedWards);
+    } catch (error) {
+      console.error('Error fetching wards:', error);
+      // Keep empty array as fallback
+      setWards([]);
+    }
+  };
+
   useEffect(() => {
     fetchIncidents();
   }, [filters.range, filters.sort, filters.includeRelated, filters.priorityFilter, filters.fromDate, filters.toDate]);
+
+  useEffect(() => {
+    fetchWards();
+  }, []);
+
+  // Handle navigation state for automatic district filtering
+  useEffect(() => {
+    const state = location.state as { filterByDistrict?: string } | null;
+    if (state?.filterByDistrict) {
+      console.log(`🎯 Auto-filtering by district: ${state.filterByDistrict}`);
+      setFilters(prev => ({
+        ...prev,
+        district: state.filterByDistrict || ''
+      }));
+      // Clear the state to prevent re-filtering on subsequent renders
+      window.history.replaceState({}, document.title);
+    }
+  }, [location.state]);
 
   // Filter incidents based on search term and filters
   const filteredIncidents = incidents.filter(incident => {
     const matchesSearch = incident.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          incident.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          incident.location.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         incident.reporter.toLowerCase().includes(searchTerm.toLowerCase());
+                         incident.reporter.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         incident.assignedOfficer?.toLowerCase().includes(searchTerm.toLowerCase());
 
     const matchesStatus = !filters.status || incident.status === filters.status;
     const matchesCategory = !filters.category || incident.category === filters.category;
+    const matchesDistrict = !filters.district || incident.district === filters.district;
 
     // Date filtering using ISO dates for accurate comparison
     let matchesDate = true;
@@ -152,7 +180,7 @@ const IncidentReport: React.FC = () => {
       matchesDate = matchesDate && incidentDate <= to;
     }
 
-    return matchesSearch && matchesStatus && matchesCategory && matchesDate;
+    return matchesSearch && matchesStatus && matchesCategory && matchesDistrict && matchesDate;
   });
 
   // Calculate paginated incidents
@@ -177,6 +205,7 @@ const IncidentReport: React.FC = () => {
       { label: 'An ninh', value: 'security' },
       { label: 'Khác', value: 'other' }
     ],
+    district: wards,
     range: [
       { label: 'Theo ngày', value: 'day' },
       { label: 'Theo tuần', value: 'week' },
@@ -200,8 +229,6 @@ const IncidentReport: React.FC = () => {
     fromDate: { label: 'Từ ngày', type: 'datetime' as const },
     toDate: { label: 'Đến ngày', type: 'datetime' as const }
   };
-
-  
 
   const handleViewIncident = async (incident: Incident) => {
     setLoadingDetail(true);
@@ -255,6 +282,11 @@ const IncidentReport: React.FC = () => {
       setIncidentDetail(detail);
     } catch (e) {
       setIncidentDetail(null);
+      setNotification({
+        show: true,
+        message: "Có lỗi xảy ra khi tải chi tiết báo cáo",
+        type: "error"
+      });
     }
     setLoadingDetail(false);
   };
@@ -283,6 +315,12 @@ const IncidentReport: React.FC = () => {
     }
   };
 
+  // Calculate statistics for admin overview (based on filtered results)
+  const totalIncidents = filteredIncidents.length;
+  const pendingIncidents = filteredIncidents.filter(i => i.status === 'pending').length;
+  const verifiedIncidents = filteredIncidents.filter(i => i.status === 'verified').length;
+  const solvedIncidents = filteredIncidents.filter(i => i.status === 'solved').length;
+
   return (
     <>
       <NotificationBar
@@ -300,28 +338,70 @@ const IncidentReport: React.FC = () => {
               <div className="flex items-end justify-between mb-6">
                 <div>
                   <div className="flex items-center gap-3 mb-2">
+                    <Shield className="w-8 h-8 text-blue-600" />
                     <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">
-                      Quản lý báo cáo sự cố
+                      Quản lý báo cáo sự cố - Admin
                     </h1>
                   </div>
                   <p className="text-gray-600">
-                    Danh sách các báo cáo sự cố và tình huống khẩn cấp trong khu vực
+                    Tổng quan và quản lý tất cả báo cáo sự cố trong toàn thành phố
                   </p>
+                </div>
+              </div>
+              
+              {/* Admin Statistics Overview */}
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+                <div className="bg-white rounded-lg p-4 shadow-sm border border-gray-200">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm font-medium text-gray-600">Tổng báo cáo</p>
+                      <p className="text-2xl font-bold text-gray-900">{totalIncidents}</p>
+                    </div>
+                    <FileText className="w-8 h-8 text-blue-500" />
+                  </div>
+                </div>
+                <div className="bg-white rounded-lg p-4 shadow-sm border border-gray-200">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm font-medium text-gray-600">Chờ xác nhận</p>
+                      <p className="text-2xl font-bold text-yellow-600">{pendingIncidents}</p>
+                    </div>
+                    <AlertTriangle className="w-8 h-8 text-yellow-500" />
+                  </div>
+                </div>
+                <div className="bg-white rounded-lg p-4 shadow-sm border border-gray-200">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm font-medium text-gray-600">Đã xác minh</p>
+                      <p className="text-2xl font-bold text-blue-600">{verifiedIncidents}</p>
+                    </div>
+                    <Eye className="w-8 h-8 text-blue-500" />
+                  </div>
+                </div>
+                <div className="bg-white rounded-lg p-4 shadow-sm border border-gray-200">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm font-medium text-gray-600">Đã giải quyết</p>
+                      <p className="text-2xl font-bold text-green-600">{solvedIncidents}</p>
+                    </div>
+                    <Shield className="w-8 h-8 text-green-500" />
+                  </div>
                 </div>
               </div>
               
               <div className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-lg border border-white/20 p-6 mb-8">
                 <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
                   <div className="flex items-center gap-2 text-blue-800">
-                    <span className="text-sm font-medium">Khu vực quản lý:</span>
-                  
+                    <Users className="w-4 h-4" />
+                    <span className="text-sm font-medium">Phạm vi quản lý:</span>
+                    <span className="text-sm">Toàn thành phố Hồ Chí Minh</span>
                   </div>
                   <p className="text-xs text-blue-600 mt-1">
-                    Tất cả báo cáo hiển thị đều thuộc phạm vi quản lý của bạn
+                    Quản lý và giám sát tất cả báo cáo sự cố từ các quận/huyện
                   </p>
                 </div>
                 <FilterBar
-                  searchPlaceholder="Tìm kiếm báo cáo sự cố (Mã số, tiêu đề, địa điểm, người báo cáo)"
+                  searchPlaceholder="Tìm kiếm báo cáo sự cố (ID, tiêu đề, địa điểm, người báo cáo, cán bộ)"
                   onSearch={setSearchTerm}
                   onFilterChange={(filters) => {
                     const updatedFilters = {
@@ -360,6 +440,7 @@ const IncidentReport: React.FC = () => {
                           <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Tiêu đề</th>
                           <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Thời gian báo cáo</th>
                           <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Địa điểm</th>
+                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Quận/Huyện</th>
                           <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Người báo cáo</th>
                           <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Danh mục</th>
                           <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Trạng thái</th>
@@ -370,14 +451,25 @@ const IncidentReport: React.FC = () => {
                         {paginatedIncidents.map((incident) => (
                           <tr key={incident.id} className="hover:bg-gray-50 transition-colors">
                             <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 font-medium">
-                              {incident.title}
+                              <div className="max-w-xs truncate" title={incident.title}>
+                                {incident.title}
+                              </div>
                             </td>
                             <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                               {incident.reportedDate}
                             </td>
-                           
                             <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                              {incident.location}
+                              <div className="flex items-center gap-1">
+                                <MapPin className="w-4 h-4 text-gray-400" />
+                                <div className="max-w-xs truncate" title={incident.location}>
+                                  {incident.location}
+                                </div>
+                              </div>
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                              <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
+                                {incident.district}
+                              </span>
                             </td>
                             <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                               {incident.reporter}
@@ -395,6 +487,7 @@ const IncidentReport: React.FC = () => {
                                 <button
                                   className="text-gray-400 hover:text-gray-600 transition-colors"
                                   onClick={() => handleViewIncident(incident)}
+                                  title="Xem chi tiết báo cáo"
                                 >
                                   <Eye className="w-5 h-5" />
                                 </button>
@@ -409,7 +502,7 @@ const IncidentReport: React.FC = () => {
                   {filteredIncidents.length === 0 && (
                     <div className="text-center py-12">
                       <FileText className="w-16 h-16 text-gray-400 mx-auto mb-4" />
-                      <p className="text-gray-500">Không tìm thấy báo cáo sự cố nào trong khu vực {officerDistrict}</p>
+                      <p className="text-gray-500">Không tìm thấy báo cáo sự cố nào phù hợp với tiêu chí tìm kiếm</p>
                     </div>
                   )}
                   
@@ -445,4 +538,4 @@ const IncidentReport: React.FC = () => {
   );
 };
 
-export default IncidentReport;
+export default IncidentReportAdmin;
