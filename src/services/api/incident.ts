@@ -7,16 +7,40 @@ const getAuthHeaders = () => {
     Authorization: `Bearer ${token}`,
   };
 };
-export const getIncident = async () => {
+export const getIncident = async (range?: 'day' | 'week' | 'year' | 'month', 
+    sort?: 'newest' | 'oldest',
+    includeRelated?: boolean,
+    priorityFilter?: string,
+    fromDate?: string,
+    toDate?: string) => {
+        const params: any = {};
+        if (range) params.range = range;
+        if (sort) params.sort = sort;
+        if (includeRelated !== undefined) params.includeRelated = includeRelated;
+        if (priorityFilter) params.priorityFilter = priorityFilter;
+        if (fromDate) params.fromDate = fromDate;
+        if (toDate) params.toDate = toDate;
     const response = await axios.get(API_ENDPOINTS.INCIDENT.BASE, {
         headers: getAuthHeaders(),
+        params: params,
     });
     return response.data.data;
 };
-export const getIncidentAdmin = async (range?: 'day' | 'week' | 'year' | 'month', sort?: 'newest' | 'oldest') => {
+export const getIncidentAdmin = async (
+    range?: 'day' | 'week' | 'year' | 'month', 
+    sort?: 'newest' | 'oldest',
+    includeRelated?: boolean,
+    priorityFilter?: string,
+    fromDate?: string,
+    toDate?: string
+) => {
     const params: any = {};
     if (range) params.range = range;
     if (sort) params.sort = sort;
+    if (includeRelated !== undefined) params.includeRelated = includeRelated;
+    if (priorityFilter) params.priorityFilter = priorityFilter;
+    if (fromDate) params.fromDate = fromDate;
+    if (toDate) params.toDate = toDate;
     
     const response = await axios.get(API_ENDPOINTS.INCIDENT.BASE_ADMIN, {
         headers: getAuthHeaders(),

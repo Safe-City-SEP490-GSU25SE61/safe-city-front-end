@@ -60,8 +60,42 @@ import { createBlogOfficer } from '../../services/api/blog';
 import type { BlogCreateOfficerData } from '../../services/api/blog';
 import { getAllWards } from '../../services/api/ward';
 
+// Function to sanitize Quill Delta content by removing unwanted styling attributes
+const sanitizeDeltaContent = (deltaContent: any) => {
+  if (!deltaContent || !deltaContent.ops) {
+    return deltaContent;
+  }
 
+  // Define allowed attributes that we want to keep
+  const allowedAttributes = [
+    'bold', 'italic', 'underline', 'strike',
+    'header', 'list', 'indent', 'align',
+    'blockquote', 'code-block'
+  ];
 
+  // Process each operation in the Delta
+  const sanitizedOps = deltaContent.ops.map((op: any) => {
+    if (!op.attributes) {
+      return op; // No attributes to sanitize
+    }
+
+    // Filter attributes to keep only allowed ones
+    const sanitizedAttributes: any = {};
+    Object.keys(op.attributes).forEach(key => {
+      if (allowedAttributes.includes(key)) {
+        sanitizedAttributes[key] = op.attributes[key];
+      }
+    });
+
+    // Return operation with sanitized attributes
+    return {
+      insert: op.insert,
+      ...(Object.keys(sanitizedAttributes).length > 0 && { attributes: sanitizedAttributes })
+    };
+  });
+
+  return sanitizedOps;
+};
 
 const CreateBlogPage: React.FC = () => {
   const navigate = useNavigate();
@@ -245,18 +279,17 @@ const CreateBlogPage: React.FC = () => {
     setIsLoading(true);
     
     try {
-      // Ensure all content has 15px font size before saving
+      // Get content from Quill
+      let deltaContent;
       if (quillInstance.current) {
-        const length = quillInstance.current.getLength();
-        quillInstance.current.formatText(0, length, {
-          'size': '15px'
-        });
-        // Get updated content after formatting
-        const updatedContent = quillInstance.current.getContents();
-        var content = JSON.stringify(updatedContent);
+        deltaContent = quillInstance.current.getContents();
       } else {
-        var content = JSON.stringify(quillContent);
+        deltaContent = quillContent;
       }
+
+      // Sanitize content by removing unwanted styling attributes
+      const sanitizedContent = sanitizeDeltaContent(deltaContent);
+      var content = JSON.stringify(sanitizedContent);
       
       const blogData: BlogCreateOfficerData = {
         title: title.trim(),

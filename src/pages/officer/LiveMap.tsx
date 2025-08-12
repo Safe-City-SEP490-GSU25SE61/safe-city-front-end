@@ -16,6 +16,7 @@ import {
 } from 'lucide-react';
 import { createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
+import { getOfficerReports } from '../../services/api/map';
 
 // Define incident interface based on actual API response
 interface Incident {
@@ -286,7 +287,7 @@ const LiveMap: React.FC = () => {
   const fetchIncidents = async () => {
     try {
       setLoading(true);
-      const data = await getIncident();
+      const data = await getOfficerReports();
       
       if (data && Array.isArray(data)) {
         // Process incidents data

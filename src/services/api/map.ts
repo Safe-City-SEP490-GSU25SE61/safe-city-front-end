@@ -15,3 +15,9 @@ export const getCommuneData = async () => {
   });
   return response.data;
 };
+export const getOfficerReports = async () => {
+  const response = await axios.get(API_ENDPOINTS.MAP.OFFICER_REPORTS, {
+    headers: getAuthHeaders(),
+  });
+  return response.data;
+};

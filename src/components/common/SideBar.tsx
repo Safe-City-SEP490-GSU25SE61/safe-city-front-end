@@ -1,29 +1,20 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { 
-  Shield, 
-  BarChart3, 
   FileText, 
-  Calendar, 
-  Bell, 
-  Settings, 
-  DollarSign, 
   User, 
-  ChevronDown,
-  ChevronUp,
   Pencil,
   ListCheck,
-  ClipboardPen,
   Menu,
   Box,
   MapPinned,
   Medal,
   UserRoundPlus,
-  ShieldAlert
+  ShieldAlert,
+  ChartColumnIncreasing
 } from 'lucide-react';
 import logo from '../../../public/assets/logo.png';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { jwtDecode } from "jwt-decode";
-import { ROLES } from "../../utils/roleHelpers"; // adjust path if needed 
 
 const Sidebar = () => {
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -52,10 +43,12 @@ const Sidebar = () => {
     { icon: UserRoundPlus, text: 'Phân công sĩ quan', to: '/add-police-to-ward', roles: ['admin'] },
     { icon: MapPinned, text: 'Bản đồ sự cố', to: '/admin/live-map', roles: ['admin'] },
     { icon: ShieldAlert, text: 'Báo cáo sự cố', to: '/admin/incident-report', roles: ['admin'] },
+    { icon: ChartColumnIncreasing, text: 'Thống kê', to: '/admin/statistics', roles: ['admin'] },
     // Officer only
     { icon: ShieldAlert, text: 'Quản lý báo cáo', to: '/officer/incident-report', roles: ['officer'] },
     { icon: FileText, text: 'Quản lý bài viết', to: '/officer/blog-view', roles: ['officer'] },
     { icon: MapPinned, text: 'Bản đồ tại khu vực', to: '/officer/live-map', roles: ['officer'] },
+    { icon: ChartColumnIncreasing, text: 'Thống kê', to: '/officer/statistics', roles: ['officer'] },
     // Admin and Officer shared
    
 

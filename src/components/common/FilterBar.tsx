@@ -113,16 +113,18 @@ const FilterBar: React.FC<FilterBarProps> = ({
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {Object.entries(filterOptions).map(([key, option]) => {
-              // Type guard for datetime filter
+              // Type guard for date filter
               if (typeof option === 'object' && !Array.isArray(option) && option.type === 'datetime') {
                 return (
-                  <div key={key} className="flex flex-col mr-2">
-                    <label className="text-xs text-gray-600 mb-1">{option.label}</label>
+                  <div key={key} className="flex flex-col gap-2">
+                    <label className="text-sm font-medium text-gray-700">{option.label}</label>
                     <input
-                      type="datetime-local"
+                      type="date"
                       value={activeFilters[key] || ''}
                       onChange={(e) => handleFilterChange(key, e.target.value)}
-                      className="border rounded px-2 py-1 text-sm"
+                      className="border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
+                      lang="vi-VN"
+                      placeholder="dd/mm/yyyy"
                     />
                   </div>
                 );
@@ -145,11 +147,25 @@ const FilterBar: React.FC<FilterBarProps> = ({
                   );
                 }
                 
+                // Vietnamese labels for filter categories
+                const getVietnameseLabel = (key: string) => {
+                  const labelMap: Record<string, string> = {
+                    'status': 'Trạng thái',
+                    'category': 'Danh mục',
+                    'district': 'Quận/Huyện', 
+                    'range': 'Khoảng thời gian',
+                    'sort': 'Sắp xếp',
+                    'includeRelated': 'Bao gồm liên quan',
+                    'priorityFilter': 'Mức độ ưu tiên'
+                  };
+                  return labelMap[key] || key.charAt(0).toUpperCase() + key.slice(1);
+                };
+                
                 // Use regular select for other filters
                 return (
                   <div key={key} className="flex flex-col gap-2">
                     <label className="text-sm font-medium text-gray-700">
-                      {key.charAt(0).toUpperCase() + key.slice(1)}
+                      {getVietnameseLabel(key)}
                     </label>
                     <select
                       value={activeFilters[key] || ''}

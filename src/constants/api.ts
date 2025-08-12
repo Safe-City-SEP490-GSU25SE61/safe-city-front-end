@@ -35,7 +35,7 @@ export const API_ENDPOINTS = {
     GET_OFFICER: `${API_BASE_URL}/accounts/officer`,
   },
   INCIDENT: {
-    BASE: `${API_BASE_URL}/reports/officer`,
+    BASE: `${API_BASE_URL}/reports/officer/filter`,
     BASE_ADMIN: `${API_BASE_URL}/reports/admin/filter`,
     BY_ID: (id: string) => `${API_BASE_URL}/reports/${id}`,
     NOTE: (id: string) => `${API_BASE_URL}/reports/${id}/note`,
@@ -61,6 +61,7 @@ export const API_ENDPOINTS = {
   },
   MAP: {
     COMMUNE_DATA: `${API_BASE_URL}/map/communes`,
+    OFFICER_REPORTS:`${API_BASE_URL}/map/officer/reports`,
   },
 
   // Add other groups here as needed

@@ -17,6 +17,9 @@ interface Incident {
   reportedDate: string;
   createdAt: string;
   occurredAt: string;
+  // Store original ISO dates for filtering
+  createdAtISO: string;
+  occurredAtISO: string;
   location: string;
   reporter: string;
   status: 'pending' | 'verified' | 'solved' | 'cancelled' | 'closed' | 'malicious';
@@ -34,10 +37,12 @@ const IncidentReportAdmin: React.FC = () => {
     status: '',
     category: '',
     district: '',
-    dateFrom: '',
-    dateTo: '',
     range: 'year' as 'day' | 'week' | 'year' | 'month',
-    sort: 'newest' as 'newest' | 'oldest'
+    sort: 'newest' as 'newest' | 'oldest',
+    includeRelated: false,
+    priorityFilter: '',
+    fromDate: '',
+    toDate: ''
   });
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 10;
@@ -56,17 +61,38 @@ const IncidentReportAdmin: React.FC = () => {
   const fetchIncidents = async () => {
     try {
       setLoading(true);
-      const res = await getIncidentAdmin(filters.range, filters.sort);
+      const res = await getIncidentAdmin(filters.range, filters.sort, filters.includeRelated, filters.priorityFilter, filters.fromDate, filters.toDate);
       const mappedIncidents = (res || []).map((item: any) => {
         const incident = item.mainReport || item; // Handle nested structure
+        
+        // Custom date formatting function: HH:mm:ss d/m/yyyy (24-hour format)
+        const formatCustomDate = (dateString: string) => {
+          if (!dateString) return '';
+          const date = new Date(dateString);
+          
+          // Force 24-hour format
+          const hours = date.getHours().toString().padStart(2, '0');
+          const minutes = date.getMinutes().toString().padStart(2, '0');
+          const seconds = date.getSeconds().toString().padStart(2, '0');
+          const time = `${hours}:${minutes}:${seconds}`;
+          
+          const day = date.getDate();
+          const month = date.getMonth() + 1;
+          const year = date.getFullYear();
+          return `${time} ${day}/${month}/${year}`;
+        };
+        
         return {
           id: incident.id,
           title: incident.description || incident.type || 'Không có tiêu đề',
-          reportedDate: incident.createdAt ? new Date(incident.createdAt).toLocaleString('vi-VN') : '',
-          createdAt: incident.createdAt ? new Date(incident.createdAt).toLocaleString('vi-VN') : '',
-          occurredAt: incident.occurredAt ? new Date(incident.occurredAt).toLocaleString('vi-VN') : '',
+          reportedDate: formatCustomDate(incident.createdAt),
+          createdAt: formatCustomDate(incident.createdAt),
+          occurredAt: formatCustomDate(incident.occurredAt),
+          // Store original ISO dates for filtering
+          createdAtISO: incident.createdAt || '',
+          occurredAtISO: incident.occurredAt || '',
           location: incident.address || '',
-          reporter: incident.isAnonymous ? 'Anonymous' : (incident.userName || ''),
+          reporter: incident.isAnonymous ? 'Ẩn danh' : (incident.userName || ''),
           status: incident.status,
           category: incident.type || 'Khác',
           district: incident.communeName || 'Chưa xác định',
@@ -105,7 +131,7 @@ const IncidentReportAdmin: React.FC = () => {
 
   useEffect(() => {
     fetchIncidents();
-  }, [filters.range, filters.sort]);
+  }, [filters.range, filters.sort, filters.includeRelated, filters.priorityFilter, filters.fromDate, filters.toDate]);
 
   useEffect(() => {
     fetchWards();
@@ -137,16 +163,20 @@ const IncidentReportAdmin: React.FC = () => {
     const matchesCategory = !filters.category || incident.category === filters.category;
     const matchesDistrict = !filters.district || incident.district === filters.district;
 
-    // Date filtering
+    // Date filtering using ISO dates for accurate comparison
     let matchesDate = true;
-    if (filters.dateFrom) {
-      const from = new Date(filters.dateFrom.split('/').reverse().join('-'));
-      const incidentDate = new Date(incident.reportedDate.split('/').reverse().join('-'));
+    if (filters.fromDate) {
+      const from = new Date(filters.fromDate);
+      // Use original ISO date for accurate parsing
+      const incidentDate = new Date(incident.createdAtISO);
       matchesDate = matchesDate && incidentDate >= from;
     }
-    if (filters.dateTo) {
-      const to = new Date(filters.dateTo.split('/').reverse().join('-'));
-      const incidentDate = new Date(incident.reportedDate.split('/').reverse().join('-'));
+    if (filters.toDate) {
+      const to = new Date(filters.toDate);
+      // Set to end of day for inclusive comparison
+      to.setHours(23, 59, 59, 999);
+      // Use original ISO date for accurate parsing
+      const incidentDate = new Date(incident.createdAtISO);
       matchesDate = matchesDate && incidentDate <= to;
     }
 
@@ -185,7 +215,19 @@ const IncidentReportAdmin: React.FC = () => {
     sort: [
       { label: 'Mới nhất', value: 'newest' },
       { label: 'Cũ nhất', value: 'oldest' }
-    ]
+    ],
+    includeRelated: [
+      { label: 'Bao gồm liên quan', value: 'true' },
+      { label: 'Không bao gồm', value: 'false' }
+    ],
+    priorityFilter: [
+      { label: 'Thấp', value: 'Low' },
+      { label: 'Trung bình', value: 'Medium' },
+      { label: 'Cao', value: 'High' },
+      { label: 'Nghiêm trọng', value: 'Critical' }
+    ],
+    fromDate: { label: 'Từ ngày', type: 'datetime' as const },
+    toDate: { label: 'Đến ngày', type: 'datetime' as const }
   };
 
   const handleViewIncident = async (incident: Incident) => {
@@ -361,7 +403,13 @@ const IncidentReportAdmin: React.FC = () => {
                 <FilterBar
                   searchPlaceholder="Tìm kiếm báo cáo sự cố (ID, tiêu đề, địa điểm, người báo cáo, cán bộ)"
                   onSearch={setSearchTerm}
-                  onFilterChange={(filters) => setFilters(filters as any)}
+                  onFilterChange={(filters) => {
+                    const updatedFilters = {
+                      ...filters,
+                      includeRelated: filters.includeRelated === 'true' ? true : filters.includeRelated === 'false' ? false : false
+                    };
+                    setFilters(updatedFilters as any);
+                  }}
                   filterOptions={filterOptions}
                   showExport={true}
                   onExport={() => {
@@ -439,7 +487,7 @@ const IncidentReportAdmin: React.FC = () => {
                                 <button
                                   className="text-gray-400 hover:text-gray-600 transition-colors"
                                   onClick={() => handleViewIncident(incident)}
-                                  title="Xem chi tiết"
+                                  title="Xem chi tiết báo cáo"
                                 >
                                   <Eye className="w-5 h-5" />
                                 </button>
@@ -454,7 +502,7 @@ const IncidentReportAdmin: React.FC = () => {
                   {filteredIncidents.length === 0 && (
                     <div className="text-center py-12">
                       <FileText className="w-16 h-16 text-gray-400 mx-auto mb-4" />
-                      <p className="text-gray-500">Không tìm thấy báo cáo sự cố nào phù hợp với bộ lọc</p>
+                      <p className="text-gray-500">Không tìm thấy báo cáo sự cố nào phù hợp với tiêu chí tìm kiếm</p>
                     </div>
                   )}
                   

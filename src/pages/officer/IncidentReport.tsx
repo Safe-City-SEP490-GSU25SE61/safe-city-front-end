@@ -4,7 +4,6 @@ import Header from '../../components/common/Header';
 import FilterBar from '../../components/common/FilterBar';
 import { Eye, AlertTriangle, Plus, FileText, MapPin } from 'lucide-react';
 import { PaginationComponent } from '../../components/common/Pagination';
-
 import NotificationBar from '../../components/common/NotificationBar';
 import IncidentDetail from '../../components/officer/IncidentDetail';
 import { getIncident, getIncidentById } from '../../services/api/incident';
@@ -13,9 +12,12 @@ import { getIncident, getIncidentById } from '../../services/api/incident';
 interface Incident {
   id: string;
   title: string;
-  reportedDate: string; // keep for compatibility
-  createdAt: string;    // add this
-  occurredAt: string;   // add this
+  reportedDate: string;
+  createdAt: string;
+  occurredAt: string;
+  // Store original ISO dates for filtering
+  createdAtISO: string;
+  occurredAtISO: string;
   location: string;
   reporter: string;
   status: 'pending' | 'verified' | 'solved' | 'cancelled' | 'closed' | 'malicious';
@@ -36,8 +38,12 @@ const IncidentReport: React.FC = () => {
   const [filters, setFilters] = useState({
     status: '',
     category: '',
-    dateFrom: '',
-    dateTo: ''
+    range: 'year' as 'day' | 'week' | 'year' | 'month',
+    sort: 'newest' as 'newest' | 'oldest',
+    includeRelated: false,
+    priorityFilter: '',
+    fromDate: '',
+    toDate: ''
   });
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 10;
@@ -56,23 +62,60 @@ const IncidentReport: React.FC = () => {
   const fetchIncidents = async () => {
     try {
       setLoading(true);
-      const res = await getIncident();
-      const mappedIncidents = (res || []).map((incident: any) => ({
-        id: incident.id,
-        title: incident.description || incident.type || 'Không có tiêu đề',
-        reportedDate: incident.createdAt ? new Date(incident.createdAt).toLocaleString('vi-VN') : '',
-        createdAt: incident.createdAt ? new Date(incident.createdAt).toLocaleString('vi-VN') : '',
-        occurredAt: incident.occurredAt ? new Date(incident.occurredAt).toLocaleString('vi-VN') : '',
-        location: incident.address || '',
-        reporter: incident.isAnonymous ? 'Anonymous' : (incident.userName || ''),
-        status: incident.status,
-        category: incident.type || 'Khác',
-        lat: incident.lat,
-        lng: incident.lng,
-      }));
+      const res = await getIncident(
+        filters.range,
+        filters.sort,
+        filters.includeRelated,
+        filters.priorityFilter,
+        filters.fromDate,
+        filters.toDate
+      );
+      const mappedIncidents = (res || []).map((item: any) => {
+        const incident = item.mainReport || item;
+        
+        // Custom date formatting function: HH:mm:ss d/m/yyyy (24-hour format)
+        const formatCustomDate = (dateString: string) => {
+          if (!dateString) return '';
+          const date = new Date(dateString);
+          
+          // Force 24-hour format
+          const hours = date.getHours().toString().padStart(2, '0');
+          const minutes = date.getMinutes().toString().padStart(2, '0');
+          const seconds = date.getSeconds().toString().padStart(2, '0');
+          const time = `${hours}:${minutes}:${seconds}`;
+          
+          const day = date.getDate();
+          const month = date.getMonth() + 1;
+          const year = date.getFullYear();
+          return `${time} ${day}/${month}/${year}`;
+        };
+        
+        return {
+          id: incident.id,
+          title: incident.description || incident.type || 'Không có tiêu đề',
+          reportedDate: formatCustomDate(incident.createdAt),
+          createdAt: formatCustomDate(incident.createdAt),
+          occurredAt: formatCustomDate(incident.occurredAt),
+          // Store original ISO dates for filtering
+          createdAtISO: incident.createdAt || '',
+          occurredAtISO: incident.occurredAt || '',
+          location: incident.address || '',
+          reporter: incident.isAnonymous ? 'Ẩn danh' : (incident.userName || ''),
+          status: incident.status,
+          category: incident.type || 'Khác',
+          lat: incident.lat,
+          lng: incident.lng,
+        };
+      });
       setIncidents(mappedIncidents);
+      console.log(mappedIncidents)
     } catch (error) {
       setIncidents([]);
+      setNotification({
+        show: true,
+        message: "Có lỗi xảy ra khi tải danh sách báo cáo",
+        type: "error"
+      });
     } finally {
       setLoading(false);
     }
@@ -80,7 +123,7 @@ const IncidentReport: React.FC = () => {
 
   useEffect(() => {
     fetchIncidents();
-  }, []);
+  }, [filters.range, filters.sort, filters.includeRelated, filters.priorityFilter, filters.fromDate, filters.toDate]);
 
   // Filter incidents based on search term and filters
   const filteredIncidents = incidents.filter(incident => {
@@ -92,16 +135,20 @@ const IncidentReport: React.FC = () => {
     const matchesStatus = !filters.status || incident.status === filters.status;
     const matchesCategory = !filters.category || incident.category === filters.category;
 
-    // Date filtering
+    // Date filtering using ISO dates for accurate comparison
     let matchesDate = true;
-    if (filters.dateFrom) {
-      const from = new Date(filters.dateFrom.split('/').reverse().join('-'));
-      const incidentDate = new Date(incident.reportedDate.split('/').reverse().join('-'));
+    if (filters.fromDate) {
+      const from = new Date(filters.fromDate);
+      // Use original ISO date for accurate parsing
+      const incidentDate = new Date(incident.createdAtISO);
       matchesDate = matchesDate && incidentDate >= from;
     }
-    if (filters.dateTo) {
-      const to = new Date(filters.dateTo.split('/').reverse().join('-'));
-      const incidentDate = new Date(incident.reportedDate.split('/').reverse().join('-'));
+    if (filters.toDate) {
+      const to = new Date(filters.toDate);
+      // Set to end of day for inclusive comparison
+      to.setHours(23, 59, 59, 999);
+      // Use original ISO date for accurate parsing
+      const incidentDate = new Date(incident.createdAtISO);
       matchesDate = matchesDate && incidentDate <= to;
     }
 
@@ -127,13 +174,31 @@ const IncidentReport: React.FC = () => {
       { label: 'Trộm cắp', value: 'theft' },
       { label: 'Bạo lực', value: 'violence' },
       { label: 'Giao thông', value: 'traffic' },
+      { label: 'An ninh', value: 'security' },
       { label: 'Khác', value: 'other' }
-      
     ],
-    createdFrom: { label: 'Từ ngày tạo', type: 'datetime' },
-    createdTo: { label: 'Đến ngày tạo', type: 'datetime' },
-    occurredFrom: { label: 'Từ ngày xảy ra', type: 'datetime' },
-    occurredTo: { label: 'Đến ngày xảy ra', type: 'datetime' },
+    range: [
+      { label: 'Theo ngày', value: 'day' },
+      { label: 'Theo tuần', value: 'week' },
+      { label: 'Theo tháng', value: 'month' },
+      { label: 'Theo năm', value: 'year' },
+    ],
+    sort: [
+      { label: 'Mới nhất', value: 'newest' },
+      { label: 'Cũ nhất', value: 'oldest' }
+    ],
+    includeRelated: [
+      { label: 'Bao gồm liên quan', value: 'true' },
+      { label: 'Không bao gồm', value: 'false' }
+    ],
+    priorityFilter: [
+      { label: 'Thấp', value: 'Low' },
+      { label: 'Trung bình', value: 'Medium' },
+      { label: 'Cao', value: 'High' },
+      { label: 'Nghiêm trọng', value: 'Critical' }
+    ],
+    fromDate: { label: 'Từ ngày', type: 'datetime' as const },
+    toDate: { label: 'Đến ngày', type: 'datetime' as const }
   };
 
   
@@ -256,12 +321,24 @@ const IncidentReport: React.FC = () => {
                   </p>
                 </div>
                 <FilterBar
-                  searchPlaceholder="Tìm kiếm báo cáo sự cố"
+                  searchPlaceholder="Tìm kiếm báo cáo sự cố (Mã số, tiêu đề, địa điểm, người báo cáo)"
                   onSearch={setSearchTerm}
-                  onFilterChange={(filters) => setFilters(filters as any)}
+                  onFilterChange={(filters) => {
+                    const updatedFilters = {
+                      ...filters,
+                      includeRelated: filters.includeRelated === 'true' ? true : filters.includeRelated === 'false' ? false : false
+                    };
+                    setFilters(updatedFilters as any);
+                  }}
                   filterOptions={filterOptions}
                   showExport={true}
-                  onExport={() => console.log('Export clicked')}
+                  onExport={() => {
+                    setNotification({
+                      show: true,
+                      message: "Chức năng xuất báo cáo đang được phát triển",
+                      type: "info"
+                    });
+                  }}
                 />
               </div>
             </div>
@@ -282,7 +359,6 @@ const IncidentReport: React.FC = () => {
                         <tr>
                           <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Tiêu đề</th>
                           <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Thời gian báo cáo</th>
-                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Thời gian xảy ra</th>
                           <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Địa điểm</th>
                           <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Người báo cáo</th>
                           <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Danh mục</th>
@@ -299,9 +375,7 @@ const IncidentReport: React.FC = () => {
                             <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                               {incident.reportedDate}
                             </td>
-                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                              {incident.reportedDate}
-                            </td>
+                           
                             <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                               {incident.location}
                             </td>
@@ -364,8 +438,6 @@ const IncidentReport: React.FC = () => {
                 }}
               />
             )}
-            
-           
           </main>
         </div>
       </div>
