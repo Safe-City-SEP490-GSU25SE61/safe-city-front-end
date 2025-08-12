@@ -3,17 +3,143 @@ import { Search, Filter, Plus, Edit2, Trash2, Eye, Package, Calendar, DollarSign
 import SideBar from '../../components/common/SideBar';
 import Header from '../../components/common/Header';
 import FilterBar from '../../components/common/FilterBar';
-import { getAllPackages, updatePackageById, createPackage, deletePackageById } from '../../services/api/package';
+import { getAllPackages, updatePackageById, createPackage, deletePackageById, getPackageChangeHistory } from '../../services/api/package';
 import NotificationBar from '../../components/common/NotificationBar';
+
+const FIELD_LABELS: Record<string, string> = {
+  name: "Tên gói",
+  description: "Mô tả",
+  price: "Giá",
+  durationDays: "Thời hạn (ngày)",
+  isActive: "Trạng thái",
+  color: "Màu sắc",
+  // Add more as needed
+};
+
+const ChangeDetailModal = ({
+  entry,
+  onClose,
+  fieldLabels,
+  formatPrice,
+  formatDuration,
+  formatDisplayDate,
+}: {
+  entry: any;
+  onClose: () => void;
+  fieldLabels: Record<string, string>;
+  formatPrice: (n: number) => string;
+  formatDuration: (n: number) => string;
+  formatDisplayDate: (d: any) => string;
+}) => {
+  if (!entry) return null;
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-60">
+      <div className="w-full max-w-lg mx-4 bg-white rounded-2xl shadow-2xl overflow-hidden">
+        <div className="flex items-center justify-between bg-blue-600 p-5">
+          <span className="text-xl font-bold text-white">Chi tiết thay đổi</span>
+          <button
+            className="p-2 rounded-full bg-white/20 hover:bg-white/30 transition"
+            onClick={onClose}
+          >
+            <X className="w-5 h-5 text-white" />
+          </button>
+        </div>
+        <div className="p-6 space-y-4">
+          <div>
+            <span className="font-medium text-gray-600">Thời gian thay đổi:</span>{" "}
+            {formatDisplayDate(entry.changedAt)}
+          </div>
+          <div>
+            <span className="font-medium text-gray-600">Hiệu lực từ:</span>{" "}
+            {formatDisplayDate(entry.effectiveStart)}
+          </div>
+          <div>
+            <span className="font-medium text-gray-600">Hiệu lực đến:</span>{" "}
+            {entry.effectiveEnd ? formatDisplayDate(entry.effectiveEnd) : "Hiện tại"}
+          </div>
+          <div>
+            <span className="font-medium text-gray-600">Người thay đổi:</span>{" "}
+            {entry.changedBy || "Không rõ"}
+          </div>
+          <div className="mt-4">
+            <span className="font-medium text-gray-600">Các trường đã thay đổi:</span>
+            <ul className="mt-2 space-y-2">
+              {entry.changes.map((change: any, idx: number) => (
+                <li key={idx} className="p-2 rounded bg-gray-50 border">
+                  <div>
+                    <span className="font-semibold text-blue-700">
+                      {fieldLabels[change.fieldName] || change.fieldDisplayName || change.fieldName}
+                    </span>
+                  </div>
+                  <div className="flex gap-2 items-center">
+                    <span className="text-gray-500 line-through">
+                      {change.fieldName === "Price"
+                        ? formatPrice(Number(change.oldValue))
+                        : change.oldValue?.toString()}
+                    </span>
+                    <span className="mx-1 text-gray-400">→</span>
+                    <span className="text-green-700 font-semibold">
+                      {change.fieldName === "Price"
+                        ? formatPrice(Number(change.newValue))
+                        : change.newValue?.toString()}
+                    </span>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          </div>
+          {entry.packageSnapshot && (
+            <div className="mt-4 border-t pt-4">
+              <h4 className="text-lg font-semibold mb-2 text-blue-700">Thông tin gói tại thời điểm thay đổi</h4>
+              <div className="space-y-1">
+                <div><span className="font-medium text-gray-600">Tên gói:</span> {entry.packageSnapshot.name}</div>
+                <div><span className="font-medium text-gray-600">Mô tả:</span> {entry.packageSnapshot.description}</div>
+                <div><span className="font-medium text-gray-600">Thời hạn:</span> {entry.packageSnapshot.durationDays} ngày</div>
+                <div>
+                  <span className="font-medium text-gray-600">Trạng thái:</span>
+                  {entry.packageSnapshot.isActive ? (
+                    <span className="ml-2 text-green-600 font-semibold">Hoạt động</span>
+                  ) : (
+                    <span className="ml-2 text-red-600 font-semibold">Tạm dừng</span>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
+          <button
+            className="w-full mt-6 px-4 py-2 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 transition"
+            onClick={onClose}
+          >
+            Đóng
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
 
 const PackageDetailModal = ({ details, onClose, onSave }: { details: { data: any, mode: 'view' | 'edit' | 'add' }, onClose: () => void, onSave: (data: any) => Promise<void> }) => {
   const [isEditing, setIsEditing] = useState(details.mode === 'edit' || details.mode === 'add');
   const [formData, setFormData] = useState(details.data);
   const [selectedHistory, setSelectedHistory] = useState<any | null>(null);
+  const [history, setHistory] = useState<any[]>([]);
+  const [loadingHistory, setLoadingHistory] = useState(false);
+  const [selectedChangeEntry, setSelectedChangeEntry] = useState<any | null>(null);
 
   useEffect(() => {
     setIsEditing(details.mode === 'edit' || details.mode === 'add');
     setFormData(details.data);
+
+    // Fetch history if not adding a new package
+    if (details.mode !== 'add' && details.data.id) {
+      setLoadingHistory(true);
+      getPackageChangeHistory(details.data.id)
+        .then(setHistory)
+        .catch(() => setHistory([]))
+        .finally(() => setLoadingHistory(false));
+    } else {
+      setHistory([]);
+    }
   }, [details]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
@@ -62,7 +188,10 @@ const PackageDetailModal = ({ details, onClose, onSave }: { details: { data: any
     <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50 transition-opacity duration-300 p-4">
       <div className="bg-white rounded-3xl shadow-2xl w-full max-w-4xl mx-4 max-h-[90vh] flex flex-col">
         {/* Header with solid blue background */}
-        <div className="bg-blue-600 p-8 text-white relative overflow-hidden">
+        <div
+          className="p-8 text-white relative overflow-hidden"
+          style={{ backgroundColor: formData.color || "#2563eb" }}
+        >
           <div className="absolute inset-0 bg-black opacity-10 pb-10"></div>
           <div className="relative z-10">
             <div className="flex justify-between items-start mb-6">
@@ -124,7 +253,9 @@ const PackageDetailModal = ({ details, onClose, onSave }: { details: { data: any
         </div>
 
         {/* Content Area */}
-        <div className="flex-1 overflow-y-auto p-8 pt-4 space-y-6 bg-white">
+        <div className="flex-1 overflow-y-auto p-4 sm:p-8 pt-2 sm:pt-4 space-y-6 bg-white min-h-0"
+        style={{ maxHeight: '45vh', overflowY: 'auto' }}
+        >
           <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
             {/* Left: Details */}
             <div className="space-y-4">
@@ -158,6 +289,28 @@ const PackageDetailModal = ({ details, onClose, onSave }: { details: { data: any
                   <div className="text-gray-700 bg-gray-50 p-3 rounded-lg">{formData.description}</div>
                 )}
               </div>
+              {/* Color */}
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-1">Màu sắc</label>
+                {isEditing ? (
+                  <input
+                    type="color"
+                    name="color"
+                    value={formData.color || "#000000"}
+                    onChange={handleChange}
+                    className="w-16 h-10 p-1 border border-gray-300 rounded-lg"
+                    style={{ background: "none" }}
+                  />
+                ) : (
+                  <div className="flex items-center gap-2">
+                    <span
+                      className="inline-block w-6 h-6 rounded-full border"
+                      style={{ backgroundColor: formData.color || "#000" }}
+                    />
+                    <span className="text-gray-700">{formData.color || "Không có màu"}</span>
+                  </div>
+                )}
+              </div>
               {/* Status */}
              
             </div>
@@ -180,7 +333,7 @@ const PackageDetailModal = ({ details, onClose, onSave }: { details: { data: any
               </div>
               {/* Duration */}
               <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-1">Thời hạn</label>
+                <label className="block text-sm font-semibold text-gray-700 mb-1">Thời hạn (ngày)</label>
                 {isEditing ? (
                   <input
                     type="number"
@@ -210,59 +363,45 @@ const PackageDetailModal = ({ details, onClose, onSave }: { details: { data: any
           {/* Divider */}
           <hr className="my-8 border-t border-gray-200" />
 
-          {/* Price History Section */}
-          <div className="mt-4">
-            <h4 className="text-lg font-semibold mb-2">Lịch sử thay đổi giá</h4>
-            <div className="overflow-x-auto max-h-60 overflow-y-auto rounded-lg border border-gray-200 bg-white">
-              <table className="min-w-full">
-                <thead>
-                  <tr className="bg-gray-100 sticky top-0 z-10">
-                    <th className="px-4 py-2 text-left">Giá (VND)</th>
-                    <th className="px-4 py-2 text-left">Thời hạn</th>
-                    <th className="px-4 py-2 text-left">Trạng thái</th>
-                    <th className="px-4 py-2 text-left">Ngày bắt đầu</th>
-                    <th className="px-4 py-2 text-left">Ngày kết thúc</th>
-                    <th className="px-4 py-2 text-left"></th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {(formData.priceHistory || []).length === 0 ? (
-                    <tr>
-                      <td colSpan={6} className="px-4 py-2 text-center text-gray-500">Chưa có lịch sử giá</td>
+  
+
+          {/* Change History Section */}
+          <div className="mt-8">
+            <h4 className="text-lg font-semibold mb-2">Lịch sử thay đổi gói</h4>
+            {loadingHistory ? (
+              <div>Đang tải lịch sử...</div>
+            ) : history.length === 0 ? (
+              <div className="text-gray-500">Chưa có lịch sử thay đổi</div>
+            ) : (
+              <div
+                className="overflow-x-auto rounded-lg border border-gray-200 bg-white"
+                style={{ maxHeight: '30vh', overflowY: 'auto' }}
+              >
+                <table className="min-w-full">
+                  <thead>
+                    <tr className="bg-gray-100 sticky top-0 z-10">
+                      <th className="px-4 py-2 text-left">Thời gian thay đổi</th>
+                      <th className="px-4 py-2 text-left">Hiệu lực từ</th>
+                      <th className="px-4 py-2 text-left">Hiệu lực đến</th>
+                     
                     </tr>
-                  ) : (
-                    formData.priceHistory
-                      .slice(-3)
-                      .reverse()
-                      .map((entry: any, idx: number) => (
-                        <tr key={idx} className="border-t">
-                          <td className="px-4 py-2">{formatPrice(entry.price)}</td>
-                          <td className="px-4 py-2">{formatDuration(entry.packageSnapshot?.durationDays)}</td>
-                          <td className="px-4 py-2">
-                            {entry.packageSnapshot?.isActive ? (
-                              <span className="text-green-600 font-medium">Hoạt động</span>
-                            ) : (
-                              <span className="text-red-600 font-medium">Tạm dừng</span>
-                            )}
-                          </td>
-                          <td className="px-4 py-2">{formatDisplayDate(entry.startDate)}</td>
-                          <td className="px-4 py-2">
-                            {entry.endDate ? formatDisplayDate(entry.endDate) : <span className="text-green-600 font-medium">Hiện tại</span>}
-                          </td>
-                          <td className="px-4 py-2">
-                            <button
-                              className="text-blue-600 underline"
-                              onClick={() => setSelectedHistory(entry)}
-                            >
-                              Xem chi tiết
-                            </button>
-                          </td>
-                        </tr>
-                      ))
-                  )}
-                </tbody>
-              </table>
-            </div>
+                  </thead>
+                  <tbody>
+                    {history.map((entry, idx) => (
+                      <tr
+                        key={idx}
+                        className="border-t cursor-pointer hover:bg-blue-50 transition"
+                        onClick={() => setSelectedChangeEntry(entry)}
+                      >
+                        <td className="px-4 py-2">{formatDisplayDate(entry.changedAt)}</td>
+                        <td className="px-4 py-2">{formatDisplayDate(entry.effectiveStart)}</td>
+                        <td className="px-4 py-2">{entry.effectiveEnd ? formatDisplayDate(entry.effectiveEnd) : 'Hiện tại'}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
           </div>
         </div>
         {/* Footer */}
@@ -292,78 +431,15 @@ const PackageDetailModal = ({ details, onClose, onSave }: { details: { data: any
           )}
         </div>
       </div>
-      {selectedHistory && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-60">
-          <div className="w-full max-w-md mx-4 bg-white rounded-2xl shadow-2xl overflow-hidden">
-            {/* Header */}
-            <div className="flex items-center justify-between bg-blue-600 p-5">
-              <div className="flex items-center gap-2">
-                <DollarSign className="w-7 h-7 text-white" />
-                <span className="text-xl font-bold text-white">Chi tiết thay đổi giá</span>
-              </div>
-              <button
-                className="p-2 rounded-full bg-white/20 hover:bg-white/30 transition"
-                onClick={() => setSelectedHistory(null)}
-              >
-                <X className="w-5 h-5 text-white" />
-              </button>
-            </div>
-            {/* Content */}
-            <div className="p-6 space-y-5">
-              <div className="flex items-center gap-3">
-                <span className="text-gray-500 min-w-[90px]">Giá cũ:</span>
-                <span className="text-lg font-semibold text-red-500 line-through">{formatPrice(selectedHistory.oldPrice)}</span>
-              </div>
-              <div className="flex items-center gap-3">
-                <span className="text-gray-500 min-w-[90px]">Giá mới:</span>
-                <span className="text-lg font-semibold text-green-600">{formatPrice(selectedHistory.price)}</span>
-              </div>
-              <div className="flex items-center gap-3">
-                <Calendar className="w-4 h-4 text-blue-500" />
-                <span className="text-gray-500 min-w-[90px]">Ngày bắt đầu:</span>
-                <span className="font-medium">{formatDisplayDate(selectedHistory.startDate)}</span>
-              </div>
-              <div className="flex items-center gap-3">
-                <Calendar className="w-4 h-4 text-blue-500" />
-                <span className="text-gray-500 min-w-[90px]">Ngày kết thúc:</span>
-                <span className="font-medium">
-                  {selectedHistory.endDate ? formatDisplayDate(selectedHistory.endDate) : <span className="text-green-600 font-medium">Hiện tại</span>}
-                </span>
-              </div>
-              <div className="flex items-center gap-3">
-                <Users className="w-4 h-4 text-blue-500" />
-                <span className="text-gray-500 min-w-[90px]">Người thay đổi:</span>
-                <span className="font-medium">{selectedHistory.changedBy}</span>
-              </div>
-              {/* Package snapshot details */}
-              {selectedHistory.packageSnapshot && (
-                <div className="mt-6 border-t pt-4">
-                  <h4 className="text-lg font-semibold mb-2 text-blue-700">Thông tin gói tại thời điểm thay đổi</h4>
-                  <div className="space-y-2">
-                    <div><span className="font-medium text-gray-600">Tên gói:</span> {selectedHistory.packageSnapshot.name}</div>
-                    <div><span className="font-medium text-gray-600">Mô tả:</span> {selectedHistory.packageSnapshot.description}</div>
-                    <div><span className="font-medium text-gray-600">Thời hạn:</span> {selectedHistory.packageSnapshot.durationDays} ngày</div>
-                    <div>
-                      <span className="font-medium text-gray-600">Trạng thái:</span>
-                      {selectedHistory.packageSnapshot.isActive ? (
-                        <span className="ml-2 text-green-600 font-semibold">Hoạt động</span>
-                      ) : (
-                        <span className="ml-2 text-red-600 font-semibold">Tạm dừng</span>
-                      )}
-                    </div>
-                    {/* Add more fields as needed */}
-                  </div>
-                </div>
-              )}
-              <button
-                className="w-full mt-6 px-4 py-2 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 transition"
-                onClick={() => setSelectedHistory(null)}
-              >
-                Đóng
-              </button>
-            </div>
-          </div>
-        </div>
+      {selectedChangeEntry && (
+        <ChangeDetailModal
+          entry={selectedChangeEntry}
+          onClose={() => setSelectedChangeEntry(null)}
+          fieldLabels={FIELD_LABELS}
+          formatPrice={formatPrice}
+          formatDuration={formatDuration}
+          formatDisplayDate={formatDisplayDate}
+        />
       )}
     </div>
   );
@@ -474,53 +550,6 @@ const PackageManagement = () => {
         setLoading(true);
         let data = await getAllPackages();
         if (Array.isArray(data)) {
-          // Add demo priceHistory to each package for demo
-          data = data.map(pkg => ({
-            ...pkg,
-            priceHistory: [
-              {
-                price: 100000,
-                startDate: '2023-01-01T00:00:00Z',
-                endDate: '2023-06-01T00:00:00Z',
-                oldPrice: 80000,
-                changedBy: 'admin1',
-                packageSnapshot: {
-                  name: 'Gói Cơ Bản',
-                  description: 'Dịch vụ cơ bản',
-                  durationDays: 30,
-                  isActive: true,
-                  // ... any other fields you want to show
-                }
-              },
-              {
-                price: 120000,
-                startDate: '2023-06-02T00:00:00Z',
-                endDate: '2024-01-01T00:00:00Z',
-                oldPrice: 100000,
-                changedBy: 'admin2',
-                packageSnapshot: {
-                  name: 'Gói Cơ Bản',
-                  description: 'Dịch vụ cơ bản',
-                  durationDays: 30,
-                  isActive: true,
-                  // ... any other fields you want to show
-                }
-              },
-              {
-                price: 150000,
-                startDate: '2024-01-02T00:00:00Z',
-                oldPrice: 120000,
-                changedBy: 'admin3',
-                packageSnapshot: {
-                  name: 'Gói Cơ Bản',
-                  description: 'Dịch vụ cơ bản',
-                  durationDays: 30,
-                  isActive: true,
-                  // ... any other fields you want to show
-                }
-              },
-            ],
-          }));
           setPackages(data);
         }
       } catch (error) {
@@ -590,50 +619,7 @@ const PackageManagement = () => {
     createAt: new Date(),
     lastUpdated: new Date(),
     id: '', // id will be set by backend
-    priceHistory: [
-      {
-        price: 100000,
-        startDate: '2023-01-01T00:00:00Z',
-        endDate: '2023-06-01T00:00:00Z',
-        oldPrice: 80000,
-        changedBy: 'admin1',
-        packageSnapshot: {
-          name: 'Gói Cơ Bản',
-          description: 'Dịch vụ cơ bản',
-          durationDays: 30,
-          isActive: true,
-          // ... any other fields you want to show
-        }
-      },
-      {
-        price: 120000,
-        startDate: '2023-06-02T00:00:00Z',
-        endDate: '2024-01-01T00:00:00Z',
-        oldPrice: 100000,
-        changedBy: 'admin2',
-        packageSnapshot: {
-          name: 'Gói Cơ Bản',
-          description: 'Dịch vụ cơ bản',
-          durationDays: 30,
-          isActive: true,
-          // ... any other fields you want to show
-        }
-      },
-      {
-        price: 150000,
-        startDate: '2024-01-02T00:00:00Z',
-        // No endDate means it's the current price
-        oldPrice: 120000,
-        changedBy: 'admin3',
-        packageSnapshot: {
-          name: 'Gói Cơ Bản',
-          description: 'Dịch vụ cơ bản',
-          durationDays: 30,
-          isActive: true,
-          // ... any other fields you want to show
-        }
-      },
-    ],
+    color: "#000000", // default color
   };
 
   const handleAddNewPackage = () => {
@@ -652,6 +638,7 @@ const PackageManagement = () => {
           price: Number(updatedPackageData.price),
           durationDays: Number(updatedPackageData.durationDays),
           isActive: updatedPackageData.isActive,
+          color: updatedPackageData.color,
         });
         setPackages([...packages, responseData.data]);
         setNotification({ message: "Tạo gói mới thành công!", type: "success", show: true });
@@ -662,6 +649,7 @@ const PackageManagement = () => {
           price: Number(updatedPackageData.price),
           durationDays: Number(updatedPackageData.durationDays),
           isActive: updatedPackageData.isActive,
+          color: updatedPackageData.color,
         };
 
         const responseData = await updatePackageById(selectedPackage.data.id.toString(), dataToUpdate);
@@ -791,7 +779,10 @@ const PackageManagement = () => {
               {filteredPackages.map((pkg: any) => (
                 <div key={pkg.id} className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-lg border border-white/20 overflow-hidden hover:shadow-xl transition-all duration-200 transform hover:-translate-y-1">
                   {/* Package Header */}
-                  <div className="bg-blue-600 p-6 text-white">
+                  <div
+                    className="p-6 text-white"
+                    style={{ backgroundColor: pkg.color || "#2563eb" }}
+                  >
                     <div className="flex items-start justify-between mb-4">
                       <div>
                         <h3 className="text-xl font-bold mb-2">{pkg.name}</h3>

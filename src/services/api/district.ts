@@ -52,9 +52,24 @@ export const assignToOfficer = async (data: any) => {
 };
 
 export const searchDistricts = async (params: any) => {
-  const response = await axios.get(API_ENDPOINTS.DISTRICTS.SEARCH, { 
+  const response = await axios.get(API_ENDPOINTS.DISTRICTS.SEARCH, {
     params,
     headers: getAuthHeaders(),
   });
+  return response.data.data;
+};
+
+
+export const unassignFromOfficer = async (accountId: string) => {
+  const response = await axios.patch(API_ENDPOINTS.DISTRICTS.UNASSIGN_FROM_OFFICER(accountId), {}, {
+    headers: getAuthHeaders(),
+  });
   return response.data;
+};
+
+export const getOfficerDistrictHistory = async (accountId: string) => {
+  const response = await axios.get(API_ENDPOINTS.DISTRICTS.VIEW_OFFICER_DISTRICT_CHANGE(accountId), {
+    headers: getAuthHeaders(),
+  });
+  return response.data.data;
 };

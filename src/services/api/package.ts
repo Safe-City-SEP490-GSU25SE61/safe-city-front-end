@@ -43,3 +43,9 @@ export const deletePackageById = async (id: string) => {
   });
   return response.data;
 };
+export const getPackageChangeHistory = async (id: string) => {
+  const response = await axios.get(API_ENDPOINTS.PACKAGES.CHANGE_HISTORY(id), {
+    headers: getAuthHeaders(),
+  });
+  return response.data.data;
+};

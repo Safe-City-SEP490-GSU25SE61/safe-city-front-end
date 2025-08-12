@@ -61,3 +61,14 @@ export async function tryRefreshToken() {
     return false;
   }
 }
+
+export function getUserName() {
+  const token = localStorage.getItem('accessToken');
+  if (!token) return null;
+  try {
+    const decoded = jwtDecode<{ name?: string }>(token);
+    return decoded.name ?? null;
+  } catch {
+    return null;
+  }
+}

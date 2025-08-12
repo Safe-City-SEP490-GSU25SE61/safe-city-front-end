@@ -15,6 +15,11 @@ import ProtectedRoute from './components/ProtectedRoute';
 import { ROLES } from './utils/roleHelpers';
 import Unauthorized from './components/common/Unauthorized';
 import NotificationPage from './pages/common/Notification';
+import IncidentReport from './pages/officer/IncidentReport';
+import BlogView from './pages/officer/BlogView';
+import BlogDetailPage from './pages/officer/BlogDetail';
+import CreateBlogPage from './pages/officer/CreateBlog';
+import LiveMap from './pages/officer/LiveMap';
 
 const App = () => {
   return (
@@ -31,12 +36,12 @@ const App = () => {
         <Route path="/notifications" element={<NotificationPage />} />
         {/* admin */}
         <Route path="/user-management" element={
-          <ProtectedRoute allowedRoles={[ROLES.ADMIN]}>
+          <ProtectedRoute allowedRoles={[ROLES.ADMIN, ROLES.OFFICER]}>
             <UserManagement />
           </ProtectedRoute>
         } />
         <Route path="/package-management" element={
-          <ProtectedRoute allowedRoles={[ROLES.OFFICER, ROLES.ADMIN]}>
+          <ProtectedRoute allowedRoles={[ROLES.ADMIN]}>
             <PackageManagement />
           </ProtectedRoute>
         } />
@@ -46,7 +51,7 @@ const App = () => {
           </ProtectedRoute>
         } />
         <Route path="/add-police-to-ward" element={
-          <ProtectedRoute allowedRoles={[ROLES.ADMIN]}>
+          <ProtectedRoute allowedRoles={[ROLES.ADMIN, ROLES.OFFICER]}>
             <AddOfficerWardPage />
           </ProtectedRoute>
         } />
@@ -56,6 +61,32 @@ const App = () => {
           </ProtectedRoute>
         } />
         <Route path="/unauthorized" element={<Unauthorized />} />
+        {/* officer */}
+        <Route path="/officer/incident-report" element={
+          <ProtectedRoute allowedRoles={[ROLES.OFFICER]}>
+            <IncidentReport />
+          </ProtectedRoute>
+        } />
+        <Route path="/officer/blog-view" element={
+          <ProtectedRoute allowedRoles={[ROLES.OFFICER]}>
+            <BlogView />
+          </ProtectedRoute>
+        } />
+        <Route path="/officer/blog-detail/:id" element={
+          <ProtectedRoute allowedRoles={[ROLES.OFFICER]}>
+            <BlogDetailPage />
+          </ProtectedRoute>
+        } />
+        <Route path="/officer/blog-create" element={
+          <ProtectedRoute allowedRoles={[ROLES.OFFICER]}>
+            <CreateBlogPage />
+          </ProtectedRoute>
+        } />
+        <Route path="/officer/live-map" element={
+          <ProtectedRoute allowedRoles={[ROLES.OFFICER]}>
+            <LiveMap />
+          </ProtectedRoute>
+        } />
       </Routes>
     </Router>
   );
