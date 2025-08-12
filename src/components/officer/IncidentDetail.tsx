@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { X, MapPin, Calendar, User, AlertTriangle, FileText, Phone, Clock, Shield, Camera, Video, MessageSquare, Activity, Plus, Play, Eye, Send } from 'lucide-react';
+import { X, MapPin, Calendar, User, AlertTriangle, FileText, Phone, Clock, Shield, Camera, Video, MessageSquare, Activity, Play, Eye, Send } from 'lucide-react';
 import { createIncidentNote, updateIncidentStatus, transferIncident } from '../../services/api/incident'; // 1. Import the API function
 import NotificationBar from '../common/NotificationBar'; // Add this import
 import { getAllWards } from '../../services/api/ward'; // Import at the top
@@ -89,16 +89,6 @@ const IncidentDetail: React.FC<IncidentDetailProps> = ({ incident, loading, onCl
     }
   };
 
-  const fetchWards = async () => {
-    setLoadingDistricts(true);
-    try {
-      const data = await getAllWards();
-      setDistricts(data);
-    } catch (e) {
-      showNotification('Không thể tải danh sách phường/xã.', 'error');
-    }
-    setLoadingDistricts(false);
-  };
 
   // Fetch districts automatically when status is 'verified'
   useEffect(() => {

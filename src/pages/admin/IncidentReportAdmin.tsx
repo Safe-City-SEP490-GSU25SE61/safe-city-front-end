@@ -7,7 +7,7 @@ import { Eye, AlertTriangle, FileText, MapPin, Users, Shield } from 'lucide-reac
 import { PaginationComponent } from '../../components/common/Pagination';
 import NotificationBar from '../../components/common/NotificationBar';
 import IncidentDetail from '../../components/officer/IncidentDetail';
-import { getIncident, getIncidentAdmin, getIncidentById } from '../../services/api/incident';
+import {getIncidentAdmin, getIncidentById } from '../../services/api/incident';
 import { getAllWards } from '../../services/api/ward';
 
 // Define a type for the incident object for better type safety

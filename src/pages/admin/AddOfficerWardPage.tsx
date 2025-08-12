@@ -354,7 +354,6 @@ const AddOfficerDistrictPage = () => {
 
       <OfficerAssignHistory
         open={historyPopup.open}
-        accountId={historyPopup.accountId || 0}
         onClose={() => setHistoryPopup({ open: false })}
         history={officerHistory}
         loading={loading}
