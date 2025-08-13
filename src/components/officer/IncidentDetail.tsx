@@ -45,6 +45,7 @@ const IncidentDetail: React.FC<IncidentDetailProps> = ({ incident, loading, onCl
   const [localUpdates, setLocalUpdates] = useState(incident?.updates || []);
   const [showStatusModal, setShowStatusModal] = useState(false);
   const [localStatus, setLocalStatus] = useState(incident.status);
+  const [localIsVisibleOnMap, setLocalIsVisibleOnMap] = useState(incident.isVisibleOnMap || false);
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const [notification, setNotification] = useState({
     show: false,
@@ -81,7 +82,10 @@ const IncidentDetail: React.FC<IncidentDetailProps> = ({ incident, loading, onCl
   // Add a helper for status update
   const handleStatusChange = async (newStatus: string, message = '') => {
     try {
-      await updateIncidentStatus(incident.id, { status: newStatus, message });
+      await updateIncidentStatus(incident.id, { 
+        status: newStatus, 
+        message
+      });
       setLocalStatus(newStatus);
       showNotification('Cập nhật trạng thái thành công!', 'success');
     } catch (e) {
@@ -89,6 +93,22 @@ const IncidentDetail: React.FC<IncidentDetailProps> = ({ incident, loading, onCl
     }
   };
 
+  // Add a helper for visibility toggle
+  const handleVisibilityToggle = async () => {
+    const newVisibility = !localIsVisibleOnMap;
+    try {
+      await updateIncidentStatus(incident.id, { 
+        isVisibleOnMap: newVisibility 
+      });
+      setLocalIsVisibleOnMap(newVisibility);
+      showNotification(
+        newVisibility ? 'Sự cố đã được hiển thị trên bản đồ!' : 'Sự cố đã được ẩn khỏi bản đồ!', 
+        'success'
+      );
+    } catch (e) {
+      showNotification('Không thể cập nhật hiển thị bản đồ. Vui lòng thử lại!', 'error');
+    }
+  };
 
   // Fetch districts automatically when status is 'verified'
   useEffect(() => {
@@ -438,6 +458,36 @@ const IncidentDetail: React.FC<IncidentDetailProps> = ({ incident, loading, onCl
                         </span>
                       </div>
                     )}
+                  </div>
+                </div>
+
+                {/* Map Visibility Toggle */}
+                <div className="bg-white rounded-2xl p-6 shadow-lg border border-gray-200">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <MapPin className="w-5 h-5 text-gray-600" />
+                      <div>
+                        <h4 className="font-semibold text-gray-900">Hiển thị trên bản đồ</h4>
+                        <p className="text-sm text-gray-600">Cho phép sự cố này hiển thị trên bản đồ công khai</p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <span className={`text-sm font-semibold ${localIsVisibleOnMap ? 'text-green-700' : 'text-gray-600'}`}>
+                        {localIsVisibleOnMap ? 'Đang hiển thị' : 'Đang ẩn'}
+                      </span>
+                      <button
+                        onClick={handleVisibilityToggle}
+                        className={`relative inline-flex items-center h-6 rounded-full w-11 transition-colors duration-200 ease-in-out focus:outline-none ${
+                          localIsVisibleOnMap ? 'bg-green-600' : 'bg-gray-200'
+                        }`}
+                      >
+                        <span
+                          className={`inline-block w-4 h-4 transform bg-white rounded-full transition-transform duration-200 ease-in-out ${
+                            localIsVisibleOnMap ? 'translate-x-6' : 'translate-x-1'
+                          }`}
+                        />
+                      </button>
+                    </div>
                   </div>
                 </div>
 
