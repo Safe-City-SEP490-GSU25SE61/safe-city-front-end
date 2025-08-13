@@ -1,5 +1,4 @@
 import React, { useState } from 'react';
-import logo from '../../../public/assets/logo.png';
 import { useLocation, useNavigate } from 'react-router-dom';
 
 const OtpPage = () => {
@@ -11,7 +10,7 @@ const OtpPage = () => {
 
   // Get email from state if passed via navigation
   const email = location.state?.email || '';
-
+  const logo = 'assets/Logo.png'; // Adjust the path as necessary
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     // Handle OTP verification logic here

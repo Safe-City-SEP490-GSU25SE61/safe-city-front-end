@@ -1,5 +1,4 @@
 import React, { useState } from 'react';
-import logo from '../../../public/assets/logo.png';
 import { Link, useNavigate } from 'react-router-dom';
 
 const ForgotPassword = () => {
@@ -11,7 +10,7 @@ const ForgotPassword = () => {
     // Handle forgot password logic here
     navigate('/otp', { state: { email } });
   };
-
+const logo = 'assets/Logo.png'; // Adjust the path as necessary
   return (
     <div className="flex min-h-full flex-col justify-center px-6 py-12 lg:px-8">
       <div className="sm:mx-auto sm:w-full sm:max-w-sm">
