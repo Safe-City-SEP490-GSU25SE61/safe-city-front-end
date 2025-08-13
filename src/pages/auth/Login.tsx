@@ -1,11 +1,11 @@
 import React, { useState } from 'react';
-import logo from '../../../public/assets/logo.png';
+
 import { Link, useNavigate } from 'react-router-dom';
 import { login } from '../../services/api/auth';
 import { jwtDecode } from 'jwt-decode';
 import { ROLES } from '../../utils/roleHelpers';
 import NotificationBar from '../../components/common/NotificationBar';
-import bgImage from '../../../public/assets/loginpic.jpg';
+
 
 const Login = () => {
   const [email, setEmail] = useState('');
@@ -16,7 +16,8 @@ const Login = () => {
     show: boolean;
   }>({ message: "", type: "info", show: false });
   const [formError, setFormError] = useState<string | null>(null);
-
+  const logo = 'assets/Logo.png'; // Adjust the path as necessary
+  const bgImage = 'assets/loginpic.jpg'; // Adjust the path as necessary
   const navigate = useNavigate();
 
   const handleSubmit = async (e: React.FormEvent) => {

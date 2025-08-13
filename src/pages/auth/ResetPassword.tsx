@@ -1,5 +1,4 @@
 import React, { useState } from 'react';
-import logo from '../../../public/assets/logo.png';
 import { useLocation, useNavigate } from 'react-router-dom';
 
 const ResetPassword = () => {
@@ -8,6 +7,7 @@ const ResetPassword = () => {
   const location = useLocation();
   const email = location.state?.email || '';
   const navigate = useNavigate();
+  const logo = 'assets/Logo.png'; // Adjust the path as necessary
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (password !== confirm) {
