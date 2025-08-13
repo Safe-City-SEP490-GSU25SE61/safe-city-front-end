@@ -10,7 +10,6 @@ import {
   ShieldAlert,
   ChartColumnIncreasing
 } from 'lucide-react';
-import logo from '../../../public/assets/logo.png';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { jwtDecode } from "jwt-decode";
 
@@ -18,7 +17,7 @@ const Sidebar = () => {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
-
+  const logo = 'assets/logo.png'; // Adjust the path as necessary
   // Get user role from JWT in localStorage
   let userRole: string = "";
   try {
