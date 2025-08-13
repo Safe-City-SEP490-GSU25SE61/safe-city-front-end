@@ -17,7 +17,7 @@ const Sidebar = () => {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
-  const logo = 'assets/logo.png'; // Adjust the path as necessary
+  const logo = 'assets/Logo.png'; // Adjust the path as necessary
   // Get user role from JWT in localStorage
   let userRole: string = "";
   try {

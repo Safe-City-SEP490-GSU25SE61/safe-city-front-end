@@ -49,11 +49,7 @@ Desktop.ini
 # Vite cache
 .vite/
 
-# Tailwind CSS generated files (just in case)
-tailwind.config.js
-tailwind.config.cjs
-tailwind.config.ts
-postcss.config.js
+
 
 # Testing
 coverage/
