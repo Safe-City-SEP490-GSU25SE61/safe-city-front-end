@@ -2,7 +2,6 @@ import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import Login from "./pages/auth/Login";
 import ForgotPassword from './pages/auth/ForgotPassword';
 import './index.css';
-import Register from './pages/auth/Register';
 import OtpPage from './pages/auth/OtpPage';
 import ResetPassword from './pages/auth/ResetPassword';
 import UserManagement from './pages/admin/UserManagement';
@@ -34,7 +33,6 @@ const App = () => {
         <Route path="/" element={<Login />} />
         <Route path="/login" element={<Login />} />
         <Route path="/forgot-password" element={<ForgotPassword />} />
-        <Route path="/register" element={<Register />} />
         <Route path="/otp" element={<OtpPage />} />
         <Route path="/reset-password" element={<ResetPassword />} />
         <Route path="/notifications" element={<NotificationPage />} />
