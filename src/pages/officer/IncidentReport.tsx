@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import Sidebar from '../../components/common/SideBar';
 import Header from '../../components/common/Header';
 import FilterBar from '../../components/common/FilterBar';
-import { Eye, AlertTriangle, FileText } from 'lucide-react';
+import { Eye, AlertTriangle, FileText, ChevronDown, ChevronRight } from 'lucide-react';
 import { PaginationComponent } from '../../components/common/Pagination';
 import NotificationBar from '../../components/common/NotificationBar';
 import IncidentDetail from '../../components/officer/IncidentDetail';
@@ -15,7 +15,6 @@ interface Incident {
   reportedDate: string;
   createdAt: string;
   occurredAt: string;
-  // Store original ISO dates for filtering
   createdAtISO: string;
   occurredAtISO: string;
   location: string;
@@ -24,6 +23,8 @@ interface Incident {
   category: string;
   lat?: string;
   lng?: string;
+  relatedReports?: Incident[];
+  isRelated?: boolean;
 }
 
 
@@ -58,6 +59,7 @@ const IncidentReport: React.FC = () => {
   const itemsPerPage = 10;
   const [selectedIncident, setSelectedIncident] = useState<Incident | null>(null);
   const [incidentDetail, setIncidentDetail] = useState<any>(null);
+  const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set());
   const [loadingDetail, setLoadingDetail] = useState(false);
   const [incidents, setIncidents] = useState<Incident[]>([]);
   const [loading, setLoading] = useState(true);
@@ -98,33 +100,26 @@ const IncidentReport: React.FC = () => {
         filters.fromDate,
         filters.toDate
       );
-      const mappedIncidents = (res || []).map((item: any) => {
-        const incident = item.mainReport || item;
-        
-        // Custom date formatting function: HH:mm:ss d/m/yyyy (24-hour format)
+            const formatIncident = (incident: any, isRelated = false): Incident => {
         const formatCustomDate = (dateString: string) => {
           if (!dateString) return '';
           const date = new Date(dateString);
-          
-          // Force 24-hour format
           const hours = date.getHours().toString().padStart(2, '0');
           const minutes = date.getMinutes().toString().padStart(2, '0');
           const seconds = date.getSeconds().toString().padStart(2, '0');
           const time = `${hours}:${minutes}:${seconds}`;
-          
           const day = date.getDate();
           const month = date.getMonth() + 1;
           const year = date.getFullYear();
           return `${time} ${day}/${month}/${year}`;
         };
-        
+
         return {
           id: incident.id,
           title: incident.description || incident.type || 'Không có tiêu đề',
           reportedDate: formatCustomDate(incident.createdAt),
           createdAt: formatCustomDate(incident.createdAt),
           occurredAt: formatCustomDate(incident.occurredAt),
-          // Store original ISO dates for filtering
           createdAtISO: incident.createdAt || '',
           occurredAtISO: incident.occurredAt || '',
           location: incident.address || '',
@@ -133,7 +128,18 @@ const IncidentReport: React.FC = () => {
           category: incident.type || 'Khác',
           lat: incident.lat,
           lng: incident.lng,
+          isRelated,
         };
+      };
+
+      const mappedIncidents = (res || []).map((item: any) => {
+        if (item.mainReport) {
+          const mainIncident = formatIncident(item.mainReport);
+          mainIncident.relatedReports = (item.relatedReports || []).map((related: any) => formatIncident(related, true));
+          return mainIncident;
+        } else {
+          return formatIncident(item);
+        }
       });
       setIncidents(mappedIncidents);
       console.log(mappedIncidents)
@@ -394,42 +400,85 @@ const IncidentReport: React.FC = () => {
                           <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Hành động</th>
                         </tr>
                       </thead>
-                      <tbody className="bg-white divide-y divide-gray-200">
-                        {paginatedIncidents.map((incident) => (
-                          <tr key={incident.id} className="hover:bg-gray-50 transition-colors">
-                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 font-medium">
-                              {incident.title}
-                            </td>
-                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                              {incident.reportedDate}
-                            </td>
-                           
-                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                              {incident.location}
-                            </td>
-                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                              {incident.reporter}
-                            </td>
-                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                              {incident.category}
-                            </td>
-                            <td className="px-6 py-4 whitespace-nowrap">
-                              <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(incident.status)}`}>
-                                {getStatusText(incident.status)}
-                              </span>
-                            </td>
-                            <td className="px-6 py-4 whitespace-nowrap">
-                              <div className="flex gap-2">
-                                <button
-                                  className="text-gray-400 hover:text-gray-600 transition-colors"
-                                  onClick={() => handleViewIncident(incident)}
-                                >
-                                  <Eye className="w-5 h-5" />
-                                </button>
-                              </div>
-                            </td>
-                          </tr>
-                        ))}
+                                            <tbody className="bg-white divide-y divide-gray-200">
+                        {paginatedIncidents.map((incident) => {
+                          const isExpanded = expandedRows.has(incident.id);
+                          return (
+                            <React.Fragment key={incident.id}>
+                              <tr className={`transition-colors ${incident.relatedReports && incident.relatedReports.length > 0 ? 'bg-purple-50 hover:bg-purple-100' : 'hover:bg-gray-50'}`}>
+                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 font-medium">
+                                  <div className="flex items-center gap-2">
+                                    {incident.relatedReports && incident.relatedReports.length > 0 ? (
+                                      <button
+                                        onClick={() => {
+                                          setExpandedRows(prev => {
+                                            const newSet = new Set(prev);
+                                            if (newSet.has(incident.id)) {
+                                              newSet.delete(incident.id);
+                                            } else {
+                                              newSet.add(incident.id);
+                                            }
+                                            return newSet;
+                                          });
+                                        }}
+                                        className="p-1 rounded-full hover:bg-gray-200"
+                                      >
+                                        {isExpanded ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
+                                      </button>
+                                    ) : (
+                                      <div className="w-6"></div> // Placeholder for alignment
+                                    )}
+                                    <span>{incident.title}</span>
+                                  </div>
+                                </td>
+                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{incident.reportedDate}</td>
+                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{incident.location}</td>
+                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{incident.reporter}</td>
+                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{incident.category}</td>
+                                <td className="px-6 py-4 whitespace-nowrap">
+                                  <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(incident.status)}`}>
+                                    {getStatusText(incident.status)}
+                                  </span>
+                                </td>
+                                <td className="px-6 py-4 whitespace-nowrap">
+                                  <button
+                                    className="text-gray-400 hover:text-gray-600 transition-colors"
+                                    onClick={() => handleViewIncident(incident)}
+                                  >
+                                    <Eye className="w-5 h-5" />
+                                  </button>
+                                </td>
+                              </tr>
+                              {isExpanded && incident.relatedReports && incident.relatedReports.map(related => (
+                                <tr key={related.id} className="bg-blue-50 hover:bg-blue-100 transition-colors">
+                                  <td className="pl-12 pr-6 py-3 whitespace-nowrap text-sm text-gray-800">
+                                    <div className="flex items-center gap-2">
+                                      <FileText size={14} className="text-gray-500" />
+                                      <span>{related.title}</span>
+                                    </div>
+                                  </td>
+                                  <td className="px-6 py-3 whitespace-nowrap text-sm text-gray-800">{related.reportedDate}</td>
+                                  <td className="px-6 py-3 whitespace-nowrap text-sm text-gray-800">{related.location}</td>
+                                  <td className="px-6 py-3 whitespace-nowrap text-sm text-gray-800">{related.reporter}</td>
+                                  <td className="px-6 py-3 whitespace-nowrap text-sm text-gray-800">{related.category}</td>
+                                  <td className="px-6 py-3 whitespace-nowrap">
+                                    <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(related.status)}`}>
+                                      {getStatusText(related.status)}
+                                    </span>
+                                  </td>
+                                  <td className="px-6 py-3 whitespace-nowrap">
+                                    <button
+                                      className="text-gray-400 hover:text-gray-600 transition-colors"
+                                      onClick={() => handleViewIncident(related)}
+                                    >
+                                      <Eye className="w-5 h-5" />
+                                    </button>
+                                  </td>
+                                </tr>
+                              ))}
+                            </React.Fragment>
+                          );
+                        })}
                       </tbody>
                     </table>
                   </div>
