@@ -11,7 +11,7 @@ const AchievementDetailModal = ({ details, onClose, onSave }: { details: { data:
   const [isEditing, setIsEditing] = useState(details.mode === 'edit' || details.mode === 'add');
   const [formData, setFormData] = useState(details.data);
   const [logoFile, setLogoFile] = useState<File | null>(null);
-  const [logoPreview, setLogoPreview] = useState<string | null>(details.data.logo || null);
+  const [logoPreview, setLogoPreview] = useState<string | null>(details.data.imageUrl || null);
 
   useEffect(() => {
     setIsEditing(details.mode === 'edit' || details.mode === 'add');
@@ -19,7 +19,7 @@ const AchievementDetailModal = ({ details, onClose, onSave }: { details: { data:
       ...details.data,
       benefits: Array.isArray(details.data.benefits) ? details.data.benefits.join(', ') : (details.data.benefits || ''),
     });
-    setLogoPreview(details.data.logo || null);
+    setLogoPreview(details.data.imageUrl || null);
     setLogoFile(null);
   }, [details]);
 
@@ -61,12 +61,7 @@ const AchievementDetailModal = ({ details, onClose, onSave }: { details: { data:
   };
 
   const handleSave = () => {
-    const dataToSave = {
-      ...formData,
-      logoFile: logoFile,
-      logo: logoPreview
-    };
-    onSave(dataToSave);
+    onSave({ ...formData, logoFile });
   };
 
   const handleCancel = () => {
@@ -78,7 +73,7 @@ const AchievementDetailModal = ({ details, onClose, onSave }: { details: { data:
         ...details.data,
         benefits: Array.isArray(details.data.benefits) ? details.data.benefits.join(', ') : (details.data.benefits || ''),
       });
-      setLogoPreview(details.data.logo || null);
+      setLogoPreview(details.data.imageUrl || null);
       setLogoFile(null);
     }
   };
@@ -197,7 +192,11 @@ const AchievementDetailModal = ({ details, onClose, onSave }: { details: { data:
                 <div className="space-y-4">
                   {logoPreview && (
                     <div className="relative inline-block">
-                      <img src={logoPreview} alt="Logo Preview" className="w-24 h-24 object-cover rounded-lg border-2 border-gray-300" />
+                      <img 
+                        src={logoPreview} 
+                        alt={`${formData.name} logo`} 
+                        className="w-12 h-12 object-cover rounded-lg border-2 border-white/30"
+                      />
                       <button
                         type="button"
                         onClick={handleRemoveLogo}
@@ -223,8 +222,12 @@ const AchievementDetailModal = ({ details, onClose, onSave }: { details: { data:
                 </div>
               ) : (
                 <div className="w-full bg-white p-3 rounded-lg border min-h-[100px] flex items-center justify-center">
-                  {logoPreview ? (
-                    <img src={logoPreview} alt="Achievement Logo" className="w-20 h-20 object-cover rounded-lg" />
+                  {formData.imageUrl ? (
+                    <img 
+                      src={formData.imageUrl} 
+                      alt={`${formData.name} logo`} 
+                      className="w-12 h-12 object-cover rounded-lg border-2 border-white/30"
+                    />
                   ) : (
                     <div className="flex flex-col items-center text-gray-400">
                       <Image className="w-8 h-8 mb-2" />
@@ -465,18 +468,19 @@ const AchievementManagement = () => {
     setSelectedAchievement({ data: emptyAchievement, mode: 'add' });
   };
 
-  const handleSaveAchievement = async (formData: any) => {
+  const handleSaveAchievement = async (formData: any & { logoFile?: File }) => {
     if (!selectedAchievement) return;
     const isAdding = selectedAchievement.mode === 'add';
 
     const apiData: AchievementCreateData = {
       name: formData.name,
       description: formData.description,
-      points: Number(formData.points),
-      Benefit: formData.Benefit,
-      logoFile: formData.logoFile,
-      image: formData.image,
+      minPoint: Number(formData.points),
+      benefit: formData.benefits,
+      logoFile: formData.logoFile
     };
+
+    console.log('Sending to API:', apiData);
 
     try {
       if (isAdding) {

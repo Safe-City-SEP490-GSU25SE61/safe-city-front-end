@@ -513,6 +513,7 @@ const IncidentReport: React.FC = () => {
                   setSelectedIncident(null);
                   setIncidentDetail(null);
                 }}
+                onStatusUpdate={fetchIncidents}
               />
             )}
           </main>
