@@ -23,6 +23,8 @@ import AdminLiveMap from './pages/admin/AdminLiveMap';
 import IncidentReportAdmin from './pages/admin/IncidentReportAdmin';
 import AdminStatistics from './pages/admin/AdminStatistics';
 import OfficerStatistics from './pages/officer/Statistics';
+import SubscriptionManagement from './pages/admin/Subcription Management';
+import ConfigPage from './pages/admin/ConfigPage';
 
 const App = () => {
   return (
@@ -75,6 +77,16 @@ const App = () => {
         <Route path="/admin/statistics" element={
           <ProtectedRoute allowedRoles={[ROLES.ADMIN]}>
             <AdminStatistics />
+          </ProtectedRoute>
+        } />
+        <Route path="/admin/subcription-management" element={
+          <ProtectedRoute allowedRoles={[ROLES.ADMIN]}>
+            <SubscriptionManagement />
+          </ProtectedRoute>
+        } />
+        <Route path="/admin/config" element={
+          <ProtectedRoute allowedRoles={[ROLES.ADMIN]}>
+            <ConfigPage />
           </ProtectedRoute>
         } />
         <Route path="/unauthorized" element={<Unauthorized />} />

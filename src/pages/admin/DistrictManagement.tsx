@@ -26,6 +26,7 @@ interface Ward {
   coordinates?: string;
   createAt?: string | Date;
   districtId?: number;
+  totalAssignedOfficer?: number;
 }
 
 interface WardFormData {
@@ -108,6 +109,7 @@ const DistrictManagement = () => {
           coordinates: detailedData.polygonData,
           createAt: detailedData.createAt,
           districtId: detailedData.district?.id,
+          totalAssignedOfficer: detailedData.totalAssignedOfficer,
         };
         setSelectedWard(detailedWard);
       }
@@ -161,6 +163,7 @@ const DistrictManagement = () => {
             coordinates: newWardData.polygonData,
             createAt: newWardData.createAt,
             districtId: newWardData.district?.id,
+            totalAssignedOfficer: newWardData.totalAssignedOfficer,
           };
           setWards(prevWards => [...prevWards, formattedNewWard]);
 
@@ -498,9 +501,9 @@ const DistrictManagement = () => {
             notes: selectedWard.notes || `Phường ${selectedWard.name} thuộc ${selectedWard.districtName || 'Quận chưa xác định'}`,
             coordinates: selectedWard.coordinates || "Chưa có dữ liệu tọa độ",
             district: selectedWard.districtName || 'Chưa xác định',
-            districtId: selectedWard.districtId
+            districtId: selectedWard.districtId,
+            totalAssignedOfficers: selectedWard.totalAssignedOfficer || 0
           } : null}
-          districts={[]} // Pass an empty array for now, as districts are not fetched here
           loading={isDetailLoading}
           onClose={() => setSelectedWard(null)}
           onSave={handleSaveWard}

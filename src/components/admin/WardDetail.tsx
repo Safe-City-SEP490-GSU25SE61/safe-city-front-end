@@ -1,4 +1,4 @@
-import { MapPin } from 'lucide-react';
+import { MapPin, ChevronDown, ChevronUp } from 'lucide-react';
 import React, { useState, useEffect } from 'react';
 
 // This is a mock interface based on the image.
@@ -15,24 +15,22 @@ interface Ward {
   coordinates: string;
   district: string; // The district this ward belongs to
   districtId?: number;
+  totalAssignedOfficers?: number;
 }
 
-interface District {
-  id: number;
-  name: string;
-}
+
 
 interface WardDetailProps {
   ward: Ward | null;
-  districts: District[];
   onClose: () => void;
   onSave: (data: any) => void;
   loading?: boolean;
 }
 
-const WardDetail: React.FC<WardDetailProps> = ({ ward, districts, onClose, onSave, loading }) => {
+const WardDetail: React.FC<WardDetailProps> = ({ ward, onClose, onSave, loading }) => {
   const [isEditing, setIsEditing] = useState(false);
   const [editedWard, setEditedWard] = useState<Ward | null>(null);
+  const [isCoordinatesExpanded, setIsCoordinatesExpanded] = useState(false);
 
   useEffect(() => {
     if (ward) {
@@ -108,30 +106,12 @@ const WardDetail: React.FC<WardDetailProps> = ({ ward, districts, onClose, onSav
               <p className="font-semibold text-blue-600">{ward.status}</p>
             </div>
             <div>
-              <p className="text-gray-500">Mức độ:</p>
-              <p className="font-semibold text-red-600">{ward.level}/10</p>
+              <p className="text-gray-500">Tổng số lực lượng:</p>
+              <p className="font-semibold text-red-600">{ward.totalAssignedOfficers}</p>
             </div>
             <div>
               <p className="text-gray-500">Tổng sự cố:</p>
               <p className="font-bold text-2xl text-red-600">{ward.totalIncidents}</p>
-            </div>
-            <div>
-              <p className="text-gray-500">Quận/Huyện:</p>
-              {isEditing ? (
-                <select
-                  name="districtId"
-                  value={editedWard.districtId || ''}
-                  onChange={handleInputChange}
-                  className="w-full font-semibold text-green-600 bg-transparent border border-gray-300 rounded-md p-1 focus:outline-none focus:border-green-500"
-                >
-                  <option value="">Chọn quận</option>
-                  {districts.map(d => (
-                    <option key={d.id} value={d.id}>{d.name}</option>
-                  ))}
-                </select>
-              ) : (
-                <p className="font-semibold text-green-600">{ward.district}</p>
-              )}
             </div>
             <div>
               <p className="text-gray-500">Ngày tạo:</p>
@@ -161,18 +141,45 @@ const WardDetail: React.FC<WardDetailProps> = ({ ward, districts, onClose, onSav
           </div>
 
           <div className="mt-6">
-            <p className="text-gray-500 text-sm">Tọa độ khu vực:</p>
+            <div className="flex items-center justify-between">
+              <p className="text-gray-500 text-sm">Tọa độ khu vực:</p>
+              {!isEditing && (
+                <button
+                  onClick={() => setIsCoordinatesExpanded(!isCoordinatesExpanded)}
+                  className="flex items-center gap-1 text-blue-600 hover:text-blue-800 text-sm font-medium transition-colors"
+                >
+                  {isCoordinatesExpanded ? (
+                    <>
+                      <ChevronUp className="w-4 h-4" />
+                      Thu gọn
+                    </>
+                  ) : (
+                    <>
+                      <ChevronDown className="w-4 h-4" />
+                      Mở rộng
+                    </>
+                  )}
+                </button>
+              )}
+            </div>
             {isEditing ? (
               <textarea
                 name="coordinates"
                 value={editedWard.coordinates}
                 onChange={handleInputChange}
                 className="w-full border-gray-300 rounded-md p-2 mt-1 font-mono text-xs focus:ring-blue-500 focus:border-blue-500"
-                rows={3}
+                rows={6}
               />
             ) : (
-              <div className="bg-gray-100 p-3 mt-1 rounded text-gray-700 font-mono text-xs overflow-x-auto border border-gray-200">
-                {ward.coordinates}
+              <div className={`bg-gray-100 p-3 mt-1 rounded text-gray-700 font-mono text-xs border border-gray-200 transition-all duration-300 ${
+                isCoordinatesExpanded ? 'max-h-96 overflow-y-auto' : 'max-h-20 overflow-hidden'
+              }`}>
+                <div className="whitespace-pre-wrap break-all">
+                  {ward.coordinates}
+                </div>
+                {!isCoordinatesExpanded && ward.coordinates && ward.coordinates.length > 200 && (
+                  <div className="absolute bottom-0 left-0 right-0 h-8 bg-gradient-to-t from-gray-100 to-transparent pointer-events-none"></div>
+                )}
               </div>
             )}
           </div>

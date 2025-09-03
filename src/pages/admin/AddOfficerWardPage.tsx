@@ -301,8 +301,8 @@ const AddOfficerDistrictPage = () => {
                   }))}
                   value={districtFormData.districtId}
                   onChange={(value: string) => setDistrictFormData({ districtId: value })}
-                  placeholder="Chọn quận"
-                  searchPlaceholder="Tìm kiếm quận..."
+                  placeholder="Chọn phường"
+                  searchPlaceholder="Tìm kiếm phường..."
                 />
               </div>
               <div className="flex gap-2 justify-end">
@@ -329,7 +329,7 @@ const AddOfficerDistrictPage = () => {
           <div className="bg-white rounded-xl p-6 w-full max-w-md">
             <h2 className="text-lg font-bold mb-4">Xác nhận xóa sĩ quan khỏi quận</h2>
             <p className="mb-6">
-              Bạn có chắc chắn muốn xóa sĩ quan <span className="font-semibold">{confirmRemove.officer.name}</span> khỏi quận <span className="font-semibold">{confirmRemove.officer.currentDistrict}</span>?
+              Bạn có chắc chắn muốn xóa sĩ quan <span className="font-semibold">{confirmRemove.officer.name}</span> khỏi phường <span className="font-semibold">{confirmRemove.officer.currentDistrict}</span>?
             </p>
             <div className="flex justify-end gap-2">
               <button

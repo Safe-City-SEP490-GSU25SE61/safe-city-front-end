@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { X, MapPin, Calendar, User, AlertTriangle, FileText, Phone, Clock, Shield, Camera, Video, MessageSquare, Activity, Play, Eye, Send } from 'lucide-react';
-import { createIncidentNote, updateIncidentStatus, transferIncident } from '../../services/api/incident'; // 1. Import the API function
+import { createIncidentNote, updateIncidentStatus, transferIncident, updateIncidentVisibility } from '../../services/api/incident'; // 1. Import the API function
 import NotificationBar from '../common/NotificationBar'; // Add this import
 import { getAllWards } from '../../services/api/ward'; // Import at the top
 import goongjs from '@goongmaps/goong-js';
@@ -97,7 +97,7 @@ const IncidentDetail: React.FC<IncidentDetailProps> = ({ incident, loading, onCl
   const handleVisibilityToggle = async () => {
     const newVisibility = !localIsVisibleOnMap;
     try {
-      await updateIncidentStatus(incident.id, { 
+      await updateIncidentVisibility(incident.id, { 
         isVisibleOnMap: newVisibility 
       });
       setLocalIsVisibleOnMap(newVisibility);
@@ -213,6 +213,7 @@ const IncidentDetail: React.FC<IncidentDetailProps> = ({ incident, loading, onCl
   const handleAddNote = async () => {
     if (newNote.trim()) {
       const officerName = getOfficerNameFromToken();
+      setShowNoteModal(true);
       const newUpdate = {
         officer: officerName,
         date: new Date().toLocaleDateString('vi-VN'),
@@ -267,7 +268,7 @@ const IncidentDetail: React.FC<IncidentDetailProps> = ({ incident, loading, onCl
         show={notification.show}
         onClose={() => setNotification({ ...notification, show: false })}
       />
-      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4" >
         <div className="bg-white rounded-3xl max-w-5xl w-full max-h-[95vh] overflow-hidden shadow-2xl">
           {/* Header */}
           <div className="relative bg-blue-600 text-white p-8 rounded-t-3xl">
@@ -462,31 +463,99 @@ const IncidentDetail: React.FC<IncidentDetailProps> = ({ incident, loading, onCl
                 </div>
 
                 {/* Map Visibility Toggle */}
-                <div className="bg-white rounded-2xl p-6 shadow-lg border border-gray-200">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                      <MapPin className="w-5 h-5 text-gray-600" />
-                      <div>
-                        <h4 className="font-semibold text-gray-900">Hiển thị trên bản đồ</h4>
-                        <p className="text-sm text-gray-600">Cho phép sự cố này hiển thị trên bản đồ công khai</p>
+                <div className="bg-gradient-to-br from-white to-gray-50 rounded-2xl p-6 shadow-lg border border-gray-200 hover:shadow-xl transition-all duration-300">
+                  <div className="flex items-start justify-between">
+                    <div className="flex items-start gap-4">
+                      <div className={`p-3 rounded-xl transition-all duration-300 ${
+                        localIsVisibleOnMap 
+                          ? 'bg-green-100 text-green-600 shadow-md' 
+                          : 'bg-gray-100 text-gray-500'
+                      }`}>
+                        <MapPin className="w-6 h-6" />
+                      </div>
+                      <div className="flex-1">
+                        <h4 className="font-bold text-gray-900 text-lg mb-1">Hiển thị trên bản đồ</h4>
+                        <p className="text-sm text-gray-600 leading-relaxed mb-3">
+                          Cho phép sự cố này hiển thị trên bản đồ công khai
+                        </p>
+                        <div className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-semibold transition-all duration-300 ${
+                          localIsVisibleOnMap 
+                            ? 'bg-green-100 text-green-700 border border-green-200' 
+                            : 'bg-gray-100 text-gray-600 border border-gray-200'
+                        }`}>
+                          <div className={`w-2 h-2 rounded-full transition-all duration-300 ${
+                            localIsVisibleOnMap ? 'bg-green-500 animate-pulse' : 'bg-gray-400'
+                          }`} />
+                          {localIsVisibleOnMap ? 'Đang hiển thị' : 'Đang ẩn'}
+                        </div>
                       </div>
                     </div>
-                    <div className="flex items-center gap-3">
-                      <span className={`text-sm font-semibold ${localIsVisibleOnMap ? 'text-green-700' : 'text-gray-600'}`}>
-                        {localIsVisibleOnMap ? 'Đang hiển thị' : 'Đang ẩn'}
-                      </span>
+                    
+                    {/* Enhanced Toggle Switch */}
+                    <div className="flex flex-col items-center gap-2">
                       <button
                         onClick={handleVisibilityToggle}
-                        className={`relative inline-flex items-center h-6 rounded-full w-11 transition-colors duration-200 ease-in-out focus:outline-none ${
-                          localIsVisibleOnMap ? 'bg-green-600' : 'bg-gray-200'
+                        className={`relative inline-flex items-center h-8 rounded-full w-14 transition-all duration-300 ease-in-out focus:outline-none focus:ring-4 focus:ring-opacity-30 shadow-lg hover:shadow-xl transform hover:scale-105 ${
+                          localIsVisibleOnMap 
+                            ? 'bg-gradient-to-r from-green-500 to-green-600 focus:ring-green-300' 
+                            : 'bg-gradient-to-r from-gray-300 to-gray-400 focus:ring-gray-300'
                         }`}
                       >
+                        {/* Toggle Knob */}
                         <span
-                          className={`inline-block w-4 h-4 transform bg-white rounded-full transition-transform duration-200 ease-in-out ${
-                            localIsVisibleOnMap ? 'translate-x-6' : 'translate-x-1'
+                          className={`inline-block w-6 h-6 transform bg-white rounded-full transition-all duration-300 ease-in-out shadow-lg border-2 ${
+                            localIsVisibleOnMap 
+                              ? 'translate-x-7 border-green-200' 
+                              : 'translate-x-1 border-gray-200'
                           }`}
-                        />
+                        >
+                          {/* Inner Icon */}
+                          <div className={`w-full h-full flex items-center justify-center transition-all duration-300 ${
+                            localIsVisibleOnMap ? 'text-green-600' : 'text-gray-400'
+                          }`}>
+                            {localIsVisibleOnMap ? (
+                              <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
+                                <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                              </svg>
+                            ) : (
+                              <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
+                                <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
+                              </svg>
+                            )}
+                          </div>
+                        </span>
+                        
+                        {/* Background Pattern */}
+                        <div className={`absolute inset-0 rounded-full opacity-20 transition-opacity duration-300 ${
+                          localIsVisibleOnMap ? 'bg-green-200' : 'bg-gray-200'
+                        }`} />
                       </button>
+                      
+                      {/* Action Label */}
+                      <span className={`text-xs font-medium transition-colors duration-300 ${
+                        localIsVisibleOnMap ? 'text-green-700' : 'text-gray-500'
+                      }`}>
+                        {localIsVisibleOnMap ? 'BẬT' : 'TẮT'}
+                      </span>
+                    </div>
+                  </div>
+                  
+                  {/* Additional Info */}
+                  <div className={`mt-4 p-3 rounded-xl border-l-4 transition-all duration-300 ${
+                    localIsVisibleOnMap 
+                      ? 'bg-green-50 border-green-400 text-green-800' 
+                      : 'bg-gray-50 border-gray-300 text-gray-600'
+                  }`}>
+                    <div className="flex items-center gap-2">
+                      <svg className="w-4 h-4 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                        <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
+                      </svg>
+                      <p className="text-sm font-medium">
+                        {localIsVisibleOnMap 
+                          ? 'Sự cố này sẽ hiển thị cho người dân trên bản đồ công khai' 
+                          : 'Sự cố này sẽ được ẩn khỏi bản đồ công khai'
+                        }
+                      </p>
                     </div>
                   </div>
                 </div>

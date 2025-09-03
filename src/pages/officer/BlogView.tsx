@@ -136,7 +136,17 @@ const BlogView: React.FC = () => {
   };
 
   const navigate = useNavigate();
+const [officerCommune, setOfficerCommune] = useState('Đang tải...');
 
+  useEffect(() => {
+    const profileData = localStorage.getItem('officerCommune');
+    if (profileData) {
+      const commune = JSON.parse(profileData);
+      // Assuming the district is available at profile.ward.district.name
+     
+      setOfficerCommune(commune);
+    }
+  }, []);
   const handleBlogClick = useCallback((blogId: string | number) => {
     navigate(`/officer/blog-detail/${blogId}`);
   }, [navigate]);
@@ -292,7 +302,7 @@ const BlogView: React.FC = () => {
               <div className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-lg border border-white/20 p-6 mb-8">
                 <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
                   <div className="flex items-center gap-2 text-blue-800">
-                    <span className="text-sm font-medium">Khu vực quản lý:</span>
+                    <span className="text-sm font-medium">Khu vực quản lý: {officerCommune}</span>
                 
                   </div>
                   <p className="text-xs text-blue-600 mt-1">

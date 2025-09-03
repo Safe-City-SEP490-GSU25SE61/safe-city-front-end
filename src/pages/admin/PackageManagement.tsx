@@ -13,7 +13,10 @@ const FIELD_LABELS: Record<string, string> = {
   durationDays: "Thời hạn (ngày)",
   isActive: "Trạng thái",
   color: "Màu sắc",
-  // Add more as needed
+  canPostBlog: "Quyền đăng Blog",
+  canViewIncidentDetail: "Quyền xem chi tiết sự cố",
+  monthlyVirtualEscortLimit: "Giới hạn hộ tống ảo hàng tháng",
+  canReusePreviousEscortPaths: "Quyền sử dụng lại lộ trình cũ",
 };
 
 const ChangeDetailModal = ({
@@ -357,6 +360,82 @@ const PackageDetailModal = ({ details, onClose, onSave }: { details: { data: any
           </div>
 
           {/* Divider */}
+          {/* Divider */}
+          <hr className="my-4 border-t border-gray-200" />
+
+          {/* Permissions Section */}
+          <div>
+            <h4 className="text-md font-semibold text-gray-800 mb-4">Quyền và giới hạn</h4>
+            <div className="space-y-4">
+              {isEditing ? (
+                <>
+                  <div className="flex items-center justify-between bg-gray-50 p-3 rounded-lg">
+                    <label htmlFor="canPostBlog" className="text-sm font-medium text-gray-700">Quyền đăng Blog</label>
+                    <input
+                      type="checkbox"
+                      id="canPostBlog"
+                      name="canPostBlog"
+                      checked={!!formData.canPostBlog}
+                      onChange={handleChange}
+                      className="h-5 w-5 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                    />
+                  </div>
+                  <div className="flex items-center justify-between bg-gray-50 p-3 rounded-lg">
+                    <label htmlFor="canViewIncidentDetail" className="text-sm font-medium text-gray-700">Quyền xem chi tiết sự cố</label>
+                    <input
+                      type="checkbox"
+                      id="canViewIncidentDetail"
+                      name="canViewIncidentDetail"
+                      checked={!!formData.canViewIncidentDetail}
+                      onChange={handleChange}
+                      className="h-5 w-5 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                    />
+                  </div>
+                  <div className="flex items-center justify-between bg-gray-50 p-3 rounded-lg">
+                    <label htmlFor="canReusePreviousEscortPaths" className="text-sm font-medium text-gray-700">Quyền sử dụng lại lộ trình cũ</label>
+                    <input
+                      type="checkbox"
+                      id="canReusePreviousEscortPaths"
+                      name="canReusePreviousEscortPaths"
+                      checked={!!formData.canReusePreviousEscortPaths}
+                      onChange={handleChange}
+                      className="h-5 w-5 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-semibold text-gray-700 mb-1">Giới hạn hộ tống ảo (tháng)</label>
+                    <input
+                      type="number"
+                      name="monthlyVirtualEscortLimit"
+                      value={formData.monthlyVirtualEscortLimit || 0}
+                      onChange={handleChange}
+                      className="w-full border border-gray-300 rounded-lg p-3 focus:ring-2 focus:ring-blue-500 focus:outline-none transition"
+                    />
+                  </div>
+                </>
+              ) : (
+                <div className="grid grid-cols-2 gap-4 text-sm">
+                  <div className="flex items-center justify-between bg-gray-50 p-3 rounded-lg">
+                    <span className="font-medium text-gray-700">Quyền đăng Blog:</span>
+                    <span className={`font-semibold ${formData.canPostBlog ? 'text-green-600' : 'text-red-600'}`}>{formData.canPostBlog ? 'Có' : 'Không'}</span>
+                  </div>
+                  <div className="flex items-center justify-between bg-gray-50 p-3 rounded-lg">
+                    <span className="font-medium text-gray-700">Xem chi tiết sự cố:</span>
+                    <span className={`font-semibold ${formData.canViewIncidentDetail ? 'text-green-600' : 'text-red-600'}`}>{formData.canViewIncidentDetail ? 'Có' : 'Không'}</span>
+                  </div>
+                  <div className="flex items-center justify-between bg-gray-50 p-3 rounded-lg">
+                    <span className="font-medium text-gray-700">Dùng lại lộ trình cũ:</span>
+                    <span className={`font-semibold ${formData.canReusePreviousEscortPaths ? 'text-green-600' : 'text-red-600'}`}>{formData.canReusePreviousEscortPaths ? 'Có' : 'Không'}</span>
+                  </div>
+                  <div className="flex items-center justify-between bg-gray-50 p-3 rounded-lg">
+                    <span className="font-medium text-gray-700">Số lượng hộ tống ảo cộng thêm:</span>
+                    <span className="font-semibold text-blue-600">{formData.monthlyVirtualEscortLimit}</span>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+
           <hr className="my-8 border-t border-gray-200" />
 
   
@@ -616,6 +695,10 @@ const PackageManagement = () => {
     lastUpdated: new Date(),
     id: '', // id will be set by backend
     color: "#000000", // default color
+    canPostBlog: false,
+    canViewIncidentDetail: false,
+    monthlyVirtualEscortLimit: 0,
+    canReusePreviousEscortPaths: false,
   };
 
   const handleAddNewPackage = () => {
@@ -635,6 +718,10 @@ const PackageManagement = () => {
           durationDays: Number(updatedPackageData.durationDays),
           isActive: updatedPackageData.isActive,
           color: updatedPackageData.color,
+          canPostBlog: !!updatedPackageData.canPostBlog,
+          canViewIncidentDetail: !!updatedPackageData.canViewIncidentDetail,
+          monthlyVirtualEscortLimit: Number(updatedPackageData.monthlyVirtualEscortLimit),
+          canReusePreviousEscortPaths: !!updatedPackageData.canReusePreviousEscortPaths,
         });
         setPackages([...packages, responseData.data]);
         setNotification({ message: "Tạo gói mới thành công!", type: "success", show: true });
@@ -646,6 +733,10 @@ const PackageManagement = () => {
           durationDays: Number(updatedPackageData.durationDays),
           isActive: updatedPackageData.isActive,
           color: updatedPackageData.color,
+          canPostBlog: !!updatedPackageData.canPostBlog,
+          canViewIncidentDetail: !!updatedPackageData.canViewIncidentDetail,
+          monthlyVirtualEscortLimit: Number(updatedPackageData.monthlyVirtualEscortLimit),
+          canReusePreviousEscortPaths: !!updatedPackageData.canReusePreviousEscortPaths,
         };
 
         const responseData = await updatePackageById(selectedPackage.data.id.toString(), dataToUpdate);

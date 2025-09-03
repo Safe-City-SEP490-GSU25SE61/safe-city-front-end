@@ -29,10 +29,13 @@ export const API_ENDPOINTS = {
   },
   USERS: {
     BASE: `${API_BASE_URL}/accounts`,
+    PROFILE: `${API_BASE_URL}/settings/profile`,
     BY_ID: (id: string) => `${API_BASE_URL}/accounts/${id}`,
     CREATE: `${API_BASE_URL}/accounts`,
     DELETE: (id: string) => `${API_BASE_URL}/accounts/${id}`,
     GET_OFFICER: `${API_BASE_URL}/accounts/officer`,
+    GET_STATISTICS:`${API_BASE_URL}/accounts/metrics/app-users`,
+    USER_POINT:(id: string) => `${API_BASE_URL}/points/history/${id}`,
   },
   INCIDENT: {
     BASE: `${API_BASE_URL}/reports/officer/filter`,
@@ -42,6 +45,8 @@ export const API_ENDPOINTS = {
     STATUS: (id: string) => `${API_BASE_URL}/reports/${id}/status`,
     TRANSFER: (id: string) => `${API_BASE_URL}/reports/${id}/transfer`,
     INCIDENT_STATISTICS_ADMIN: `${API_BASE_URL}/reports/statistics`,
+    ISVISIBLE: (id: string) => `${API_BASE_URL}/reports/${id}/visibility`,
+    INCIDENT_STATISTICS_OFFICER: `${API_BASE_URL}/reports/statistics/officer`,
   },
   BLOG: {
     BASE: `${API_BASE_URL}/blogs`,
@@ -52,6 +57,8 @@ export const API_ENDPOINTS = {
     GET_OFFICER: `${API_BASE_URL}/blogs/officer`,
     GET_OFFICER_BY_ID: (id: string) => `${API_BASE_URL}/blogs/officer/${id}`,
     APPROVE: (id: string) => `${API_BASE_URL}/blogs/approve/${id}`,
+    VISIBLE: (id: string) => `${API_BASE_URL}/blogs/${id}/visibility`,
+
   },
   COMMENT: {
     BASE: `${API_BASE_URL}/comments`, 
@@ -62,7 +69,17 @@ export const API_ENDPOINTS = {
   MAP: {
     COMMUNE_DATA: `${API_BASE_URL}/map/communes`,
     OFFICER_REPORTS:`${API_BASE_URL}/map/officer/reports`,
+    ADMIN_REPORTS: `${API_BASE_URL}/map/admin/reports`,
+    OFFICER_POLYGON: `${API_BASE_URL}/map/officer/reports/details/polygon`
   },
+  CONFIG:{
+    BASE: `${API_BASE_URL}/configurations`,
+    BY_ID: (id: string) => `${API_BASE_URL}/config/${id}`,
+  },
+  SUBCRIPTIONS:{
+    BASE: `${API_BASE_URL}/subscriptions/admin/metrics`,
+    HISTORY: `${API_BASE_URL}/subscriptions/admin/history`,
 
+  }
   // Add other groups here as needed
 };

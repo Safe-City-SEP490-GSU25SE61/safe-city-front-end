@@ -1,7 +1,6 @@
 // src/pages/admin/AdminLiveMap.tsx
 
 import React, { useEffect, useRef, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
 import Sidebar from '../../components/common/SideBar';
 import Header from '../../components/common/Header';
 import NotificationBar from '../../components/common/NotificationBar';
@@ -11,8 +10,10 @@ import {
   BarChart3, PieChart, TrendingUp, MapPin, Users, AlertTriangle,
   CheckCircle2, Clock, XCircle, Eye, EyeOff, Ban
 } from 'lucide-react';
+import ReactDOMServer from 'react-dom/server';
 import { getIncidentStatisticsAdmin } from '../../services/api/incident';
-import { getCommuneData } from '../../services/api/map';
+import { getCommuneData, getAdminReports } from '../../services/api/map';
+import { getIncidentIcon } from '../../constants/incident';
 
 // Admin statistics interface based on provided data
 interface AdminStatistics {
@@ -51,7 +52,6 @@ interface CommunePolygon {
 }
 
 const AdminLiveMap: React.FC = () => {
-  const navigate = useNavigate();
   const [notification, setNotification] = useState({
     show: false,
     message: "",
@@ -63,10 +63,11 @@ const AdminLiveMap: React.FC = () => {
   const [communePolygons, setCommunePolygons] = useState<CommunePolygon[]>([]);
   const [showCommuneBoundaries, setShowCommuneBoundaries] = useState(true);
   const [selectedView, setSelectedView] = useState<'overview' | 'status' | 'type' | 'commune'>('overview');
-  const [timePeriod, setTimePeriod] = useState<'day' | 'week' | 'year'>('day');
+  const [timePeriod, setTimePeriod] = useState<'week' | 'month' | 'quarter'>('week');
   const mapContainer = useRef<HTMLDivElement>(null);
   const mapRef = useRef<any | null>(null);
   const heatmapLayersRef = useRef<string[]>([]);
+  const reportMarkersRef = useRef<any[]>([]);
   const fetchStatistics = async () => {
     try {
       setLoading(true);
@@ -188,6 +189,132 @@ const AdminLiveMap: React.FC = () => {
     } catch (error) {
       console.error('❌ Error in combined fetch:', error);
     }
+  };
+
+  // Handle fetching reports for a specific commune
+  const handleCommuneReports = async (commune: string, communeData: any, timePeriod: string) => {
+    try {
+      console.log(`📊 Fetching reports for commune: ${commune}`);
+      const communeId = communeData?.id;
+
+      if (!communeId) {
+        console.warn(`⚠️ No commune ID found for: ${commune}`);
+        setNotification({ show: true, message: `Không tìm thấy ID cho phường/xã: ${commune}`, type: "error" });
+        return;
+      }
+
+      const response = await getAdminReports(communeId.toString(), timePeriod);
+      console.log(`📋 Retrieved response for commune ${commune}:`, response);
+
+      if (mapRef.current && response?.point) {
+        console.log(`🗺️ Flying to ${commune} at point:`, response.point);
+        mapRef.current.flyTo({
+          center: [response.point.lng, response.point.lat],
+          zoom: 15,
+          speed: 1.5
+        });
+      }
+
+      if (response?.reports) {
+        addReportMarkers(response.reports);
+        setNotification({ show: true, message: `Đã tải ${response.reports.length} báo cáo cho ${commune}`, type: "success" });
+      } else {
+        addReportMarkers([]); // Clear markers if no reports
+      }
+
+    } catch (error) {
+      console.error('Error fetching commune reports:', error);
+      setNotification({ show: true, message: `Lỗi khi tải báo cáo cho ${commune}`, type: "error" });
+      addReportMarkers([]); // Clear markers on error
+    }
+  };
+
+  // Get marker configuration based on incident type
+  const getMarkerConfig = (type: string) => {
+    const basePath = '/assets/';
+    const imageIcons: { [key: string]: { icon: string; color: string; bgColor: string } } = {
+      'giao thông': { icon: `${basePath}traffic.png`, color: '#1d4ed8', bgColor: '#eff6ff' },
+      'an ninh': { icon: `${basePath}security.png`, color: '#991b1b', bgColor: '#fef2f2' },
+      'môi trường': { icon: `${basePath}environment.png`, color: '#15803d', bgColor: '#f0fdf4' },
+      'cơ sở hạ tầng': { icon: `${basePath}infrastructure.png`, color: '#b45309', bgColor: '#fffbeb' },
+      'khác': { icon: `${basePath}other.png`, color: '#4b5563', bgColor: '#f9fafb' },
+    };
+
+    const lowerCaseType = type.toLowerCase();
+    if (imageIcons[lowerCaseType]) {
+      return imageIcons[lowerCaseType];
+    }
+
+    // Fallback for types without custom images
+    const IconComponent = getIncidentIcon(type);
+    const color = '#4b5563'; // Default color
+    const bgColor = '#f9fafb'; // Default background
+
+    return {
+      icon: ReactDOMServer.renderToString(React.createElement(IconComponent, { size: 24, color: color })),
+      color: color,
+      bgColor: bgColor
+    };
+  };
+
+  // Add report markers to the map
+  const addReportMarkers = (reports: any[]) => {
+    if (!mapRef.current) return;
+
+    // Clear existing report markers
+    reportMarkersRef.current.forEach(marker => marker.remove());
+    reportMarkersRef.current = [];
+
+    if (!reports || reports.length === 0) {
+      return;
+    }
+
+    reports.forEach(report => {
+      if (report.lat && report.lng) {
+        const config = getMarkerConfig(report.type || 'default');
+        const el = document.createElement('div');
+        el.className = 'incident-marker';
+
+        if (config.icon.startsWith('/assets/')) {
+          el.style.width = '36px';
+          el.style.height = '36px';
+          el.style.backgroundImage = `url(${config.icon})`;
+          el.style.backgroundSize = 'contain';
+          el.style.backgroundRepeat = 'no-repeat';
+          el.style.backgroundPosition = 'center';
+        } else {
+          el.innerHTML = config.icon;
+          el.style.fontSize = '24px';
+          el.style.width = '50px';
+          el.style.height = '50px';
+          el.style.display = 'flex';
+          el.style.alignItems = 'center';
+          el.style.justifyContent = 'center';
+          el.style.backgroundColor = config.bgColor;
+          el.style.borderRadius = '50%';
+          el.style.border = `4px solid ${config.color}`;
+          el.style.boxShadow = '0 4px 12px rgba(0,0,0,0.3)';
+        }
+
+        el.style.cursor = 'pointer';
+
+        const marker = new goongjs.Marker(el)
+          .setLngLat([report.lng, report.lat])
+          const popup = new goongjs.Popup({ offset: 25 }).setHTML(
+            `<div style="font-family: Arial, sans-serif; font-size: 14px;">
+              <h3 style="margin: 0 0 5px 0; font-size: 16px; color: #333;">${report.subCategory}</h3>
+              <p style="margin: 0 0 3px 0; color: #555;"><strong>Địa chỉ:</strong> ${report.address}</p>
+              <p style="margin: 0 0 3px 0; color: #555;"><strong>Loại:</strong> ${report.type}</p>
+              <p style="margin: 0 0 3px 0; color: #555;"><strong>Trạng thái:</strong> ${report.status}</p>
+              <p style="margin: 0; color: #555;"><strong>Thời gian:</strong> ${new Date(report.occurredAt).toLocaleString('vi-VN')}</p>
+            </div>`
+          );
+          marker.setPopup(popup);
+          marker.addTo(mapRef.current);
+        
+        reportMarkersRef.current.push(marker);
+      }
+    });
   };
 
   // Add commune polygon boundaries to map
@@ -465,7 +592,7 @@ const AdminLiveMap: React.FC = () => {
       container: mapContainer.current,
       style: 'https://tiles.goong.io/assets/goong_light_v2.json',
       center: [106.7009, 10.7769], // Ho Chi Minh City
-      zoom: 11,
+      zoom: 12,
     });
 
     mapRef.current = map;
@@ -578,12 +705,12 @@ const AdminLiveMap: React.FC = () => {
                   <div className="flex items-center gap-2">
                     <select 
                       value={timePeriod}
-                      onChange={(e) => setTimePeriod(e.target.value as 'day' | 'week' | 'year')}
+                      onChange={(e) => setTimePeriod(e.target.value as 'week' | 'month' | 'quarter')}
                       className="px-4 py-2 bg-blue-500 text-white rounded-lg text-sm font-medium hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-300"
                     >
-                      <option value="day">Theo ngày</option>
                       <option value="week">Theo tuần</option>
-                      <option value="year">Theo năm</option>
+                      <option value="month">Theo tháng</option>
+                      <option value="quarter">Theo quý</option>
                     </select>
                   </div>
                   <button
@@ -782,12 +909,7 @@ const AdminLiveMap: React.FC = () => {
                                     Xem trên bản đồ
                                   </button>
                                   <button
-                                    onClick={() => {
-                                      console.log(`📊 Navigating to incident report for commune: ${commune}`);
-                                      navigate('/admin/incident-report', {
-                                        state: { filterByDistrict: commune }
-                                      });
-                                    }}
+                                    onClick={() => handleCommuneReports(commune, communeData, timePeriod)}
                                     className="text-xs bg-green-100 text-green-700 px-2 py-1 rounded hover:bg-green-200 transition-colors"
                                   >
                                     Xem báo cáo

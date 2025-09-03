@@ -35,6 +35,8 @@ export interface Blog {
   createdAt: string;
   mediaUrls?: string[];
   blogModeration?: BlogModeration;
+  isApproved?: boolean;
+  isVisible?: boolean;
   // Optional fields that might be present
   viewCount?: number;
   likeCount?: number;
@@ -43,7 +45,7 @@ export interface Blog {
   updatedAt?: string;
   publishedAt?: string;
   status?: 'DRAFT' | 'PUBLISHED' | 'ARCHIVED';
-  isPinned?: boolean;
+  pinned?: boolean;
   description?: string;
   thumbnail?: string;
   tags?: string[];
@@ -118,7 +120,17 @@ export const approveBlog = async (id: string, isApproved?: boolean, isPinned?: b
     });
     return response.data;
 };
+export const visibilityBlog = async (id: string, isVisible?: boolean) => {
+    const params = new URLSearchParams();
+    if (isVisible !== undefined) params.append('isVisible', isVisible.toString());
+    const url = `${API_ENDPOINTS.BLOG.VISIBLE(id)}${params.toString() ? `?${params.toString()}` : ''}`;
+    const response = await axios.patch(url, {}, {
+        headers: getAuthHeaders(),
+    });
+    return response.data;
+}
 
+    
 // Helper function to get authorization headers
 const getAuthHeaders = () => {
   const token = localStorage.getItem('accessToken');
