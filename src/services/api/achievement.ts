@@ -91,14 +91,7 @@ export const updateAchievementConfig = async (id: string, data: AchievementCreat
       headers: getAuthHeadersForFormData(),
     });
     return response.data;
-  } else {
-    // No file upload, send regular JSON
-    const { logoFile, ...jsonData } = data;
-    const response = await axios.post(API_ENDPOINTS.ACHIEVEMENT.CONFIG_BY_ID(id), { ...jsonData, _method: 'PUT' }, {
-      headers: getAuthHeaders(),
-    });
-    return response.data;
-  }
+  } 
 };
 
 export const deleteAchievementConfig = async (id: string) => {
