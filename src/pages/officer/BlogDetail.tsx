@@ -8,7 +8,7 @@ import { useEditor, EditorContent } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
 import Underline from '@tiptap/extension-underline';
 import TextAlign from '@tiptap/extension-text-align';
-import { getBlogByIdOfficer, approveBlog, type Blog } from '../../services/api/blog';
+import { getBlogByIdOfficer, approveBlog, visibilityBlog, type Blog } from '../../services/api/blog';
 import { getCommentByBlogId, createComment, type CommentCreateData } from '../../services/api/comment';
 
 // Comment interface
@@ -216,106 +216,142 @@ const parseJsonContent = (jsonContent: string, violations?: string[]): string =>
 
 // Define the info table data dynamically
 const getBlogInfo = (
-  blog: any,
+  blog: Blog,
   blogStatus: string,
   handleToggleBlogStatus: () => void,
-  handleViewReport: () => void, // <-- add this parameter
-  handleTogglePinStatus: () => void // <-- add this parameter
-) => [
-  {
-    label: 'Lượt xem',
-    value: blog.viewCount || 0,
-    icon: <Eye className="w-4 h-4 text-gray-500" />,
-  },
-  {
-    label: 'Lượt thích',
-    value: blog.likeCount || 0,
-    icon: <ThumbsUp className="w-4 h-4 text-gray-500" />,
-  },
-  {
-    label: 'Bình luận',
-    value: blog.commentCount || 0,
-    icon: <MessageCircle className="w-4 h-4 text-gray-500" />,
-  },
-  {
-    label: 'Tác giả',
-    value: blog.authorName || 'Chưa có tác giả',
-    icon: <User className="w-4 h-4 text-gray-500" />,
-  },
-  {
-    label: 'Ngày đăng',
-    value: blog.createdAt ? new Date(blog.createdAt).toLocaleDateString('vi-VN') : 'Chưa có ngày',
-    icon: <Calendar className="w-4 h-4 text-gray-500" />,
-  },
-  {
-    label: 'Chỉnh sửa lần cuối',
-    value: blog.updatedAt ? new Date(blog.updatedAt).toLocaleDateString('vi-VN') : 'Chưa có ngày',
-    icon: <Pencil className="w-4 h-4 text-gray-500" />,
-  },
-  {
-    label: 'Báo cáo',
-    value: (
-      <div className="flex items-center gap-2">
-        {blog.reportCount || 0}
+  handleViewReport: () => void,
+  handleTogglePinStatus: () => void,
+  handleToggleVisibility: () => void
+) => {
+  const infoItems = [
+    {
+      label: 'Lượt xem',
+      value: blog.viewCount || 0,
+      icon: <Eye className="w-4 h-4 text-gray-500" />,
+    },
+    {
+      label: 'Lượt thích',
+      value: blog.likeCount || 0,
+      icon: <ThumbsUp className="w-4 h-4 text-gray-500" />,
+    },
+    {
+      label: 'Bình luận',
+      value: blog.commentCount || 0,
+      icon: <MessageCircle className="w-4 h-4 text-gray-500" />,
+    },
+    {
+      label: 'Tác giả',
+      value: blog.authorName || 'Chưa có tác giả',
+      icon: <User className="w-4 h-4 text-gray-500" />,
+    },
+    {
+      label: 'Ngày đăng',
+      value: blog.createdAt ? new Date(blog.createdAt).toLocaleDateString('vi-VN') : 'Chưa có ngày',
+      icon: <Calendar className="w-4 h-4 text-gray-500" />,
+    },
+    {
+      label: 'Chỉnh sửa lần cuối',
+      value: blog.updatedAt ? new Date(blog.updatedAt).toLocaleDateString('vi-VN') : 'Chưa có ngày',
+      icon: <Pencil className="w-4 h-4 text-gray-500" />,
+    },
+    {
+      label: 'Báo cáo',
+      value: (
+        <div className="flex items-center gap-2">
+          {blog.reportCount || 0}
+          <button
+            onClick={handleViewReport}
+            className="ml-2 px-2 py-1 rounded bg-blue-100 text-blue-700 text-xs font-semibold hover:bg-blue-200 transition"
+          >
+            Xem
+          </button>
+        </div>
+      ),
+      icon: <Flag className="w-4 h-4 text-gray-500" />,
+    },
+    {
+      label: '',
+      value: (
         <button
-          onClick={handleViewReport}
-          className="ml-2 px-2 py-1 rounded bg-blue-100 text-blue-700 text-xs font-semibold hover:bg-blue-200 transition"
+          onClick={handleToggleBlogStatus}
+          className={`flex items-center gap-2 px-4 py-2 rounded font-semibold transition text-sm
+            ${blogStatus === 'Đã xuất bản'
+              ? 'bg-red-100 text-red-700 hover:bg-red-200'
+              : 'bg-green-100 text-green-700 hover:bg-green-200'
+            }`}
         >
-          Xem
+          {blogStatus === 'Đã xuất bản' ? (
+            <>
+              <EyeOff className="w-4 h-4" /> Không duyệt bài viết
+            </>
+          ) : (
+            <>
+              <CheckCircle className="w-4 h-4" /> Duyệt bài viết
+            </>
+          )}
         </button>
-      </div>
-    ),
-    icon: <Flag className="w-4 h-4 text-gray-500" />,
-  },
-  {
-    label: '',
-    value: (
-      <button
-        onClick={handleToggleBlogStatus}
-        className={`flex items-center gap-2 px-4 py-2 rounded font-semibold transition text-sm
-          ${blogStatus === 'Đã xuất bản'
-            ? 'bg-red-100 text-red-700 hover:bg-red-200'
-            : 'bg-green-100 text-green-700 hover:bg-green-200'
-          }`}
-      >
-        {blogStatus === 'Đã xuất bản' ? (
-          <>
-            <EyeOff className="w-4 h-4" /> Ẩn bài viết
-          </>
-        ) : (
-          <>
-            <CheckCircle className="w-4 h-4" /> Duyệt bài viết
-          </>
-        )}
-      </button>
-    ),
-    icon: null,
-  },
-  {
-    label: '',
-    value: (
-      <button
-        onClick={handleTogglePinStatus}
-        className={`flex items-center gap-2 px-4 py-2 rounded font-semibold transition text-sm
-          ${blog.isPinned
-            ? 'bg-red-100 text-red-700 hover:bg-red-200'
-            : 'bg-green-100 text-green-700 hover:bg-green-200'
-          }`}
-      >
-        {blog.isPinned ? (
-          <>
-            <Minus className="w-4 h-4" /> Bỏ ghim
-          </>
-        ) : (
-          <>
-            <CheckCircle className="w-4 h-4" /> Ghim
-          </>
-        )}
-      </button>
-    ),
-    icon: null,
-  },
-];
+      ),
+      icon: null,
+    },
+  ];
+
+  if (blog.isApproved) {
+    infoItems.push(
+      {
+        label: '',
+        value: (
+          <button
+            onClick={handleTogglePinStatus}
+            className={`flex items-center gap-2 px-4 py-2 rounded font-semibold transition text-sm
+              ${
+                blog.pinned
+                  ? 'bg-red-100 text-red-700 hover:bg-red-200'
+                  : 'bg-green-100 text-green-700 hover:bg-green-200'
+              }`}
+          >
+            {blog.pinned ? (
+              <>
+                <Minus className="w-4 h-4" /> Bỏ ghim
+              </>
+            ) : (
+              <>
+                <CheckCircle className="w-4 h-4" /> Ghim
+              </>
+            )}
+          </button>
+        ),
+        icon: null,
+      },
+      {
+        label: '',
+        value: (
+          <button
+            onClick={handleToggleVisibility}
+            className={`flex items-center gap-2 px-4 py-2 rounded font-semibold transition text-sm
+              ${
+                blog.isVisible
+                  ? 'bg-red-100 text-red-700 hover:bg-red-200'
+                  : 'bg-green-100 text-green-700 hover:bg-green-200'
+              }`}
+          >
+            {blog.isVisible ? (
+              <>
+                <EyeOff className="w-4 h-4" /> Ẩn
+              </>
+            ) : (
+              <>
+                <Eye className="w-4 h-4" /> Hiện
+              </>
+            )}
+          </button>
+        ),
+        icon: null,
+      }
+    );
+  }
+
+  return infoItems;
+};
 
 
 
@@ -535,7 +571,7 @@ const BlogDetailPage: React.FC = () => {
          
           setBlog(response.data);
           // Set blog status based on API response or default
-          setBlogStatus('Đã xuất bản'); // Default status since your API doesn't seem to have status field
+          setBlogStatus(response.data.isApproved ? 'Đã xuất bản' : 'Chưa xuất bản'); 
           setEditableContent(response.data.content || '');
           setEditableTitle(response.data.title || '');
           
@@ -603,24 +639,34 @@ const BlogDetailPage: React.FC = () => {
   // Toggle blog status (approve/reject)
   const handleToggleBlogStatus = async () => {
     if (!blog || !id) return;
-    
+
     try {
-      const newApprovedStatus = blogStatus !== 'Đã xuất bản';
-      await approveBlog(id, newApprovedStatus, undefined);
-      setBlogStatus(newApprovedStatus ? 'Đã xuất bản' : 'Đã ẩn');
-      
-      // Show success notification
+      const newApprovalStatus = !blog.isApproved;
+      await approveBlog(id, newApprovalStatus, blog.pinned);
+
+      if (newApprovalStatus) {
+        // If approving, also set visibility to true
+        await visibilityBlog(id, true);
+        setBlog(prev => (prev ? { ...prev, isApproved: newApprovalStatus, isVisible: true } : null));
+        setBlogStatus('Đã xuất bản');
+      } else {
+        setBlog(prev => (prev ? { ...prev, isApproved: newApprovalStatus } : null));
+        setBlogStatus('Chưa xuất bản');
+      }
+
       setNotification({
         show: true,
-        message: newApprovedStatus ? 'Bài viết đã được duyệt thành công!' : 'Bài viết đã được ẩn thành công!',
-        type: 'success'
+        message: newApprovalStatus
+          ? 'Bài viết đã được duyệt thành công và hiển thị!'
+          : 'Bài viết đã được gỡ duyệt thành công!',
+        type: 'success',
       });
     } catch (error) {
       console.error('Error toggling blog status:', error);
       setNotification({
         show: true,
         message: 'Có lỗi xảy ra khi thay đổi trạng thái duyệt bài viết',
-        type: 'error'
+        type: 'error',
       });
     }
   };
@@ -631,26 +677,54 @@ const BlogDetailPage: React.FC = () => {
   };
 
   // Handle pin/unpin blog
+  const handleToggleVisibility = async () => {
+    if (!blog || !id) return;
+
+    try {
+      const newVisibleStatus = !blog.isVisible;
+      await visibilityBlog(id, newVisibleStatus);
+      setBlog(prev => (prev ? { ...prev, isVisible: newVisibleStatus } : null));
+
+      setNotification({
+        show: true,
+        message: newVisibleStatus
+          ? 'Bài viết đã được hiển thị thành công!'
+          : 'Bài viết đã được ẩn thành công!',
+        type: 'success',
+      });
+    } catch (error) {
+      console.error('Error toggling visibility status:', error);
+      setNotification({
+        show: true,
+        message: 'Có lỗi xảy ra khi thay đổi trạng thái hiển thị bài viết',
+        type: 'error',
+      });
+    }
+  };
+
   const handleTogglePinStatus = async () => {
     if (!blog || !id) return;
-    
+
     try {
-      const newPinnedStatus = !blog.isPinned;
-      await approveBlog(id, undefined, newPinnedStatus);
-      setBlog(prev => prev ? { ...prev, isPinned: newPinnedStatus } : null);
-      
+      const newPinnedStatus = !blog.pinned;
+      // Ensure only the pinned status is sent
+      await approveBlog(id, blog.isApproved, newPinnedStatus);
+      setBlog(prev => (prev ? { ...prev, pinned: newPinnedStatus } : null));
+
       // Show success notification
       setNotification({
         show: true,
-        message: newPinnedStatus ? 'Bài viết đã được ghim thành công!' : 'Bài viết đã được bỏ ghim thành công!',
-        type: 'success'
+        message: newPinnedStatus
+          ? 'Bài viết đã được ghim thành công!'
+          : 'Bài viết đã được bỏ ghim thành công!',
+        type: 'success',
       });
     } catch (error) {
       console.error('Error toggling pin status:', error);
       setNotification({
         show: true,
         message: 'Có lỗi xảy ra khi thay đổi trạng thái ghim bài viết',
-        type: 'error'
+        type: 'error',
       });
     }
   };
@@ -761,7 +835,7 @@ const BlogDetailPage: React.FC = () => {
     );
   }
 
-  const blogInfo = getBlogInfo(blog, blogStatus, handleToggleBlogStatus, handleViewReport, handleTogglePinStatus);
+  const blogInfo = getBlogInfo(blog, blogStatus, handleToggleBlogStatus, handleViewReport, handleTogglePinStatus, handleToggleVisibility);
 
   return (
     <>
@@ -815,7 +889,14 @@ const BlogDetailPage: React.FC = () => {
                    blog?.type === 'guide' ? 'Hướng dẫn' :
                    blog?.type === 'announcement' ? 'Thông báo' :
                    blog?.type || 'Tin tức'}
+                  
                 </span>
+                {blog?.pinned && (
+                    <span className="ml-2 px-2 py-1 rounded text-xs font-medium bg-green-100 text-green-800">Ghim</span>
+                  )}
+                  {blog?.isVisible && (
+                    <span className="ml-2 px-2 py-1 rounded text-xs font-medium bg-green-100 text-green-800">Hiển thị</span>
+                  )}
                 <span className={`px-2 py-1 rounded text-xs font-medium ${blogStatus === 'Đã xuất bản' ? 'bg-green-100 text-green-800' : 'bg-gray-200 text-gray-500'}`}>{blogStatus}</span>
               </div>
               {/* Media Slider for images and videos */}
@@ -903,13 +984,13 @@ const BlogDetailPage: React.FC = () => {
                 </div>
               )}
               {/* Edit Button - only in view mode */}
-              {!isEditing && (
+              {/* {!isEditing && (
                 <div className="flex justify-end mb-6">
                   <button onClick={() => setIsEditing(true)} className="bg-yellow-500 text-white px-6 py-2 rounded-lg font-semibold shadow hover:bg-yellow-600 focus:ring-2 focus:ring-yellow-300 transition">
                     Chỉnh sửa
                   </button>
                 </div>
-              )}
+              )} */}
               {/* Comment Section */}
               <section className="bg-white rounded-xl shadow p-6 mb-6">
                 <h2 className="text-lg font-semibold mb-6 flex items-center gap-2">
@@ -1028,7 +1109,7 @@ const BlogDetailPage: React.FC = () => {
                         <li className="flex items-center justify-between">
                           <span className="flex items-center gap-2 text-sm">
                             <Heart className="w-4 h-4 text-gray-500" />
-                            Tính lịch sự
+                            Ngôn từ lịch sự
                           </span>
                           <span className={`flex items-center gap-1 px-2 py-1 rounded-full text-xs font-semibold ${
                             blog.blogModeration.politeness 
@@ -1046,7 +1127,7 @@ const BlogDetailPage: React.FC = () => {
                         <li className="flex items-center justify-between">
                           <span className="flex items-center gap-2 text-sm">
                             <Shield className="w-4 h-4 text-gray-500" />
-                            Tính chống phá nhà nước
+                            Thông tin sai lệch / xuyên tạc
                           </span>
                           <span className={`flex items-center gap-1 px-2 py-1 rounded-full text-xs font-semibold ${
                             blog.blogModeration.nonToxic 
@@ -1054,7 +1135,7 @@ const BlogDetailPage: React.FC = () => {
                               : 'bg-green-100 text-green-800'
                           }`}>
                             {blog.blogModeration.nonToxic ? (
-                              <><AlertTriangle className="w-3 h-3" /> Có thể độc hại</>
+                              <><AlertTriangle className="w-3 h-3" /> Có thể sai lệch</>
                              
                             ) : (
                               <><CheckCircle2 className="w-3 h-3" /> An toàn</>

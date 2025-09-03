@@ -108,73 +108,12 @@ const UserManagement: React.FC = () => {
       { label: 'Quản trị viên', value: 'admin' }
     ]
   };
-  function enrichUserDetail(apiData: any) {
-    // Assuming apiData is the response from getUserById
-    const {
-      id,
-      fullName,
-      email,
-      dateOfBirth,
-      phone,
-      roleName,
-      status,
-    } = apiData;
-  
-   
-    return {
-      id,
-      name: fullName,
-      email,
-      dateOfBirth,
-      phone,
-      role: roleName,
-      status,
-      // --- FAKE DATA  ---
-      avatar: 'https://randomuser.me/api/portraits/men/32.jpg',
-      location: 'Hà Nội, Việt Nam',
-      joinDate: '2023-03-15',
-      lastActive: '2024-06-19 14:32',
-      verified: true,
-      stats: {
-        communityPoints: 1250,
-        escortSessions: 42,
-        blogPosts: 8,
-        incidentReports: 3,
-      },
-      virtualEscort: {
-        totalSessions: 42,
-        avgSessionTime: '25 phút',
-        favoriteRoutes: ['Công viên Trung tâm đến Mall', 'Đại học về Nhà'],
-        safetyIncidents: 0,
-        lastUsed: '2024-06-18 22:30'
-      },
-      blogActivity: {
-        totalPosts: 8,
-        totalViews: 2450,
-        totalLikes: 189,
-        categories: ['Mẹo an toàn', 'Sự kiện cộng đồng'],
-        lastPost: '2024-06-17 16:45',
-        mostPopularPost: 'Mẹo an toàn ban đêm cho khu vực trung tâm'
-      },
-      incidentReports: [],
-      recentActivity: [],
-      subscription: {
-        plan: 'SafeCity Pro',
-        status: 'active',
-        nextBilling: '2024-07-15',
-        amount: '465,000₫/tháng'
-      },
-      paymentHistory: [],
-      // ...add more as needed
-    };
-  }
   const handleViewUser = async (user: User) => {
     setLoadingDetail(true);
     setSelectedUser(user);
     try {
       const res = await getUserById(user.id);
-      const detail = enrichUserDetail(res.data);
-      setUserDetail(detail);
+      setUserDetail(res.data);
     } catch (e) {
       setUserDetail(null);
     }

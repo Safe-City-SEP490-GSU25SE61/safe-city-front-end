@@ -31,6 +31,7 @@ export function hasRefreshToken() {
 export function clearTokens() {
   localStorage.removeItem('accessToken');
   localStorage.removeItem('refreshToken');
+  localStorage.removeItem('officerCommune');
 }
 
 export function isTokenExpiringSoon(bufferSeconds = 120) {

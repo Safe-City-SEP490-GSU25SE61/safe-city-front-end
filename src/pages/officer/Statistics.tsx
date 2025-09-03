@@ -29,7 +29,7 @@ import {
   LineChart,
   Line
 } from 'recharts';
-import { getIncident } from '../../services/api/incident';
+import { getIncidentStatisticsOfficer } from '../../services/api/incident';
 import { getBlogByOfficer } from '../../services/api/blog';
 
 interface OfficerStatisticsData {
@@ -79,50 +79,40 @@ const OfficerStatistics: React.FC = () => {
       communityEngagement: 0
     }
   });
+  const [officerCommune, setOfficerCommune] = useState('Đang tải...');
   
+    useEffect(() => {
+      const profileData = localStorage.getItem('officerCommune');
+      if (profileData) {
+        const commune = JSON.parse(profileData);
+        // Assuming the district is available at profile.ward.district.name
+       
+        setOfficerCommune(commune);
+      }
+    }, []);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [timePeriod, setTimePeriod] = useState<'day' | 'week' | 'month'>('week');
+  const [timePeriod, setTimePeriod] = useState<'week' | 'month' | 'quarter'>('week');
   const [notification, setNotification] = useState({
     show: false,
     message: "",
     type: "success" as "success" | "error" | "info",
   });
 
-  // Mock officer info - in real app this would come from auth context
-  const officerInfo = {
-    name: "Sĩ quan Nguyễn Văn A",
-    district: "Quận 1",
-    ward: "Phường Bến Nghé"
-  };
-
   const fetchStatistics = async () => {
     try {
       setRefreshing(true);
       
-      // Fetch officer's incidents and blogs
-      const [incidentsRes, blogsRes] = await Promise.all([
-        getIncident(timePeriod, 'newest'),
+      // Fetch officer's statistics and blogs
+      const [statisticsRes, blogsRes] = await Promise.all([
+        getIncidentStatisticsOfficer(timePeriod),
         getBlogByOfficer()
       ]);
 
-      // Process incidents data
-      const incidents = incidentsRes || [];
-      const incidentsByStatus: Record<string, number> = {};
-      const incidentsByType: Record<string, number> = {};
-
-      incidents.forEach((incident: any) => {
-        const mainReport = incident.mainReport || incident;
-        
-        // Count by status
-        const status = mainReport.status || 'pending';
-        incidentsByStatus[status] = (incidentsByStatus[status] || 0) + 1;
-        
-        // Count by type
-        const type = mainReport.type || 'Khác';
-        incidentsByType[type] = (incidentsByType[type] || 0) + 1;
-      });
-
+      // Use the statistics data from your new API
+      const statsData = statisticsRes?.data || {};
+      console.log('Statistics API Response:', statsData);
+      
       // Process blogs data
       const blogs = blogsRes?.data || [];
       const blogsByStatus: Record<string, number> = {};
@@ -131,45 +121,39 @@ const OfficerStatistics: React.FC = () => {
         blogsByStatus[status] = (blogsByStatus[status] || 0) + 1;
       });
 
-      // Generate recent activity
-      const recentActivity = [
-        ...incidents.slice(0, 3).map((incident: any) => ({
-          id: incident.id || Math.random().toString(),
-          type: 'incident' as const,
-          title: `Báo cáo: ${incident.mainReport?.description || 'Không có tiêu đề'}`,
-          timestamp: incident.mainReport?.createdAt || new Date().toISOString(),
-          status: incident.mainReport?.status || 'pending'
-        })),
-        ...blogs.slice(0, 2).map((blog: any) => ({
-          id: blog.id || Math.random().toString(),
-          type: 'blog' as const,
-          title: `Bài viết: ${blog.title || 'Không có tiêu đề'}`,
-          timestamp: blog.createdAt || new Date().toISOString(),
-          status: blog.isApproved ? 'approved' : 'pending'
-        }))
-      ].sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()).slice(0, 5);
+      // Map your API response to the expected format
+      const incidentsByStatus = statsData.reportsByStatus || {};
+      const incidentsByType = statsData.reportsBySubType || {};
+      
+      // Generate recent activity (you may want to add this to your API response)
+      const recentActivity = blogs.slice(0, 5).map((blog: any) => ({
+        id: blog.id || Math.random().toString(),
+        type: 'blog' as const,
+        title: `Bài viết: ${blog.title || 'Không có tiêu đề'}`,
+        timestamp: blog.createdAt || new Date().toISOString(),
+        status: blog.isApproved ? 'approved' : 'pending'
+      })).sort((a: any, b: any) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
 
-      // Generate weekly trends
+      // Generate weekly trends (you may want to add this to your API response)
       const weeklyTrends = [
-        { day: 'T2', incidents: Math.floor(incidents.length * 0.1), blogs: Math.floor(blogs.length * 0.15) },
-        { day: 'T3', incidents: Math.floor(incidents.length * 0.15), blogs: Math.floor(blogs.length * 0.1) },
-        { day: 'T4', incidents: Math.floor(incidents.length * 0.2), blogs: Math.floor(blogs.length * 0.2) },
-        { day: 'T5', incidents: Math.floor(incidents.length * 0.25), blogs: Math.floor(blogs.length * 0.25) },
-        { day: 'T6', incidents: Math.floor(incidents.length * 0.15), blogs: Math.floor(blogs.length * 0.15) },
-        { day: 'T7', incidents: Math.floor(incidents.length * 0.1), blogs: Math.floor(blogs.length * 0.1) },
-        { day: 'CN', incidents: Math.floor(incidents.length * 0.05), blogs: Math.floor(blogs.length * 0.05) }
+        { day: 'T2', incidents: Math.floor((statsData.totalReports || 0) * 0.1), blogs: Math.floor(blogs.length * 0.15) },
+        { day: 'T3', incidents: Math.floor((statsData.totalReports || 0) * 0.15), blogs: Math.floor(blogs.length * 0.1) },
+        { day: 'T4', incidents: Math.floor((statsData.totalReports || 0) * 0.2), blogs: Math.floor(blogs.length * 0.2) },
+        { day: 'T5', incidents: Math.floor((statsData.totalReports || 0) * 0.25), blogs: Math.floor(blogs.length * 0.25) },
+        { day: 'T6', incidents: Math.floor((statsData.totalReports || 0) * 0.15), blogs: Math.floor(blogs.length * 0.15) },
+        { day: 'T7', incidents: Math.floor((statsData.totalReports || 0) * 0.1), blogs: Math.floor(blogs.length * 0.1) },
+        { day: 'CN', incidents: Math.floor((statsData.totalReports || 0) * 0.05), blogs: Math.floor(blogs.length * 0.05) }
       ];
 
-      // Calculate performance metrics
+      // Calculate performance metrics from your API data
       const solvedIncidents = incidentsByStatus['solved'] || 0;
       const approvedBlogs = blogsByStatus['approved'] || 0;
-      // Calculate violation blogs (blogs that were rejected or have violations)
       const ViolationBlog = blogsByStatus['rejected'] || 0;
       
       setStatistics({
-        totalIncidents: incidents.length,
+        totalIncidents: statsData.totalReports || 0,
         totalBlogs: blogs.length,
-        myIncidents: incidents.length, // In real app, filter by officer
+        myIncidents: statsData.totalReports || 0,
         myBlogs: blogs.length,
         ViolationBlog,
         incidentsByStatus,
@@ -266,7 +250,7 @@ const OfficerStatistics: React.FC = () => {
                       Thống kê
                     </h1>
                     <p className="text-gray-600 mt-2">
-                      Tổng quan hoạt động của {officerInfo.name} tại {officerInfo.ward}, {officerInfo.district}
+                      Tổng quan hoạt động của {officerCommune}
                     </p>
                   </div>
                   <div className="flex items-center gap-4">
@@ -278,9 +262,9 @@ const OfficerStatistics: React.FC = () => {
                         onChange={(e) => setTimePeriod(e.target.value as any)}
                         className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                       >
-                        <option value="day">Theo ngày</option>
                         <option value="week">Theo tuần</option>
                         <option value="month">Theo tháng</option>
+                        <option value="quarter">Theo quý</option>
                       </select>
                     </div>
                     

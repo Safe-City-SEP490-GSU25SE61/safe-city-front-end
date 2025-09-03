@@ -62,6 +62,12 @@ export const updateIncidentStatus = async (id: string, data: any) => {
     });
     return response.data.data;
 };
+export const updateIncidentVisibility = async (id: string, data: any) => {
+    const response = await axios.patch(API_ENDPOINTS.INCIDENT.ISVISIBLE(id), data, {
+        headers: getAuthHeaders(),
+    });
+    return response.data.data;
+};
 export const createIncidentNote = async (id: string, data: any) => {
     const response = await axios.post(API_ENDPOINTS.INCIDENT.NOTE(id), data, {
         headers: getAuthHeaders(),
@@ -74,9 +80,17 @@ export const transferIncident = async (id: string, data: any) => {
     }); 
     return response.data.data;
 };
-export const getIncidentStatisticsAdmin = async (range?: 'day' | 'week' | 'year') => {
+export const getIncidentStatisticsAdmin = async (range?: 'week' | 'month' | 'quarter') => {
     const params = range ? { range } : {};
     const response = await axios.get(API_ENDPOINTS.INCIDENT.INCIDENT_STATISTICS_ADMIN, {
+        headers: getAuthHeaders(),
+        params,
+    }); 
+    return response.data;
+};
+export const getIncidentStatisticsOfficer = async (range?: 'week' | 'month' | 'quarter') => {
+    const params = range ? { range } : {};
+    const response = await axios.get(API_ENDPOINTS.INCIDENT.INCIDENT_STATISTICS_OFFICER, {
         headers: getAuthHeaders(),
         params,
     }); 

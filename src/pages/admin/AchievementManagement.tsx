@@ -1,14 +1,17 @@
 import React, { useState, useEffect } from 'react';
-import { Plus, Edit2, Trash2, Eye, Trophy, X, Medal } from 'lucide-react';
+import { Plus, Edit2, Trash2, Eye, Trophy, X, Medal, Upload, Image } from 'lucide-react';
 import SideBar from '../../components/common/SideBar';
 import Header from '../../components/common/Header';
 import FilterBar from '../../components/common/FilterBar';
 import { getAllAchievementConfigs, createAchievementConfig, updateAchievementConfig, deleteAchievementConfig } from '../../services/api/achievement';
+import type { AchievementCreateData } from '../../services/api/achievement';
 import NotificationBar from '../../components/common/NotificationBar';
 
 const AchievementDetailModal = ({ details, onClose, onSave }: { details: { data: any, mode: 'view' | 'edit' | 'add' }, onClose: () => void, onSave: (data: any) => Promise<void> }) => {
   const [isEditing, setIsEditing] = useState(details.mode === 'edit' || details.mode === 'add');
   const [formData, setFormData] = useState(details.data);
+  const [logoFile, setLogoFile] = useState<File | null>(null);
+  const [logoPreview, setLogoPreview] = useState<string | null>(details.data.logo || null);
 
   useEffect(() => {
     setIsEditing(details.mode === 'edit' || details.mode === 'add');
@@ -16,6 +19,8 @@ const AchievementDetailModal = ({ details, onClose, onSave }: { details: { data:
       ...details.data,
       benefits: Array.isArray(details.data.benefits) ? details.data.benefits.join(', ') : (details.data.benefits || ''),
     });
+    setLogoPreview(details.data.logo || null);
+    setLogoFile(null);
   }, [details]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
@@ -23,8 +28,45 @@ const AchievementDetailModal = ({ details, onClose, onSave }: { details: { data:
     setFormData({ ...formData, [name]: value });
   };
 
+  const handleLogoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      // Validate file type
+      if (!file.type.startsWith('image/')) {
+        alert('Vui lòng chọn file hình ảnh!');
+        return;
+      }
+      
+      // Validate file size (5MB limit)
+      if (file.size > 5 * 1024 * 1024) {
+        alert('Kích thước file không được vượt quá 5MB!');
+        return;
+      }
+      
+      setLogoFile(file);
+      
+      // Create preview URL
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        setLogoPreview(event.target?.result as string);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const handleRemoveLogo = () => {
+    setLogoFile(null);
+    setLogoPreview(null);
+    setFormData({ ...formData, logo: null });
+  };
+
   const handleSave = () => {
-    onSave(formData);
+    const dataToSave = {
+      ...formData,
+      logoFile: logoFile,
+      logo: logoPreview
+    };
+    onSave(dataToSave);
   };
 
   const handleCancel = () => {
@@ -36,6 +78,8 @@ const AchievementDetailModal = ({ details, onClose, onSave }: { details: { data:
         ...details.data,
         benefits: Array.isArray(details.data.benefits) ? details.data.benefits.join(', ') : (details.data.benefits || ''),
       });
+      setLogoPreview(details.data.logo || null);
+      setLogoFile(null);
     }
   };
 
@@ -69,7 +113,11 @@ const AchievementDetailModal = ({ details, onClose, onSave }: { details: { data:
           <div className="flex justify-between items-center mb-4">
             <div className="flex items-center gap-4">
               <div className="bg-white/20 p-3 rounded-xl backdrop-blur-sm">
-                <Trophy className="w-6 h-6" />
+                {logoPreview ? (
+                  <img src={logoPreview} alt="Achievement Logo" className="w-6 h-6 object-cover rounded" />
+                ) : (
+                  <Trophy className="w-6 h-6" />
+                )}
               </div>
               <div>
                 <h2 className="text-xl font-bold">
@@ -141,6 +189,49 @@ const AchievementDetailModal = ({ details, onClose, onSave }: { details: { data:
                 <textarea name="benefits" value={formData.benefits} onChange={handleChange} rows={3} className="w-full border border-gray-300 rounded-lg p-3 resize-none focus:ring-2 focus:ring-blue-500" />
               ) : (
                 <p className="w-full bg-white p-3 rounded-lg border min-h-[84px]">{Array.isArray(formData.benefits) ? formData.benefits.join(', ') : formData.benefits}</p>
+              )}
+            </div>
+            <div className="md:col-span-2">
+              <label className="block text-sm font-semibold text-gray-700 mb-2">Logo thành tích</label>
+              {isEditing ? (
+                <div className="space-y-4">
+                  {logoPreview && (
+                    <div className="relative inline-block">
+                      <img src={logoPreview} alt="Logo Preview" className="w-24 h-24 object-cover rounded-lg border-2 border-gray-300" />
+                      <button
+                        type="button"
+                        onClick={handleRemoveLogo}
+                        className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-1 hover:bg-red-600 transition-colors"
+                      >
+                        <X className="w-4 h-4" />
+                      </button>
+                    </div>
+                  )}
+                  <div className="flex items-center gap-4">
+                    <label className="flex items-center gap-2 px-4 py-2 bg-blue-50 text-blue-600 rounded-lg border border-blue-200 hover:bg-blue-100 cursor-pointer transition-colors">
+                      <Upload className="w-4 h-4" />
+                      <span>Chọn logo</span>
+                      <input
+                        type="file"
+                        accept="image/*"
+                        onChange={handleLogoChange}
+                        className="hidden"
+                      />
+                    </label>
+                    <span className="text-sm text-gray-500">PNG, JPG tối đa 5MB</span>
+                  </div>
+                </div>
+              ) : (
+                <div className="w-full bg-white p-3 rounded-lg border min-h-[100px] flex items-center justify-center">
+                  {logoPreview ? (
+                    <img src={logoPreview} alt="Achievement Logo" className="w-20 h-20 object-cover rounded-lg" />
+                  ) : (
+                    <div className="flex flex-col items-center text-gray-400">
+                      <Image className="w-8 h-8 mb-2" />
+                      <span className="text-sm">Chưa có logo</span>
+                    </div>
+                  )}
+                </div>
               )}
             </div>
             {details.mode !== 'add' && (
@@ -287,6 +378,7 @@ const AchievementManagement = () => {
     earnedBy: item.earnedBy || 0,
     createdDate: item.createAt,
     lastUpdated: item.lastUpdated,
+    imageUrl: item.imageUrl
   });
 
   useEffect(() => {
@@ -302,6 +394,7 @@ const AchievementManagement = () => {
         } else {
           setAchievements([]);
         }
+       
       } catch (error) {
         console.error('Failed to fetch achievements:', error);
         setAchievements([]);
@@ -376,11 +469,13 @@ const AchievementManagement = () => {
     if (!selectedAchievement) return;
     const isAdding = selectedAchievement.mode === 'add';
 
-    const apiData = {
+    const apiData: AchievementCreateData = {
       name: formData.name,
       description: formData.description,
-      minPoint: Number(formData.points),
-      benefit: formData.benefits,
+      points: Number(formData.points),
+      Benefit: formData.Benefit,
+      logoFile: formData.logoFile,
+      image: formData.image,
     };
 
     try {
@@ -492,9 +587,18 @@ const AchievementManagement = () => {
                   <div key={achievement.id} className={"overflow-hidden rounded-2xl shadow-lg border border-white/20 hover:shadow-xl transition-all duration-200 transform hover:-translate-y-1"}>
                     <div className={`${getCategoryColor(achievement.category)} p-6`}>
                       <div className="flex items-start justify-between mb-4">
-                        <div>
-                          <h3 className="text-xl font-bold mb-2">{achievement.name}</h3>
-                          <p className="text-gray-900 text-sm">{achievement.description}</p>
+                        <div className="flex items-start gap-3">
+                          <div className="flex-shrink-0">
+                            <img 
+                              src={achievement.imageUrl} 
+                              alt={`${achievement.name} logo`} 
+                              className="w-12 h-12 object-cover rounded-lg border-2 border-white/30"
+                            />
+                          </div>
+                          <div>
+                            <h3 className="text-xl font-bold mb-2">{achievement.name}</h3>
+                            <p className="text-gray-900 text-sm">{achievement.description}</p>
+                          </div>
                         </div>
                         <span className={`px-3 py-1 rounded-full text-xs font-medium ${getCategoryColor(achievement.category)}`}>
                           {categories.find(c => c.value === achievement.category)?.label}

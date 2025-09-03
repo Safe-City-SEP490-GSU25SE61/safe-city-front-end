@@ -408,12 +408,11 @@ const CreateBlogPage: React.FC = () => {
       
       const blogData: BlogCreateOfficerData = {
         title: title.trim(),
-        content: JSON.stringify({ ops: sanitizedOps }),
-        type: 'ANNOUNCEMENT', // Default type for officers
+        content: JSON.stringify(sanitizedOps),
+        type: blogType || '', // Default type for officers
         description: title.trim(),
         status: 'DRAFT',
         isPinned: false,
-        categoryId: blogType || undefined,
         tags: selectedWard ? [selectedWard] : undefined,
         mediaFiles: mediaFiles.length > 0 ? mediaFiles : undefined,
         communeId: selectedWard ? parseInt(selectedWard) : undefined
@@ -522,7 +521,7 @@ const CreateBlogPage: React.FC = () => {
                       <option value="">Chọn loại bài viết</option>
                       <option value="Tip">Mẹo an toàn</option>
                       <option value="News">Tin tức</option>
-                      <option value="Events">Sự kiện</option>
+                      <option value="Event">Sự kiện</option>
                       <option value="Alert">Cảnh báo</option>
                     </select>
                   </div>

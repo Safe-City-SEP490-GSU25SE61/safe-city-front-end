@@ -1,26 +1,18 @@
 import { useState } from 'react';
-import { Bell, ChevronDown, User, Settings, LogOut } from 'lucide-react';
+import { ChevronDown, User, Settings, LogOut } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { logout } from '../../services/api/auth';
 import { clearTokens, getUserName } from '../../utils/auth';
 
 const Header = () => {
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
-  const [isNotificationOpen, setIsNotificationOpen] = useState(false);
+ 
   const navigate = useNavigate();
   
   // Get user name from JWT token
   const userName = getUserName() || 'User';
 
-  const notifications = [
-    { id: 1, text: 'Báo cáo mới đã được gửi để xem xét.', time: '2 phút trước' },
-    { id: 2, text: 'Cảnh báo khẩn cấp được kích hoạt ở Quận 5.', time: '15 phút trước' },
-    { id: 3, text: 'Báo cáo mới đã được gửi để xem xét.', time: '2 phút trước' },
-    { id: 4, text: 'Cảnh báo khẩn cấp được kích hoạt ở Quận 5.', time: '15 phút trước' },
-    { id: 5, text: 'Người dùng Nguyễn Văn A đã cập nhật hồ sơ của mình.', time: '3 giờ trước' },
-    
-  ];
-
+  
   const handleLogout = async () => {
     try {
       const refreshToken = localStorage.getItem('refreshToken');
@@ -38,43 +30,6 @@ const Header = () => {
   return (
     <header className="px-6 py-4">
       <div className="flex items-center justify-end space-x-4">
-        {/* Notification Bell */}
-        <div className="relative">
-          <button
-            onClick={() => setIsNotificationOpen(!isNotificationOpen)}
-            className="relative p-2 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
-          >
-            <Bell className="w-5 h-5" />
-            {/* Optional notification dot */}
-            <span className="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full"></span>
-          </button>
-          {isNotificationOpen && (
-            <div className="absolute right-0 mt-2 w-80 bg-white rounded-lg shadow-lg border border-gray-200 z-50">
-              <div className="px-4 py-3 border-b border-gray-100">
-                <p className="text-sm font-semibold text-gray-900">Thông báo</p>
-              </div>
-              <div className="py-1">
-                {notifications.slice(0, 5).map((notification) => (
-                  <a
-                    key={notification.id}
-                    href="#"
-                    className="block px-4 py-3 text-sm text-gray-700 hover:bg-gray-100 transition-colors"
-                  >
-                    <p className="font-medium text-gray-800">{notification.text}</p>
-                    <p className="text-xs text-gray-500 mt-1">{notification.time}</p>
-                  </a>
-                ))}
-              </div>
-              <div className="px-4 py-2 border-t border-gray-100 text-center">
-                <button onClick={() => navigate('/notifications')} className="text-sm font-medium text-blue-600 hover:underline">
-                  Xem tất cả thông báo
-                </button>
-              </div>
-            </div>
-          )}
-        </div>
-
-        {/* Profile Dropdown */}
         <div className="relative">
           <button
             onClick={() => setIsDropdownOpen(!isDropdownOpen)}

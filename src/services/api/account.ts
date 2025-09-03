@@ -28,9 +28,22 @@ export const getOfficers= async () => {
   return response.data.data;
 };
 
+// Get account statistics for admin dashboard
+export const getAccountStatistics = async () => {
+  const response = await axios.get(API_ENDPOINTS.USERS.GET_STATISTICS);
+  return response.data;
+};
+
 // Delete user by ID
 export const deleteUser = async (id: string) => {
   const response = await axios.delete(API_ENDPOINTS.USERS.DELETE(id));
   return response.data;
 };
-
+export const getUserProfile = async () =>{
+  const response = await axios.get(API_ENDPOINTS.USERS.PROFILE);
+  return response.data;
+}
+export const getUserHistoryPoint = async (id : string) =>{
+  const response = await axios.get(API_ENDPOINTS.USERS.USER_POINT(id));
+  return response.data;
+}

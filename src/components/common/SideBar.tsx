@@ -3,12 +3,16 @@ import {
   FileText, 
   User, 
   Menu,
-  Box,
+  Package,
   MapPinned,
   Medal,
   UserRoundPlus,
   ShieldAlert,
-  ChartColumnIncreasing
+  ChartColumnIncreasing,
+  Settings,
+  Receipt,
+  Map,
+  AlignStartVertical,
 } from 'lucide-react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { jwtDecode } from "jwt-decode";
@@ -17,7 +21,7 @@ const Sidebar = () => {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
-  const logo = 'assets/Logo.png'; // Adjust the path as necessary
+  const logo = '/assets/Logo.png'; // Adjust the path as necessary
   // Get user role from JWT in localStorage
   let userRole: string = "";
   try {
@@ -34,13 +38,15 @@ const Sidebar = () => {
   const menuItems = [
     // Admin only
     { icon: User, text: 'Quản lý tài khoản', to: '/user-management', roles: ['admin'] },
-    { icon: Box, text: 'Quản lý gói đăng ký', to: '/package-management', roles: ['admin'] },
+    { icon: Package, text: 'Quản lý gói đăng ký', to: '/package-management', roles: ['admin'] },
     { icon: Medal, text: 'Quản lý danh hiệu', to: '/achievement-management', roles: ['admin'] },
     { icon: MapPinned, text: 'Quản lý phường xã', to: '/district-management', roles: ['admin'] },
     { icon: UserRoundPlus, text: 'Phân công sĩ quan', to: '/add-police-to-ward', roles: ['admin'] },
-    { icon: MapPinned, text: 'Bản đồ sự cố', to: '/admin/live-map', roles: ['admin'] },
+    { icon: Map, text: 'Bản đồ sự cố', to: '/admin/live-map', roles: ['admin'] },
     { icon: ShieldAlert, text: 'Báo cáo sự cố', to: '/admin/incident-report', roles: ['admin'] },
-    { icon: ChartColumnIncreasing, text: 'Thống kê', to: '/admin/statistics', roles: ['admin'] },
+    { icon: AlignStartVertical, text: 'Thống kê', to: '/admin/statistics', roles: ['admin'] },
+    { icon: Receipt, text: 'Quản lý giao dịch', to: '/admin/subcription-management', roles: ['admin'] },
+    { icon: Settings, text: 'Quản lý cấu hình', to: '/admin/config', roles: ['admin'] },
     // Officer only
     { icon: ShieldAlert, text: 'Quản lý báo cáo', to: '/officer/incident-report', roles: ['officer'] },
     { icon: FileText, text: 'Quản lý bài viết', to: '/officer/blog-view', roles: ['officer'] },

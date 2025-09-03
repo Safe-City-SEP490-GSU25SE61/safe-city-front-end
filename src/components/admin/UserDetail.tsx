@@ -1,6 +1,6 @@
-import { useState } from 'react';
-import { X, User, Mail, Phone, MapPin, Calendar, Activity, Ban, FileText, Users, Flag, Clock, Trophy } from 'lucide-react';
-import { deleteUser } from '../../services/api/account';
+import { useState, useEffect } from 'react';
+import { X, Mail, Phone, MapPin, Calendar, Ban, Trophy, History, User, Shield } from 'lucide-react';
+import { deleteUser, getUserHistoryPoint } from '../../services/api/account';
 
 const UserDetailModal = ({
   user,
@@ -27,62 +27,39 @@ const UserDetailModal = ({
 
   const [activeTab, setActiveTab] = useState('overview');
   const [suspending, setSuspending] = useState(false);
+  const [pointHistory, setPointHistory] = useState<any>(null);
+  const [historyLoading, setHistoryLoading] = useState(false);
 
-  const achievements = [
-    { id: 'ACH000', name: 'Newbie', category: 'newbie', points: 0 },
-    { id: 'ACH001', name: 'Thành viên đồng', category: 'bronze', points: 500 },
-    { id: 'ACH002', name: 'Thành viên bạc', category: 'silver', points: 1000 },
-    { id: 'ACH003', name: 'Thành viên vàng', category: 'gold', points: 2000 },
-    { id: 'ACH004', name: 'Thành viên bạch kim', category: 'platinum', points: 5000 },
-    { id: 'ACH005', name: 'Hero of the Street', category: 'hero', points: 10000 }
-  ];
+  useEffect(() => {
+    const fetchHistory = async () => {
+      if (user?.id) {
+        setHistoryLoading(true);
+        try {
+          const historyData = await getUserHistoryPoint(user.id);
+          setPointHistory(historyData.data);
+        } catch (error) {
+          console.error('Failed to fetch point history', error);
+        } finally {
+          setHistoryLoading(false);
+        }
+      }
+    };
 
-  const getUserAchievement = (points: number) => {
-    const sortedAchievements = [...achievements].sort((a, b) => b.points - a.points);
-    return sortedAchievements.find(a => points >= a.points);
-  };
-
-  const userAchievement = getUserAchievement(user.stats.communityPoints);
-
-  const getAchievementBadgeColor = (category: string) => {
-    switch (category) {
-      case 'newbie': return 'bg-gray-100 text-gray-800';
-      case 'bronze': return 'bg-yellow-200 text-yellow-800';
-      case 'silver': return 'bg-gray-200 text-gray-700';
-      case 'gold': return 'bg-yellow-100 text-yellow-800';
-      case 'platinum': return 'bg-blue-100 text-blue-800';
-      case 'hero': return 'bg-purple-100 text-purple-800';
-      default: return 'bg-gray-100 text-gray-800';
-    }
-  };
+    fetchHistory();
+  }, [user?.id]);
 
   const getStatusColor = (status: string) => {
+    if (!status) return 'bg-gray-100 text-gray-800';
     switch (status.toLowerCase()) {
       case 'active': return 'bg-green-100 text-green-800';
-      case 'suspended': return 'bg-red-100 text-red-800';
-      case 'pending': return 'bg-yellow-100 text-yellow-800';
-      case 'đã giải quyết': case 'đã sửa': case 'thành công': return 'bg-green-100 text-green-800';
-      case 'đang xem xét': return 'bg-yellow-100 text-yellow-800';
-      default: return 'bg-gray-100 text-gray-800';
-    }
-  };
-
-  const getPriorityColor = (priority: string) => {
-    switch (priority.toLowerCase()) {
-      case 'cao': return 'bg-red-100 text-red-800';
-      case 'trung bình': return 'bg-yellow-100 text-yellow-800';
-      case 'thấp': return 'bg-blue-100 text-blue-800';
+      case 'inactive': return 'bg-red-100 text-red-800';
       default: return 'bg-gray-100 text-gray-800';
     }
   };
 
   const tabs = [
     { id: 'overview', label: 'Tổng quan', icon: User },
-    { id: 'escort', label: 'Hộ tống ảo', icon: Users },
-    { id: 'blog', label: 'Hoạt động Blog', icon: FileText },
-    { id: 'incidents', label: 'Báo cáo sự cố', icon: Flag },
-    { id: 'activity', label: 'Hoạt động gần đây', icon: Activity },
-    { id: 'billing', label: 'Thanh toán', icon: Clock }
+    { id: 'history', label: 'Lịch sử điểm', icon: History },
   ];
 
   const handleSuspend = async () => {
@@ -105,23 +82,23 @@ const UserDetailModal = ({
         <div className="flex items-start justify-between p-6 border-b border-gray-200">
           <div className="flex items-start space-x-4">
             <img 
-              src={user.avatar} 
-              alt={user.name}
+              src={user.imageUrl || 'https://randomuser.me/api/portraits/men/32.jpg'} 
+              alt={user.fullName}
               className="w-12 h-12 rounded-full object-cover"
             />
             <div>
               <div className="flex items-center space-x-3">
-                <h2 className="text-xl font-semibold text-gray-900">{user.name}</h2>
+                <h2 className="text-xl font-semibold text-gray-900">{user.fullName}</h2>
                 <span className={`px-3 py-1 rounded-full text-xs font-medium ${getStatusColor(user.status)}`}>
-                  {user.status === 'active' ? 'Hoạt động' : user.status === 'suspended' ? 'Đã đình chỉ' : 'Chờ xử lý'}
+                  {user.status === 'active' ? 'Hoạt động' : 'Không hoạt động'}
                 </span>
               </div>
               <p className="text-sm text-gray-500 mt-1">ID: {user.id}</p>
-              {userAchievement && (
+              {user.achievementName && (
                 <div className="mt-2">
-                  <span className={`inline-flex items-center space-x-1.5 px-3 py-1 rounded-full text-xs font-medium ${getAchievementBadgeColor(userAchievement.category)}`}>
+                  <span className={`inline-flex items-center space-x-1.5 px-3 py-1 rounded-full text-xs font-medium bg-purple-100 text-purple-800`}>
                       <Trophy className="w-3 h-3" />
-                      <span>{userAchievement.name}</span>
+                      <span>{user.achievementName}</span>
                   </span>
                 </div>
               )}
@@ -170,7 +147,6 @@ const UserDetailModal = ({
                     <Mail className="w-4 h-4 text-gray-400" />
                     <span className="text-sm text-gray-600">Email:</span>
                     <span className="text-sm font-medium">{user.email}</span>
-                    {user.verified && <span className="text-xs bg-green-100 text-green-800 px-2 py-1 rounded">Đã xác thực</span>}
                   </div>
                   <div className="flex items-center space-x-3">
                     <Phone className="w-4 h-4 text-gray-400" />
@@ -180,240 +156,98 @@ const UserDetailModal = ({
                   <div className="flex items-center space-x-3">
                     <MapPin className="w-4 h-4 text-gray-400" />
                     <span className="text-sm text-gray-600">Địa chỉ:</span>
-                    <span className="text-sm font-medium">{user.location}</span>
+                    <span className="text-sm font-medium">{user.address}</span>
                   </div>
                   <div className="flex items-center space-x-3">
                     <Calendar className="w-4 h-4 text-gray-400" />
                     <span className="text-sm text-gray-600">Ngày sinh:</span>
                     <span className="text-sm font-medium">
-                      {user.dateOfBirth ? new Date(user.dateOfBirth).toLocaleDateString('vi-VN') : ''}
-                    </span>
-                  </div>
-                  <div className="flex items-center space-x-3">
-                    <Calendar className="w-4 h-4 text-gray-400" />
-                    <span className="text-sm text-gray-600">Ngày tham gia:</span>
-                    <span className="text-sm font-medium">
-                      {user.joinDate ? new Date(user.joinDate).toLocaleDateString('vi-VN') : ''}
+                      {user.dateOfBirth ? new Date(user.dateOfBirth).toLocaleDateString('vi-VN') : 'N/A'}
                     </span>
                   </div>
                 </div>
               </div>
 
-              {/* SafeCity Stats */}
-              <div className="space-y-4">
-                <h3 className="text-lg font-medium text-gray-900">Hoạt động SafeCity</h3>
-                <div className="grid grid-cols-2 gap-3">
-                  <div className="bg-blue-50 p-3 rounded-lg">
-                    <div className="text-xl font-bold text-blue-600">{user.stats.escortSessions}</div>
-                    <div className="text-xs text-blue-600">Số lần hộ tống</div>
+              {/* SafeCity Stats & Subscription */}
+              <div className="space-y-6">
+                <div className="space-y-4">
+                  <h3 className="text-lg font-medium text-gray-900">Hoạt động SafeCity</h3>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="bg-purple-50 p-3 rounded-lg">
+                      <div className="flex items-center space-x-2">
+                        <Trophy className="w-5 h-5 text-purple-600" />
+                        <div className="text-xl font-bold text-purple-600">{user.totalPoint}</div>
+                      </div>
+                      <div className="text-xs text-purple-600 mt-1">Điểm cộng đồng</div>
+                    </div>
+                    <div className="bg-yellow-50 p-3 rounded-lg">
+                      <div className="flex items-center space-x-2">
+                        <Shield className="w-5 h-5 text-yellow-600" />
+                        <div className="text-xl font-bold text-yellow-600">{pointHistory?.currentReputationPoint ?? '...'}</div>
+                      </div>
+                      <div className="text-xs text-yellow-600 mt-1">Điểm uy tín</div>
+                    </div>
                   </div>
-                  <div className="bg-green-50 p-3 rounded-lg">
-                    <div className="text-xl font-bold text-green-600">{user.stats.blogPosts}</div>
-                    <div className="text-xs text-green-600">Bài viết Blog</div>
-                  </div>
-                  <div className="bg-red-50 p-3 rounded-lg">
-                    <div className="text-xl font-bold text-red-600">{user.stats.incidentReports}</div>
-                    <div className="text-xs text-red-600">Báo cáo sự cố</div>
-                  </div>
-                  <div className="bg-purple-50 p-3 rounded-lg">
-                    <div className="text-xl font-bold text-purple-600">{user.stats.communityPoints}</div>
-                    <div className="text-xs text-purple-600">Điểm cộng đồng</div>
+                </div>
+                <div className="space-y-4">
+                  <h3 className="text-lg font-medium text-gray-900">Thông tin gói cước</h3>
+                  <div className="p-4 bg-gray-50 rounded-lg space-y-3">
+                      <div className="flex justify-between items-center">
+                        <span className="text-sm text-gray-600">Gói dịch vụ:</span>
+                        <span className="text-sm font-medium">{user.currentSubscription?.packageName || 'Không có'}</span>
+                      </div>
+                      <div className="flex justify-between items-center">
+                        <span className="text-sm text-gray-600">Trạng thái:</span>
+                        <span className={`px-2 py-1 rounded-full text-xs font-medium ${user.isSubscription ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'}`}>
+                          {user.isSubscription ? 'Đang hoạt động' : 'Không hoạt động'}
+                        </span>
+                      </div>
+                      {user.isSubscription && (
+                        <div className="flex justify-between items-center">
+                          <span className="text-sm text-gray-600">Thời gian còn lại:</span>
+                          <span className="text-sm font-medium">{user.currentSubscription?.remainingTime}</span>
+                        </div>
+                      )}
                   </div>
                 </div>
               </div>
             </div>
           )}
 
-          {activeTab === 'escort' && (
-            <div className="space-y-6">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div>
-                  <h3 className="text-lg font-medium text-gray-900 mb-4">Sử dụng Hộ tống ảo</h3>
-                  <div className="space-y-3">
-                    <div className="flex justify-between items-center p-3 bg-blue-50 rounded-lg">
-                      <span className="text-sm text-gray-600">Tổng số phiên</span>
-                      <span className="text-sm font-bold text-blue-600">{user.virtualEscort.totalSessions}</span>
-                    </div>
-                    <div className="flex justify-between items-center p-3 bg-green-50 rounded-lg">
-                      <span className="text-sm text-gray-600">Thời gian trung bình</span>
-                      <span className="text-sm font-bold text-green-600">{user.virtualEscort.avgSessionTime}</span>
-                    </div>
-                    <div className="flex justify-between items-center p-3 bg-red-50 rounded-lg">
-                      <span className="text-sm text-gray-600">Sự cố an toàn</span>
-                      <span className="text-sm font-bold text-red-600">{user.virtualEscort.safetyIncidents}</span>
-                    </div>
-                    <div className="p-3 bg-gray-50 rounded-lg">
-                      <span className="text-sm text-gray-600">Lần cuối sử dụng: </span>
-                      <span className="text-sm font-medium">{user.virtualEscort.lastUsed}</span>
-                    </div>
-                  </div>
-                </div>
-
-                <div>
-                  <h3 className="text-lg font-medium text-gray-900 mb-4">Tuyến đường yêu thích</h3>
-                  <div className="space-y-2">
-                    {user.virtualEscort.favoriteRoutes.map((route: any, index: any) => (
-                      <div key={index} className="p-3 border border-gray-200 rounded-lg">
-                        <div className="flex items-center space-x-2">
-                          <MapPin className="w-4 h-4 text-gray-400" />
-                          <span className="text-sm font-medium">{route}</span>
+          {activeTab === 'history' && (
+            <div>
+              {historyLoading ? (
+                <p>Đang tải lịch sử điểm...</p>
+              ) : pointHistory && pointHistory.items.length > 0 ? (
+                <div 
+                  className="space-y-4 pr-2"
+                  style={{
+                    maxHeight: pointHistory.items.length > 5 ? '400px' : 'none',
+                    overflowY: pointHistory.items.length > 5 ? 'auto' : 'visible',
+                  }}
+                >
+                  {pointHistory.items.map((item: any) => (
+                    <div key={item.id} className="p-4 border border-gray-200 rounded-lg">
+                      <div className="flex justify-between items-start">
+                        <div>
+                          <p className="font-semibold">{item.source.title || item.note}</p>
+                          <p className="text-sm text-gray-500">{item.action} - {new Date(item.createdAt).toLocaleString('vi-VN')}</p>
+                        </div>
+                        <div className="text-right">
+                          <p className={`font-bold ${item.pointsDelta >= 0 ? 'text-green-500' : 'text-red-500'}`}>
+                            {item.pointsDelta >= 0 ? '+' : ''}{item.pointsDelta} điểm
+                          </p>
+                          <p className={`text-sm ${item.reputationDelta >= 0 ? 'text-blue-500' : 'text-orange-500'}`}>
+                              {item.reputationDelta >= 0 ? '+' : ''}{item.reputationDelta} uy tín
+                          </p>
                         </div>
                       </div>
-                    ))}
-                  </div>
+                    </div>
+                  ))}
                 </div>
-              </div>
-            </div>
-          )}
-
-          {activeTab === 'blog' && (
-            <div className="space-y-6">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div>
-                  <h3 className="text-lg font-medium text-gray-900 mb-4">Thống kê Blog</h3>
-                  <div className="space-y-3">
-                    <div className="flex justify-between items-center p-3 bg-blue-50 rounded-lg">
-                      <span className="text-sm text-gray-600">Tổng số bài viết</span>
-                      <span className="text-sm font-bold text-blue-600">{user.blogActivity.totalPosts}</span>
-                    </div>
-                    <div className="flex justify-between items-center p-3 bg-green-50 rounded-lg">
-                      <span className="text-sm text-gray-600">Tổng lượt xem</span>
-                      <span className="text-sm font-bold text-green-600">{user.blogActivity.totalViews}</span>
-                    </div>
-                    <div className="flex justify-between items-center p-3 bg-purple-50 rounded-lg">
-                      <span className="text-sm text-gray-600">Tổng lượt thích</span>
-                      <span className="text-sm font-bold text-purple-600">{user.blogActivity.totalLikes}</span>
-                    </div>
-                  </div>
-                </div>
-
-                <div>
-                  <h3 className="text-lg font-medium text-gray-900 mb-4">Danh mục nội dung</h3>
-                  <div className="space-y-2">
-                    {user.blogActivity.categories.map((category: any, index: any) => (
-                      <div key={index} className="p-2 bg-gray-100 rounded text-sm text-center">
-                        {category}
-                      </div>
-                    ))}
-                  </div>
-                  <div className="mt-4 p-3 bg-yellow-50 rounded-lg">
-                    <div className="text-xs text-gray-600">Bài viết phổ biến nhất:</div>
-                    <div className="text-sm font-medium text-yellow-800">{user.blogActivity.mostPopularPost}</div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {activeTab === 'incidents' && (
-            <div className="space-y-4">
-              <h3 className="text-lg font-medium text-gray-900">Các báo cáo sự cố đã gửi</h3>
-              <div className="space-y-3">
-                {user.incidentReports.map((incident: any) => (
-                  <div key={incident.id} className="p-4 border border-gray-200 rounded-lg">
-                    <div className="flex items-start justify-between">
-                      <div className="flex-1">
-                        <div className="flex items-center space-x-3 mb-2">
-                          <Flag className="w-4 h-4 text-gray-400" />
-                          <span className="font-medium text-sm">{incident.type}</span>
-                          <span className={`px-2 py-1 rounded-full text-xs ${getPriorityColor(incident.priority)}`}>
-                            {incident.priority}
-                          </span>
-                        </div>
-                        <div className="text-sm text-gray-600 space-y-1">
-                          <div>ID: {incident.id}</div>
-                          <div>Địa điểm: {incident.location}</div>
-                          <div>Ngày: {incident.date}</div>
-                        </div>
-                      </div>
-                      <span className={`px-2 py-1 rounded-full text-xs ${getStatusColor(incident.status)}`}>
-                        {incident.status}
-                      </span>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {activeTab === 'activity' && (
-            <div className="space-y-4">
-              <h3 className="text-lg font-medium text-gray-900">Hoạt động gần đây</h3>
-              <div className="space-y-3">
-                {user.recentActivity.map((activity: any, index: any) => (
-                  <div key={index} className="flex items-start space-x-3 p-3 bg-gray-50 rounded-lg">
-                    <Activity className="w-4 h-4 text-gray-400 mt-0.5" />
-                    <div className="flex-1">
-                      <div className="flex items-center justify-between">
-                        <span className="text-sm font-medium text-gray-900">{activity.action}</span>
-                        <span className="text-xs text-gray-500">{activity.time}</span>
-                      </div>
-                      <p className="text-xs text-gray-600 mt-1">{activity.detail}</p>
-                      <p className="text-xs text-gray-500">Địa điểm: {activity.location}</p>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {activeTab === 'billing' && (
-            <div className="space-y-6">
-               <div>
-                <h3 className="text-lg font-medium text-gray-900 mb-4">Thông tin gói cước</h3>
-                <div className="p-4 bg-gray-50 rounded-lg space-y-3">
-                    <div className="flex justify-between items-center">
-                      <span className="text-sm text-gray-600">Gói dịch vụ:</span>
-                      <span className="text-sm font-medium">{user.subscription.plan}</span>
-                    </div>
-                    <div className="flex justify-between items-center">
-                      <span className="text-sm text-gray-600">Trạng thái:</span>
-                      <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(user.subscription.status)}`}>
-                        {user.subscription.status === 'active' ? 'Đang hoạt động' : 'Không hoạt động'}
-                      </span>
-                    </div>
-                    <div className="flex justify-between items-center">
-                      <span className="text-sm text-gray-600">Thanh toán tiếp theo:</span>
-                      <span className="text-sm font-medium">{user.subscription.nextBilling}</span>
-                    </div>
-                    <div className="flex justify-between items-center">
-                      <span className="text-sm text-gray-600">Phí hàng tháng:</span>
-                      <span className="text-sm font-medium">{user.subscription.amount}</span>
-                    </div>
-                </div>
-              </div>
-
-              <div>
-                <h3 className="text-lg font-medium text-gray-900 mb-4">Lịch sử thanh toán</h3>
-                <div className="overflow-x-auto border border-gray-200 rounded-lg">
-                  <table className="min-w-full divide-y divide-gray-200">
-                    <thead className="bg-gray-50">
-                      <tr>
-                        <th scope="col" className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">ID Giao dịch</th>
-                        <th scope="col" className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Ngày</th>
-                        <th scope="col" className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Gói</th>
-                        <th scope="col" className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Số tiền</th>
-                        <th scope="col" className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Trạng thái</th>
-                      </tr>
-                    </thead>
-                    <tbody className="bg-white divide-y divide-gray-200">
-                      {user.paymentHistory.map((payment: any) => (
-                        <tr key={payment.id}>
-                          <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-500">{payment.id}</td>
-                          <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-500">{payment.date}</td>
-                          <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-900 font-medium">{payment.package}</td>
-                          <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-500">{payment.amount}</td>
-                          <td className="px-4 py-3 whitespace-nowrap text-sm">
-                            <span className={`px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${getStatusColor(payment.status)}`}>
-                              {payment.status}
-                            </span>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
+              ) : (
+                <p>Không có lịch sử điểm.</p>
+              )}
             </div>
           )}
         </div>
