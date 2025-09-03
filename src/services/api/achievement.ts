@@ -17,8 +17,8 @@ export interface AchievementConfig {
 export interface AchievementCreateData {
   name: string;
   description: string;
-  points: number;
-  Benefit: string;
+  minPoint: number;
+  benefit: string;
   logoFile?: File;
   image?: string;
 }
@@ -58,8 +58,8 @@ export const createAchievementConfig = async (data: AchievementCreateData) => {
     const formData = new FormData();
     formData.append('name', data.name);
     formData.append('description', data.description);
-    formData.append('points', data.points.toString());
-    formData.append('Benefit', data.Benefit);
+    formData.append('minPoint', data.minPoint.toString());
+    formData.append('benefit', data.benefit);
     formData.append('logo', data.logoFile);
     
     const response = await axios.post(API_ENDPOINTS.ACHIEVEMENT.CONFIG, formData, {
@@ -82,10 +82,11 @@ export const updateAchievementConfig = async (id: string, data: AchievementCreat
     const formData = new FormData();
     formData.append('name', data.name);
     formData.append('description', data.description);
-    formData.append('points', data.points.toString());
-    formData.append('Benefit', data.Benefit);
-    formData.append('image', data.logoFile);
-    
+    formData.append('minPoint', data.minPoint.toString());
+    formData.append('benefit', data.benefit);
+    formData.append('logo', data.logoFile);
+   
+
     const response = await axios.put(API_ENDPOINTS.ACHIEVEMENT.CONFIG_BY_ID(id), formData, {
       headers: getAuthHeadersForFormData(),
     });
@@ -93,7 +94,7 @@ export const updateAchievementConfig = async (id: string, data: AchievementCreat
   } else {
     // No file upload, send regular JSON
     const { logoFile, ...jsonData } = data;
-    const response = await axios.put(API_ENDPOINTS.ACHIEVEMENT.CONFIG_BY_ID(id), jsonData, {
+    const response = await axios.post(API_ENDPOINTS.ACHIEVEMENT.CONFIG_BY_ID(id), { ...jsonData, _method: 'PUT' }, {
       headers: getAuthHeaders(),
     });
     return response.data;

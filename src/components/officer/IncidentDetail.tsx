@@ -10,6 +10,7 @@ interface IncidentDetailProps {
   incident: any;
   loading: boolean;
   onClose: () => void;
+  onStatusUpdate?: () => void;
 }
 
 // Helper to decode JWT and get officer name
@@ -35,7 +36,7 @@ function getOfficerNameFromToken() {
   }
 }
 
-const IncidentDetail: React.FC<IncidentDetailProps> = ({ incident, loading, onClose }) => {
+const IncidentDetail: React.FC<IncidentDetailProps> = ({ incident, loading, onClose, onStatusUpdate }) => {
   const [showNoteModal, setShowNoteModal] = useState(false);
   const [newNote, setNewNote] = useState('');
   // Remove officerName state
@@ -88,6 +89,9 @@ const IncidentDetail: React.FC<IncidentDetailProps> = ({ incident, loading, onCl
       });
       setLocalStatus(newStatus);
       showNotification('Cập nhật trạng thái thành công!', 'success');
+      if (onStatusUpdate) {
+        onStatusUpdate();
+      }
     } catch (e) {
       showNotification('Không thể cập nhật trạng thái. Vui lòng thử lại!', 'error');
     }
