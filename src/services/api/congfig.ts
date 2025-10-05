@@ -8,6 +8,14 @@ const getAuthHeaders = () => {
     Authorization: `Bearer ${token}`,
   };
 };
+export const getConfigByKeyword = async (keyword: string) => {
+  const response = await axios.get(API_ENDPOINTS.CONFIG.BASE, {
+    params: { keyword },
+    headers: getAuthHeaders(),
+  });
+  return response.data;
+};
+
 export const getConfig = async () => {
   const response = await axios.get(API_ENDPOINTS.CONFIG.BASE, {
     headers: getAuthHeaders(),
@@ -20,9 +28,30 @@ export const createConfig = async (data: any) => {
   });
   return response.data;
 };
-export const updateConfig = async (data: any) => {
-  const response = await axios.put(API_ENDPOINTS.CONFIG.BASE, data, {
-    headers: getAuthHeaders(),
+export const updateConfig = async (
+  id: number,
+  category: string,
+  key: string,
+  value: string,
+  description: string,
+  mediaFile?: File
+) => {
+  const formData = new FormData();
+  formData.append('id', id.toString());
+  formData.append('category', category);
+  formData.append('key', key);
+  formData.append('value', value);
+  formData.append('description', description);
+  
+  if (mediaFile) {
+    formData.append('MediaFile', mediaFile);
+  }
+
+  const response = await axios.put(API_ENDPOINTS.CONFIG.BASE, formData, {
+    headers: {
+      ...getAuthHeaders(),
+      'Content-Type': 'multipart/form-data',
+    },
   });
   return response.data;
 };

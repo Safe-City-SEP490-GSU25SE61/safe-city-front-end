@@ -17,6 +17,7 @@ import NotificationPage from './pages/common/Notification';
 import IncidentReport from './pages/officer/IncidentReport';
 import BlogView from './pages/officer/BlogView';
 import BlogDetailPage from './pages/officer/BlogDetail';
+import UserBlogDetailPage from './pages/officer/UserBlogDetail';
 import CreateBlogPage from './pages/officer/CreateBlog';
 import LiveMap from './pages/officer/LiveMap';
 import AdminLiveMap from './pages/admin/AdminLiveMap';
@@ -34,7 +35,7 @@ const App = () => {
         <Route path="/user-profile" element={<UserProfile />} />
         <Route path="/" element={<Login />} />
         <Route path="/login" element={<Login />} />
-        <Route path="/forgot-password" element={<ForgotPassword />} />
+<Route path="/forgot-password" element={<ForgotPassword />} />
         <Route path="/otp" element={<OtpPage />} />
         <Route path="/reset-password" element={<ResetPassword />} />
         <Route path="/notifications" element={<NotificationPage />} />
@@ -104,6 +105,11 @@ const App = () => {
         <Route path="/officer/blog-detail/:id" element={
           <ProtectedRoute allowedRoles={[ROLES.OFFICER]}>
             <BlogDetailPage />
+          </ProtectedRoute>
+        } />
+        <Route path="/officer/user-blog-detail/:authorId" element={
+          <ProtectedRoute allowedRoles={[ROLES.OFFICER]}>
+            <UserBlogDetailPage />
           </ProtectedRoute>
         } />
         <Route path="/officer/blog-create" element={

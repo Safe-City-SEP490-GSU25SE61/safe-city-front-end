@@ -263,6 +263,16 @@ const UserManagement: React.FC = () => {
                   setSelectedUser(null);
                   setUserDetail(null);
                 }}
+                onStatusChange={(userId, newStatus) => {
+                  // Update the user status in the table immediately
+                  setUsers(prevUsers => 
+                    prevUsers.map(u => 
+                      u.id === userId 
+                        ? { ...u, status: newStatus as 'active' | 'inactive' }
+                        : u
+                    )
+                  );
+                }}
               />
             )}
             <CreateAccountForm

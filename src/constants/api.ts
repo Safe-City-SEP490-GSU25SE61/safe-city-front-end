@@ -32,7 +32,7 @@ export const API_ENDPOINTS = {
     PROFILE: `${API_BASE_URL}/settings/profile`,
     BY_ID: (id: string) => `${API_BASE_URL}/accounts/${id}`,
     CREATE: `${API_BASE_URL}/accounts`,
-    DELETE: (id: string) => `${API_BASE_URL}/accounts/${id}`,
+    SUSPEND: (id: string) => `${API_BASE_URL}/accounts/${id}/status`,
     GET_OFFICER: `${API_BASE_URL}/accounts/officer`,
     GET_STATISTICS:`${API_BASE_URL}/accounts/metrics/app-users`,
     USER_POINT:(id: string) => `${API_BASE_URL}/points/history/${id}`,
@@ -56,9 +56,10 @@ export const API_ENDPOINTS = {
     CREATE_OFFICER: `${API_BASE_URL}/blogs`,
     GET_OFFICER: `${API_BASE_URL}/blogs/officer`,
     GET_OFFICER_BY_ID: (id: string) => `${API_BASE_URL}/blogs/officer/${id}`,
+    GET_BY_AUTHOR_ID: (authorId: string) => `${API_BASE_URL}/blogs/author/${authorId}`,
     APPROVE: (id: string) => `${API_BASE_URL}/blogs/approve/${id}`,
     VISIBLE: (id: string) => `${API_BASE_URL}/blogs/${id}/visibility`,
-
+    CITIZEN_BLOG_HISTORY: `${API_BASE_URL}/blogs/officer/citizen-blog-history`,
   },
   COMMENT: {
     BASE: `${API_BASE_URL}/comments`, 

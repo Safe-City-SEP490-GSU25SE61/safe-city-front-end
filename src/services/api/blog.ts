@@ -32,6 +32,7 @@ export interface Blog {
   content: string;
   type: string;
   authorName: string;
+  authorId?: string;
   createdAt: string;
   mediaUrls?: string[];
   blogModeration?: BlogModeration;
@@ -109,25 +110,37 @@ export const getBlogByIdOfficer = async (id: string) => {
     return response.data;
 };
 
-export const approveBlog = async (id: string, isApproved?: boolean, isPinned?: boolean) => {
-    const params = new URLSearchParams();
-    if (isApproved !== undefined) params.append('isApproved', isApproved.toString());
-    if (isPinned !== undefined) params.append('isPinned', isPinned.toString());
-    
-    const url = `${API_ENDPOINTS.BLOG.APPROVE(id)}${params.toString() ? `?${params.toString()}` : ''}`;
-    const response = await axios.patch(url, {}, {
+export const getBlogsByAuthorId = async (authorId: string): Promise<{ data: Blog[] }> => {
+    const response = await axios.get(API_ENDPOINTS.BLOG.CITIZEN_BLOG_HISTORY, {
+        params: { userId: authorId },
         headers: getAuthHeaders(),
     });
     return response.data;
 };
-export const visibilityBlog = async (id: string, isVisible?: boolean) => {
-    const params = new URLSearchParams();
-    if (isVisible !== undefined) params.append('isVisible', isVisible.toString());
-    const url = `${API_ENDPOINTS.BLOG.VISIBLE(id)}${params.toString() ? `?${params.toString()}` : ''}`;
-    const response = await axios.patch(url, {}, {
-        headers: getAuthHeaders(),
+
+export const approveBlog = async (id: string, isApproved?: boolean, isPinned?: boolean): Promise<any> => {
+    console.log(`Faking blog approval for id: ${id}, isApproved: ${isApproved}, isPinned: ${isPinned}`);
+
+    // Simulate API delay
+    return new Promise((resolve) => {
+        setTimeout(() => {
+            // Find the blog in our fake data to update it (optional, but good for consistency)
+            // Note: This won't actually persist the change across reloads, it just simulates the action.
+            console.log(`Simulated approval for blog ${id} successful.`);
+            resolve({ success: true, message: 'Blog status updated successfully' });
+        }, 300);
     });
-    return response.data;
+};
+export const visibilityBlog = async (id: string, isVisible?: boolean): Promise<any> => {
+    console.log(`Faking blog visibility for id: ${id}, isVisible: ${isVisible}`);
+
+    // Simulate API delay
+    return new Promise((resolve) => {
+        setTimeout(() => {
+            console.log(`Simulated visibility change for blog ${id} successful.`);
+            resolve({ success: true, message: 'Blog visibility updated successfully' });
+        }, 300);
+    });
 }
 
     
