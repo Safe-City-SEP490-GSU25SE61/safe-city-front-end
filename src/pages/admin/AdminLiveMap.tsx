@@ -10,10 +10,9 @@ import {
   BarChart3, PieChart, TrendingUp, MapPin, Users, AlertTriangle,
   CheckCircle2, Clock, XCircle, Eye, EyeOff, Ban
 } from 'lucide-react';
-import ReactDOMServer from 'react-dom/server';
 import { getIncidentStatisticsAdmin } from '../../services/api/incident';
 import { getCommuneData, getAdminReports } from '../../services/api/map';
-import { getIncidentIcon } from '../../constants/incident';
+import { getConfigByKeyword } from '../../services/api/congfig';
 
 // Admin statistics interface based on provided data
 interface AdminStatistics {
@@ -51,6 +50,15 @@ interface CommunePolygon {
   reportCount?: number;
 }
 
+// Vietnamese to English keyword mapping for icon fetching
+const vietnameseToEnglishKeywordMap: { [key: string]: string } = {
+  'giao thông': 'traffic',
+  'an ninh': 'security',
+  'môi trường': 'environment',
+  'cơ sở hạ tầng': 'infrastructure',
+  'khác': 'other',
+};
+
 const AdminLiveMap: React.FC = () => {
   const [notification, setNotification] = useState({
     show: false,
@@ -64,6 +72,7 @@ const AdminLiveMap: React.FC = () => {
   const [showCommuneBoundaries, setShowCommuneBoundaries] = useState(true);
   const [selectedView, setSelectedView] = useState<'overview' | 'status' | 'type' | 'commune'>('overview');
   const [timePeriod, setTimePeriod] = useState<'week' | 'month' | 'quarter'>('week');
+  const [iconConfigs, setIconConfigs] = useState<Map<string, string>>(new Map());
   const mapContainer = useRef<HTMLDivElement>(null);
   const mapRef = useRef<any | null>(null);
   const heatmapLayersRef = useRef<string[]>([]);
@@ -230,35 +239,39 @@ const AdminLiveMap: React.FC = () => {
   };
 
   // Get marker configuration based on incident type
-  const getMarkerConfig = (type: string) => {
-    const basePath = '/assets/';
-    const imageIcons: { [key: string]: { icon: string; color: string; bgColor: string } } = {
-      'giao thông': { icon: `${basePath}traffic.png`, color: '#1d4ed8', bgColor: '#eff6ff' },
-      'an ninh': { icon: `${basePath}security.png`, color: '#991b1b', bgColor: '#fef2f2' },
-      'môi trường': { icon: `${basePath}environment.png`, color: '#15803d', bgColor: '#f0fdf4' },
-      'cơ sở hạ tầng': { icon: `${basePath}infrastructure.png`, color: '#b45309', bgColor: '#fffbeb' },
-      'khác': { icon: `${basePath}other.png`, color: '#4b5563', bgColor: '#f9fafb' },
-    };
+  const getMarkerConfig = (type: string, currentIconConfigs: Map<string, string>) => {
+    const lowerType = type.toLowerCase();
+    const englishKeyword = vietnameseToEnglishKeywordMap[lowerType] || lowerType.replace(/\s+/g, '-');
+    const iconKeyword = `${englishKeyword}-icon`;
+    const iconUrl = currentIconConfigs.get(iconKeyword);
 
-    const lowerCaseType = type.toLowerCase();
-    if (imageIcons[lowerCaseType]) {
-      return imageIcons[lowerCaseType];
+    console.log('🔍 getMarkerConfig called:', {
+      type,
+      lowerType,
+      englishKeyword,
+      iconKeyword,
+      iconUrl,
+      hasIconUrl: !!iconUrl,
+      allIconConfigs: Array.from(currentIconConfigs.entries())
+    });
+
+    // Priority 1: Use dynamically fetched icon URL if available
+    if (iconUrl) {
+      console.log('✅ Icon URL found:', iconUrl);
+      return {
+        icon: iconUrl,
+        color: '#374151',
+        bgColor: '#f9fafb',
+      };
     }
 
-    // Fallback for types without custom images
-    const IconComponent = getIncidentIcon(type);
-    const color = '#4b5563'; // Default color
-    const bgColor = '#f9fafb'; // Default background
-
-    return {
-      icon: ReactDOMServer.renderToString(React.createElement(IconComponent, { size: 24, color: color })),
-      color: color,
-      bgColor: bgColor
-    };
+    console.warn('⚠️ No icon found for type:', type, 'keyword:', iconKeyword);
+    // If no icon is found from the API, return null
+    return null;
   };
 
-  // Add report markers to the map
-  const addReportMarkers = (reports: any[]) => {
+  // Add report markers to the map with dynamic icon fetching
+  const addReportMarkers = async (reports: any[]) => {
     if (!mapRef.current) return;
 
     // Clear existing report markers
@@ -269,19 +282,135 @@ const AdminLiveMap: React.FC = () => {
       return;
     }
 
+    // 1. Fetch needed icons
+    const uniqueTypes = [...new Set(reports.map(r => r.type).filter(Boolean))];
+    const keywordsToFetch: string[] = [];
+    uniqueTypes.forEach(type => {
+      const lowerType = type.toLowerCase();
+      const englishKeyword = vietnameseToEnglishKeywordMap[lowerType] || lowerType.replace(/\s+/g, '-');
+      const iconKeyword = `${englishKeyword}-icon`;
+      if (!iconConfigs.has(iconKeyword)) {
+        keywordsToFetch.push(iconKeyword);
+      }
+    });
+
+    let currentIconConfigs = new Map(iconConfigs);
+
+    if (keywordsToFetch.length > 0) {
+      console.log('🔄 Fetching icon configurations for keywords:', keywordsToFetch);
+      try {
+        const iconPromises = keywordsToFetch.map(keyword =>
+          getConfigByKeyword(keyword).then(data => ({ keyword, data }))
+        );
+        const results = await Promise.all(iconPromises);
+        console.log('📦 Icon API responses:', results);
+        
+        results.forEach(({ keyword, data }) => {
+          console.log(`🔍 Processing keyword "${keyword}":`, data);
+          
+          let iconUrl = null;
+          let configData = null;
+          
+          // Handle different response structures
+          if (data) {
+            // Structure 1: Array-like object { 0: { value, key, ... } }
+            if (data[0] && typeof data[0] === 'object') {
+              configData = data[0];
+              console.log(`  📦 Found data at index 0:`, configData);
+            }
+            // Structure 2: Direct object { value, key, ... }
+            else if ('value' in data) {
+              configData = data;
+              console.log(`  📦 Found data directly:`, configData);
+            }
+            // Structure 3: Array [{ value, key, ... }]
+            else if (Array.isArray(data) && data.length > 0) {
+              configData = data[0];
+              console.log(`  📦 Found data in array:`, configData);
+            }
+          }
+          
+          if (configData && configData.value) {
+            iconUrl = configData.value;
+            console.log(`  ✅ Found icon URL for "${keyword}":`, iconUrl);
+            console.log(`  📝 Icon details - key: ${configData.key}, description: ${configData.description}`);
+          } else {
+            console.warn(`  ⚠️ No value found for "${keyword}".`);
+            console.warn(`  📋 Data structure:`, data);
+          }
+          
+          if (iconUrl) {
+            currentIconConfigs.set(keyword, iconUrl);
+            console.log(`  💾 Stored icon URL in map for "${keyword}"`);
+          } else {
+            console.error(`  ❌ Failed to extract icon URL for "${keyword}"`);
+          }
+        });
+        
+        console.log('💾 Updating iconConfigs state with:', Array.from(currentIconConfigs.entries()));
+        setIconConfigs(currentIconConfigs);
+      } catch (error) {
+        console.error('❌ Error fetching icon configurations:', error);
+      }
+    } else {
+      console.log('ℹ️ No new icon keywords to fetch (all cached)');
+    }
+
+    // 2. Create markers with fetched icons
     reports.forEach(report => {
       if (report.lat && report.lng) {
-        const config = getMarkerConfig(report.type || 'default');
+        const config = getMarkerConfig(report.type || 'default', currentIconConfigs);
+        
+        if (!config) {
+          console.warn(`⚠️ No config found for report ${report.id}, skipping marker`);
+          return;
+        }
+        
         const el = document.createElement('div');
         el.className = 'incident-marker';
 
-        if (config.icon.startsWith('/assets/')) {
-          el.style.width = '36px';
-          el.style.height = '36px';
-          el.style.backgroundImage = `url(${config.icon})`;
+        // Check if config.icon is a URL
+        const isImageUrl = typeof config.icon === 'string' && 
+          (config.icon.startsWith('http://') || 
+           config.icon.startsWith('https://') || 
+           config.icon.startsWith('/') || 
+           config.icon.includes('.')  // Likely a file path
+          );
+        
+        console.log('🎨 Creating admin report marker:', {
+          reportId: report.id,
+          type: report.type,
+          iconValue: config.icon,
+          isImageUrl
+        });
+
+        if (isImageUrl) {
+          el.style.width = '40px';
+          el.style.height = '40px';
+          el.style.backgroundImage = `url("${config.icon}")`;
           el.style.backgroundSize = 'contain';
           el.style.backgroundRepeat = 'no-repeat';
           el.style.backgroundPosition = 'center';
+          el.style.backgroundColor = 'transparent';
+          el.style.borderRadius = '0';
+          el.style.border = 'none';
+          el.style.boxShadow = 'none';
+          el.style.padding = '0';
+          
+          // Add error handling for image loading
+          const testImg = new Image();
+          testImg.onload = () => {
+            console.log('✅ Admin report image loaded:', config.icon);
+          };
+          testImg.onerror = () => {
+            console.error('❌ Failed to load admin report image:', config.icon);
+            el.style.backgroundImage = 'none';
+            el.innerHTML = `<span style="font-size: 12px; font-weight: bold; color: #ef4444;">${report.type?.charAt(0) || '?'}</span>`;
+            el.style.display = 'flex';
+            el.style.alignItems = 'center';
+            el.style.justifyContent = 'center';
+          };
+          testImg.src = config.icon;
         } else {
           el.innerHTML = config.icon;
           el.style.fontSize = '24px';

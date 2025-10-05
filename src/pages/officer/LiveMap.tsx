@@ -7,14 +7,10 @@ import NotificationBar from '../../components/common/NotificationBar';
 import goongjs from '@goongmaps/goong-js';
 import '@goongmaps/goong-js/dist/goong-js.css';
 import {getIncidentById } from '../../services/api/incident';
+import { getConfigByKeyword } from '../../services/api/congfig';
 
 import IncidentDetail from '../../components/officer/IncidentDetail';
-import { 
-  Flame, Car, Ambulance, Shield, Waves, Zap, AlertTriangle,
-  Trash2, CarFront, Swords, Pickaxe, Eye, HelpCircle, RefreshCw
-} from 'lucide-react';
-import { createElement } from 'react';
-import { renderToStaticMarkup } from 'react-dom/server';
+import { RefreshCw } from 'lucide-react';
 import { getOfficePolygon, type OfficerPolygon } from '../../services/api/map';
 
 // Define incident interface based on actual API response
@@ -42,6 +38,15 @@ interface Incident {
   longitude?: number;
 }
 
+
+const vietnameseToEnglishKeywordMap: { [key: string]: string } = {
+  'giao thông': 'traffic',
+  'an ninh': 'security',
+  'môi trường': 'environment',
+  'cơ sở hạ tầng': 'infrastructure',
+  'khác': 'other',
+};
+
 const LiveMap: React.FC = () => {
   const [notification, setNotification] = useState({
     show: false,
@@ -59,12 +64,14 @@ const LiveMap: React.FC = () => {
   const [officerReports, setOfficerReports] = useState<any[]>([]);
   const [showOfficerReports, setShowOfficerReports] = useState(true);
   const [timePeriod, setTimePeriod] = useState<'week' | 'month' | 'quarter'>('week');
+  const [iconConfigs, setIconConfigs] = useState<Map<string, string>>(new Map());
 
   const mapContainer = useRef<HTMLDivElement>(null);
   const mapRef = useRef<any | null>(null);
   const markersRef = useRef<any[]>([]);
   const officerPolygonLayersRef = useRef<string[]>([]);
 
+  
   // Fly to a report's location on the map
   const flyToReport = (report: any) => {
     if (mapRef.current && report.lng && report.lat) {
@@ -205,110 +212,100 @@ const LiveMap: React.FC = () => {
 
 
 
-  // Update markers when incidents change
-  useEffect(() => {
-    if (mapRef.current && incidents.length > 0) {
-      addIncidentMarkers(mapRef.current);
-    }
-  }, [incidents]);
 
-  // Update officer report markers when they change or when the toggle is switched
-  useEffect(() => {
-    if (mapRef.current && showOfficerReports && officerReports.length > 0) {
-      addOfficerReportMarkers(mapRef.current);
-    } else {
-      // If reports are hidden or empty, clear only the report markers
-      // This assumes you have a way to distinguish report markers from incident markers
-      // For now, we clear all markers if the toggle is off, which is the current behavior of addOfficerReportMarkers
-      if (!showOfficerReports) {
-        clearMarkers();
-      }
-    }
-  }, [officerReports, showOfficerReports, mapRef.current]);
+
   // Fetch incidents data
 
-  // Helper function to render Lucide icons as SVG strings
-  const renderIconToSvg = (IconComponent: React.ComponentType<any>) => {
-    return renderToStaticMarkup(
-      createElement(IconComponent, { 
-        size: 20, 
-        color: '#374151', // Simple gray color
-        strokeWidth: 1.5
-      })
-    );
-  };
 
 // Get marker icon and color based on incident type
-const getMarkerConfig = (type: string) => {
-  const basePath = '/assets/';
-  const imageIcons: { [key: string]: { icon: string; color: string; bgColor: string } } = {
-    'giao thông': { icon: `${basePath}traffic.png`, color: '#1d4ed8', bgColor: '#eff6ff' },
-    'an ninh': { icon: `${basePath}security.png`, color: '#991b1b', bgColor: '#fef2f2' },
-    'môi trường': { icon: `${basePath}environment.png`, color: '#15803d', bgColor: '#f0fdf4' },
-    'cơ sở hạ tầng': { icon: `${basePath}infrastructure.png`, color: '#b45309', bgColor: '#fffbeb' },
-    'khác': { icon: `${basePath}other.png`, color: '#4b5563', bgColor: '#f9fafb' },
-  };
-
-  const iconComponents: { [key: string]: { IconComponent: React.ComponentType<any>; color: string; bgColor: string } } = {
-    // Fire incidents
-    'fire': { IconComponent: Flame, color: '#374151', bgColor: '#f9fafb' },
-    
-    // Traffic and vehicle incidents
-    'accident': { IconComponent: Car, color: '#374151', bgColor: '#f9fafb' },
-    'tai nạn giao thông': { IconComponent: CarFront, color: '#374151', bgColor: '#f9fafb' },
-    'ket xe': { IconComponent: Car, color: '#374151', bgColor: '#f9fafb' },
-    
-    // Medical emergencies
-    'medical': { IconComponent: Ambulance, color: '#374151', bgColor: '#f9fafb' },
-    
-    // Crime and security
-    'crime': { IconComponent: Shield, color: '#374151', bgColor: '#f9fafb' },
-    'đánh nhau': { IconComponent: Swords, color: '#374151', bgColor: '#f9fafb' },
-    'trộm cắp': { IconComponent: Eye, color: '#374151', bgColor: '#f9fafb' },
-    'phá hoại công trình': { IconComponent: Pickaxe, color: '#374151', bgColor: '#f9fafb' },
-    
-    // Environmental and public order
-    'flood': { IconComponent: Waves, color: '#374151', bgColor: '#f9fafb' },
-    'xả rác': { IconComponent: Trash2, color: '#374151', bgColor: '#f9fafb' },
-    'gây rối trật tự': { IconComponent: AlertTriangle, color: '#374151', bgColor: '#f9fafb' },
-    
-    // Emergency
-    'emergency': { IconComponent: Zap, color: '#374151', bgColor: '#f9fafb' },
-    
-    // Other/Unknown
-    'other': { IconComponent: HelpCircle, color: '#374151', bgColor: '#f9fafb' },
-    'default': { IconComponent: AlertTriangle, color: '#374151', bgColor: '#f9fafb' }
-  };
-
+const getMarkerConfig = (type: string, currentIconConfigs: Map<string, string>) => {
   const lowerType = type.toLowerCase();
+  const englishKeyword = vietnameseToEnglishKeywordMap[lowerType] || lowerType.replace(/\s+/g, '-');
+  const iconKeyword = `${englishKeyword}-icon`;
+  const iconUrl = currentIconConfigs.get(iconKeyword);
 
-  if (imageIcons[lowerType]) {
-    return imageIcons[lowerType];
+  console.log('🔍 getMarkerConfig called:', {
+    type,
+    lowerType,
+    englishKeyword,
+    iconKeyword,
+    iconUrl,
+    hasIconUrl: !!iconUrl,
+    allIconConfigs: Array.from(currentIconConfigs.entries())
+  });
+
+  // Priority 1: Use dynamically fetched icon URL if available
+  if (iconUrl) {
+    console.log('✅ Icon URL found:', iconUrl);
+    return {
+      icon: iconUrl,
+      color: '#374151', // Default color, can be customized if API provides it
+      bgColor: '#f9fafb', // Default background, can be customized
+    };
   }
 
-  const config = iconComponents[lowerType] || iconComponents.default;
-  return {
-    icon: renderIconToSvg(config.IconComponent),
-    color: config.color,
-    bgColor: config.bgColor
-  };
+  console.warn('⚠️ No icon found for type:', type, 'keyword:', iconKeyword);
+  // If no icon is found from the API, return null
+  return null;
 };
 
 // Create marker for incident
-const createIncidentMarker = (incident: Incident, map: any) => {
-  const config = getMarkerConfig(incident.type);
+const createIncidentMarker = (incident: Incident, map: any, currentIconConfigs: Map<string, string>) => {
+  const config = getMarkerConfig(incident.type || 'default', currentIconConfigs);
+
+  // Do not create a marker if no valid config is found
+  if (!config) return null;
   
   const el = document.createElement('div');
   el.className = 'incident-marker';
 
-  if (config.icon.startsWith('/assets/')) {
-    el.style.width = '36px';
-    el.style.height = '36px';
-    el.style.backgroundImage = `url(${config.icon})`;
+  // Check if config.icon is a URL (more flexible check)
+  const isImageUrl = typeof config.icon === 'string' && 
+    (config.icon.startsWith('http://') || 
+     config.icon.startsWith('https://') || 
+     config.icon.startsWith('/') || 
+     config.icon.includes('.')  // Likely a file path
+    );
+  
+  console.log('🎨 Creating marker element:', {
+    incidentId: incident.id,
+    type: incident.type,
+    iconValue: config.icon,
+    isImageUrl,
+    iconLength: config.icon?.length
+  });
+
+  if (isImageUrl) {
+    console.log('🖼️ Using image URL for marker:', config.icon);
+    el.style.width = '40px';
+    el.style.height = '40px';
+    el.style.backgroundImage = `url("${config.icon}")`;
     el.style.backgroundSize = 'contain';
     el.style.backgroundRepeat = 'no-repeat';
     el.style.backgroundPosition = 'center';
+    el.style.backgroundColor = 'transparent';
+    el.style.borderRadius = '0';
+    el.style.border = 'none';
+    el.style.boxShadow = 'none';
+    el.style.padding = '0';
+    
+    // Add error handling for image loading
+    const testImg = new Image();
+    testImg.onload = () => {
+      console.log('✅ Image loaded successfully:', config.icon);
+    };
+    testImg.onerror = () => {
+      console.error('❌ Failed to load image:', config.icon);
+      // Fallback: show a colored circle with text
+      el.style.backgroundImage = 'none';
+      el.innerHTML = `<span style="font-size: 12px; font-weight: bold; color: #3b82f6;">${incident.type?.charAt(0) || '?'}</span>`;
+      el.style.display = 'flex';
+      el.style.alignItems = 'center';
+      el.style.justifyContent = 'center';
+    };
+    testImg.src = config.icon;
   } else {
+    console.log('📝 Using HTML/text for marker:', config.icon);
     el.innerHTML = config.icon;
     el.style.fontSize = '24px';
     el.style.width = '50px';
@@ -358,7 +355,7 @@ const createIncidentMarker = (incident: Incident, map: any) => {
   };
 
   // Add markers for all incidents
-  const addIncidentMarkers = (map: any) => {
+  const addIncidentMarkers = (map: any, currentIconConfigs: Map<string, string>) => {
     clearMarkers();
     
     if (!map) {
@@ -413,7 +410,7 @@ const createIncidentMarker = (incident: Incident, map: any) => {
         }
         
         try {
-          const marker = createIncidentMarker(incident, map);
+          const marker = createIncidentMarker(incident, map, currentIconConfigs);
           markersRef.current.push(marker);
           markersCreated++;
           console.log(`✅ Marker ${markersCreated} created for incident ${incident.id} at [${lng}, ${lat}]`);
@@ -455,15 +452,6 @@ const createIncidentMarker = (incident: Incident, map: any) => {
     
   };
 
-  // Fetch incidents when component mounts
- 
-
-  // Add markers when incidents data changes
-  useEffect(() => {
-    if (mapRef.current && incidents.length > 0) {
-      addIncidentMarkers(mapRef.current);
-    }
-  }, [incidents]);
 
   // Initialize map
   useEffect(() => {
@@ -528,21 +516,107 @@ const createIncidentMarker = (incident: Incident, map: any) => {
     };
   }, []);
 
+  // Main effect for drawing markers
+  useEffect(() => {
+    const drawMarkers = async () => {
+      if (!mapRef.current?.isStyleLoaded()) return;
+
+      const reportsToDraw = showOfficerReports ? officerReports : incidents;
+      if (reportsToDraw.length === 0) {
+        clearMarkers();
+        return;
+      }
+
+      // 1. Fetch needed icons
+      const uniqueTypes = [...new Set(reportsToDraw.map(r => r.type || r.subCategory).filter(Boolean))];
+      const keywordsToFetch: string[] = [];
+      uniqueTypes.forEach(type => {
+        const lowerType = type.toLowerCase();
+        const englishKeyword = vietnameseToEnglishKeywordMap[lowerType] || lowerType.replace(/\s+/g, '-');
+        const iconKeyword = `${englishKeyword}-icon`;
+        if (!iconConfigs.has(iconKeyword)) {
+          keywordsToFetch.push(iconKeyword);
+        }
+      });
+
+      let currentIconConfigs = new Map(iconConfigs);
+
+      if (keywordsToFetch.length > 0) {
+        console.log('🔄 Fetching icon configurations for keywords:', keywordsToFetch);
+        try {
+          const iconPromises = keywordsToFetch.map(keyword =>
+            getConfigByKeyword(keyword).then(data => ({ keyword, data }))
+          );
+          const results = await Promise.all(iconPromises);
+          console.log('📦 Icon API responses:', results);
+          
+          results.forEach(({ keyword, data }) => {
+            console.log(`🔍 Processing keyword "${keyword}":`, data);
+            
+            let iconUrl = null;
+            let configData = null;
+            
+            // Handle different response structures
+            if (data) {
+              // Structure 1: Array-like object { 0: { value, key, ... } }
+              if (data[0] && typeof data[0] === 'object') {
+                configData = data[0];
+                console.log(`  📦 Found data at index 0:`, configData);
+              }
+              // Structure 2: Direct object { value, key, ... }
+              else if ('value' in data) {
+                configData = data;
+                console.log(`  📦 Found data directly:`, configData);
+              }
+              // Structure 3: Array [{ value, key, ... }]
+              else if (Array.isArray(data) && data.length > 0) {
+                configData = data[0];
+                console.log(`  📦 Found data in array:`, configData);
+              }
+            }
+            
+            if (configData && configData.value) {
+              iconUrl = configData.value;
+              console.log(`  ✅ Found icon URL for "${keyword}":`, iconUrl);
+              console.log(`  📝 Icon details - key: ${configData.key}, description: ${configData.description}`);
+            } else {
+              console.warn(`  ⚠️ No value found for "${keyword}".`);
+              console.warn(`  📋 Data structure:`, data);
+            }
+            
+            if (iconUrl) {
+              currentIconConfigs.set(keyword, iconUrl);
+              console.log(`  💾 Stored icon URL in map for "${keyword}"`);
+            } else {
+              console.error(`  ❌ Failed to extract icon URL for "${keyword}"`);
+            }
+          });
+          
+          console.log('💾 Updating iconConfigs state with:', Array.from(currentIconConfigs.entries()));
+          setIconConfigs(currentIconConfigs);
+        } catch (error) {
+          console.error('❌ Error fetching icon configurations:', error);
+        }
+      } else {
+        console.log('ℹ️ No new icon keywords to fetch (all cached)');
+      }
+
+      // 2. Clear existing markers
+      clearMarkers();
+
+      // 3. Draw new markers with the latest icons
+      if (showOfficerReports) {
+        addOfficerReportMarkers(mapRef.current, currentIconConfigs);
+      } else {
+        addIncidentMarkers(mapRef.current, currentIconConfigs);
+      }
+    };
+
+    drawMarkers();
+  }, [showOfficerReports, incidents, officerReports]);
+
   // Fetch incidents on component mount
 
-  // Add markers when incidents data changes
-  useEffect(() => {
-    if (mapRef.current && incidents.length > 0) {
-      // Ensure map is fully loaded before adding markers
-      if (mapRef.current.isStyleLoaded()) {
-        addIncidentMarkers(mapRef.current);
-      } else {
-        mapRef.current.on('styledata', () => {
-          addIncidentMarkers(mapRef.current);
-        });
-      }
-    }
-  }, [incidents]);
 
   // Fetch officer polygons from API
   const fetchOfficerPolygons = async () => {
@@ -658,7 +732,7 @@ const createIncidentMarker = (incident: Incident, map: any) => {
         });
         
         // Add fill layer with blue color for officer areas
-        console.log(`🎨 Adding officer fill layer ${layerId}`);
+       
         map.addLayer({
           id: layerId,
           type: 'fill',
@@ -672,10 +746,10 @@ const createIncidentMarker = (incident: Incident, map: any) => {
           },
           minzoom: 10 // Show at lower zoom levels
         });
-        console.log(`✅ Officer fill layer ${layerId} added successfully`);
+        
         
         // Add border layer
-        console.log(`🔲 Adding officer border layer ${borderLayerId}`);
+      
         map.addLayer({
           id: borderLayerId,
           type: 'line',
@@ -689,7 +763,7 @@ const createIncidentMarker = (incident: Incident, map: any) => {
           },
           minzoom: 10
         });
-        console.log(`✅ Officer border layer ${borderLayerId} added successfully`);
+        
         
         // Calculate center point for label from MultiPolygon
         const bounds = new goongjs.LngLatBounds();
@@ -775,7 +849,7 @@ const createIncidentMarker = (incident: Incident, map: any) => {
   };
 
   // Add officer reports as markers to map
-  const addOfficerReportMarkers = (map: any) => {
+  const addOfficerReportMarkers = (map: any, currentIconConfigs: Map<string, string>) => {
     if (!map || !map.loaded() || !showOfficerReports || !officerReports.length) {
       return;
     }
@@ -794,17 +868,58 @@ const createIncidentMarker = (incident: Incident, map: any) => {
 
       try {
         // Use the same marker creation logic as incidents for consistency
-        const config = getMarkerConfig(report.type || report.subCategory || 'default');
+        const config = getMarkerConfig(report.type || report.subCategory || 'default', currentIconConfigs);
+
+        // Do not create a marker if no valid config is found
+        if (!config) {
+          console.warn(`⚠️ No config found for report ${report.id}, skipping marker`);
+          return;
+        }
         
         const el = document.createElement('div');
         el.className = 'incident-marker'; // Use same class for consistent styling
-        if (config.icon.startsWith('/assets/')) {
-          el.style.width = '36px';
-          el.style.height = '36px';
-          el.style.backgroundImage = `url(${config.icon})`;
+        
+        const isImageUrl = typeof config.icon === 'string' && 
+          (config.icon.startsWith('http://') || 
+           config.icon.startsWith('https://') || 
+           config.icon.startsWith('/') || 
+           config.icon.includes('.')  // Likely a file path
+          );
+        
+        console.log('🎨 Creating officer report marker:', {
+          reportId: report.id,
+          type: report.type || report.subCategory,
+          iconValue: config.icon,
+          isImageUrl
+        });
+
+        if (isImageUrl) {
+          el.style.width = '40px';
+          el.style.height = '40px';
+          el.style.backgroundImage = `url("${config.icon}")`;
           el.style.backgroundSize = 'contain';
           el.style.backgroundRepeat = 'no-repeat';
           el.style.backgroundPosition = 'center';
+          el.style.backgroundColor = 'transparent';
+          el.style.borderRadius = '0';
+          el.style.border = 'none';
+          el.style.boxShadow = 'none';
+          el.style.padding = '0';
+          
+          // Add error handling for image loading
+          const testImg = new Image();
+          testImg.onload = () => {
+            console.log('✅ Officer report image loaded:', config.icon);
+          };
+          testImg.onerror = () => {
+            console.error('❌ Failed to load officer report image:', config.icon);
+            el.style.backgroundImage = 'none';
+            el.innerHTML = `<span style="font-size: 12px; font-weight: bold; color: #10b981;">${(report.type || report.subCategory)?.charAt(0) || '?'}</span>`;
+            el.style.display = 'flex';
+            el.style.alignItems = 'center';
+            el.style.justifyContent = 'center';
+          };
+          testImg.src = config.icon;
         } else {
           el.innerHTML = config.icon;
           el.style.fontSize = '24px';
@@ -853,16 +968,6 @@ const createIncidentMarker = (incident: Incident, map: any) => {
     }
   }, [officerPolygons, showOfficerBoundaries]);
 
-  // Update officer report markers visibility
-  useEffect(() => {
-    if (mapRef.current && officerReports.length > 0 && showOfficerReports) {
-      addOfficerReportMarkers(mapRef.current);
-    } else if (mapRef.current && !showOfficerReports) {
-      // Clear markers when hiding reports
-      markersRef.current.forEach(marker => marker.remove());
-      markersRef.current = [];
-    }
-  }, [officerReports, showOfficerReports]);
 
   // Refetch officer polygons when time period changes
   useEffect(() => {

@@ -1,15 +1,18 @@
 import { useState, useEffect } from 'react';
-import { X, Mail, Phone, MapPin, Calendar, Ban, Trophy, History, User, Shield } from 'lucide-react';
-import { deleteUser, getUserHistoryPoint } from '../../services/api/account';
+import { X, Mail, Phone, MapPin, Calendar, Ban, Trophy, History, User, Shield, CheckCircle } from 'lucide-react';
+import { getUserHistoryPoint, suspendUser } from '../../services/api/account';
+import NotificationBar from '../common/NotificationBar';
 
 const UserDetailModal = ({
   user,
   loading,
   onClose,
+  onStatusChange,
 }: {
   user: any;
   loading: boolean;
   onClose: () => void;
+  onStatusChange?: (userId: string, newStatus: string) => void;
 }) => {
   // If loading, show a spinner or loading text
   if (loading) {
@@ -29,6 +32,11 @@ const UserDetailModal = ({
   const [suspending, setSuspending] = useState(false);
   const [pointHistory, setPointHistory] = useState<any>(null);
   const [historyLoading, setHistoryLoading] = useState(false);
+  const [notification, setNotification] = useState<{
+    show: boolean;
+    message: string;
+    type: 'success' | 'error';
+  }>({ show: false, message: '', type: 'success' });
 
   useEffect(() => {
     const fetchHistory = async () => {
@@ -64,19 +72,55 @@ const UserDetailModal = ({
 
   const handleSuspend = async () => {
     if (!user?.id) return;
+    
+    const isActive = user.status?.toLowerCase() === 'active';
+    const newStatus = isActive ? 'inactive' : 'active';
+    const actionText = isActive ? 'đình chỉ' : 'kích hoạt lại';
+    
     setSuspending(true);
     try {
-      await deleteUser(user.id);
-      onClose();
+      await suspendUser(user.id, newStatus);
+      
+      // Update user status locally (optimistic update)
+      user.status = newStatus;
+      
+      // Notify parent component to update the table immediately
+      if (onStatusChange) {
+        onStatusChange(user.id, newStatus);
+      }
+      
+      setNotification({
+        show: true,
+        message: `Tài khoản đã được ${actionText} thành công!`,
+        type: 'success',
+      });
+      
+      // Close modal after 1.5 seconds
+      setTimeout(() => {
+        onClose();
+      }, 1500);
     } catch (error) {
-      alert('Có lỗi xảy ra khi đình chỉ tài khoản.');
+      console.error('Failed to change user status', error);
+      setNotification({
+        show: true,
+        message: `Có lỗi xảy ra khi ${actionText} tài khoản.`,
+        type: 'error',
+      });
     } finally {
       setSuspending(false);
     }
   };
 
+  const isActive = user.status?.toLowerCase() === 'active';
+
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+      <NotificationBar
+        show={notification.show}
+        message={notification.message}
+        type={notification.type}
+        onClose={() => setNotification({ ...notification, show: false })}
+      />
       <div className="bg-white rounded-xl shadow-2xl w-full max-w-5xl max-h-[90vh] overflow-hidden">
         {/* Header */}
         <div className="flex items-start justify-between p-6 border-b border-gray-200">
@@ -256,13 +300,27 @@ const UserDetailModal = ({
         <div className="flex justify-between items-center p-6 border-t border-gray-200 bg-gray-50">
           <div className="flex space-x-3">
             <button
-              className="flex items-center space-x-2 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors disabled:opacity-50"
+              className={`flex items-center space-x-2 px-4 py-2 text-white rounded-lg transition-colors disabled:opacity-50 ${
+                isActive
+                  ? 'bg-red-600 hover:bg-red-700'
+                  : 'bg-green-600 hover:bg-green-700'
+              }`}
               onClick={handleSuspend}
               disabled={suspending}
             >
-              <Ban className="w-4 h-4" />
+              {isActive ? (
+                <Ban className="w-4 h-4" />
+              ) : (
+                <CheckCircle className="w-4 h-4" />
+              )}
               <span>
-                {suspending ? 'Đang đình chỉ...' : 'Đình chỉ tài khoản'}
+                {suspending
+                  ? isActive
+                    ? 'Đang đình chỉ...'
+                    : 'Đang kích hoạt...'
+                  : isActive
+                  ? 'Đình chỉ tài khoản'
+                  : 'Kích hoạt lại tài khoản'}
               </span>
             </button>
           </div>

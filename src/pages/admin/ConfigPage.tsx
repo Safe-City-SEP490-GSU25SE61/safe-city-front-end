@@ -25,6 +25,7 @@ const ConfigPage: React.FC = () => {
   const [notification, setNotification] = useState<{ message: string; type: NotificationType } | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
   const [editingConfig, setEditingConfig] = useState<ConfigItem | null>(null);
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [isCreateModalOpen, setCreateModalOpen] = useState(false);
   const [newConfig, setNewConfig] = useState({ key: '', value: '', description: '', category: '' });
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -61,17 +62,26 @@ const ConfigPage: React.FC = () => {
 
   const handleEdit = (config: ConfigItem) => {
     setEditingConfig({ ...config });
+    setSelectedFile(null);
   };
 
   const handleCancel = () => {
     setEditingConfig(null);
+    setSelectedFile(null);
   };
 
   const handleSave = async () => {
     if (editingConfig) {
       setIsSubmitting(true);
       try {
-        await updateConfig(editingConfig);
+        await updateConfig(
+          Number(editingConfig.id),
+          editingConfig.category,
+          editingConfig.key,
+          editingConfig.value,
+          editingConfig.description,
+          selectedFile || undefined
+        );
         setNotification({ message: 'Cập nhật cấu hình thành công!', type: 'success' });
         fetchConfigs(); // Refresh data
         handleCancel();
@@ -184,11 +194,30 @@ const ConfigPage: React.FC = () => {
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-center text-sm font-medium">
                         {editingConfig?.id === config.id ? (
-                          <input
-                            type="text"
-                            value={editingConfig.value}
-                            onChange={(e) => setEditingConfig({ ...editingConfig, value: e.target.value })}
-                            className="w-full bg-transparent focus:outline-none focus:ring-2 focus:ring-blue-500 rounded py-0.5 text-center" />
+                          <div className="flex flex-col gap-2">
+                            {config.category.toLowerCase() === 'incident report' ? (
+                              <div className="space-y-2">
+                                <input
+                                  type="file"
+                                  accept="image/*"
+                                  onChange={(e) => setSelectedFile(e.target.files?.[0] || null)}
+                                  className="w-full text-sm file:mr-4 file:py-1 file:px-3 file:rounded file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
+                                />
+                                {selectedFile && (
+                                  <p className="text-xs text-green-600">Đã chọn: {selectedFile.name}</p>
+                                )}
+                                {!selectedFile && config.value && (
+                                  <p className="text-xs text-gray-500">Hiện tại: {config.value}</p>
+                                )}
+                              </div>
+                            ) : (
+                              <input
+                                type="text"
+                                value={editingConfig.value}
+                                onChange={(e) => setEditingConfig({ ...editingConfig, value: e.target.value })}
+                                className="w-full bg-transparent focus:outline-none focus:ring-2 focus:ring-blue-500 rounded py-0.5 text-center" />
+                            )}
+                          </div>
                         ) : (
                           <span className='font-semibold'>{config.value}</span>
                         )}

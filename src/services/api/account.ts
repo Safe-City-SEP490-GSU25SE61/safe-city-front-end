@@ -34,9 +34,12 @@ export const getAccountStatistics = async () => {
   return response.data;
 };
 
-// Delete user by ID
-export const deleteUser = async (id: string) => {
-  const response = await axios.delete(API_ENDPOINTS.USERS.DELETE(id));
+// Suspend/unsuspend user by ID
+export const suspendUser = async (id: string, status: 'active' | 'inactive' = 'inactive') => {
+  const response = await axios.patch(
+    API_ENDPOINTS.USERS.SUSPEND(id),
+    { status }
+  );
   return response.data;
 };
 export const getUserProfile = async () =>{

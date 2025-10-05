@@ -217,6 +217,7 @@ const parseJsonContent = (jsonContent: string, violations?: string[]): string =>
 // Define the info table data dynamically
 const getBlogInfo = (
   blog: Blog,
+  navigate: ReturnType<typeof useNavigate>,
   blogStatus: string,
   handleToggleBlogStatus: () => void,
   handleViewReport: () => void,
@@ -241,7 +242,15 @@ const getBlogInfo = (
     },
     {
       label: 'Tác giả',
-      value: blog.authorName || 'Chưa có tác giả',
+      value: (
+        <button
+          onClick={() => blog.authorId && navigate(`/officer/user-blog-detail/${blog.authorId}`)}
+          className="text-blue-600 hover:underline disabled:text-gray-500 disabled:no-underline disabled:cursor-not-allowed"
+          disabled={!blog.authorId}
+        >
+          {blog.authorName || 'Chưa có tác giả'}
+        </button>
+      ),
       icon: <User className="w-4 h-4 text-gray-500" />,
     },
     {
@@ -835,7 +844,7 @@ const BlogDetailPage: React.FC = () => {
     );
   }
 
-  const blogInfo = getBlogInfo(blog, blogStatus, handleToggleBlogStatus, handleViewReport, handleTogglePinStatus, handleToggleVisibility);
+  const blogInfo = getBlogInfo(blog, navigate, blogStatus, handleToggleBlogStatus, handleViewReport, handleTogglePinStatus, handleToggleVisibility);
 
   return (
     <>
